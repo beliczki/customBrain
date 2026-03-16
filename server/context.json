@@ -1,0 +1,8 @@
+{
+  "not_people": [
+    { "name": "Gábor", "what": "Grok Gábor — a bizi projekt virtuális AI asszisztense, nem valódi személy" },
+    { "name": "Vanda", "what": "Telekom ügyfélszolgálati chatbot, nem valódi személy" }
+  ],
+  "known_people": [],
+  "notes": "A felhasználó magyar, a bizi egy tanácsadó platform több AI asszisztenssel (Grok Gábor, Gemini Gergő, Claude Krisztián)."
+}

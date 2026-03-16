@@ -1,0 +1,14 @@
+{
+  "name": "open-brain",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "init": "cd server && node ../scripts/init-collection.js",
+    "start": "cd server && node index.js"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.17.0",
+    "dotenv": "^17.3.1"
+  }
+}

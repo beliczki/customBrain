@@ -1,0 +1,6 @@
+node_modules/
+.env
+service-account.json
+client_secret*.json
+client/dist/
+package-lock.json
