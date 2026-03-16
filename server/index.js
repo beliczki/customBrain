@@ -8,7 +8,7 @@ import searchRouter from './routes/search.js';
 import recentRouter from './routes/recent.js';
 import statsRouter from './routes/stats.js';
 import exportRouter from './routes/export.js';
-import { handleMcpSse, handleMcpMessage } from './mcp.js';
+import { handleMcpSse, handleMcpMessage, handleMcpHttp } from './mcp.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -24,9 +24,10 @@ app.use(recentRouter);
 app.use(statsRouter);
 app.use(exportRouter);
 
-// MCP SSE endpoint
-app.get('/mcp', handleMcpSse);
-app.post('/mcp/messages', handleMcpMessage);
+// MCP endpoints
+app.get('/mcp', handleMcpSse);              // SSE transport (legacy)
+app.post('/mcp/messages', handleMcpMessage); // SSE message handler
+app.all('/mcp/http', handleMcpHttp);        // Streamable HTTP transport (modern)
 
 // Serve React client in production
 app.use(express.static(join(__dirname, '..', 'client', 'dist')));

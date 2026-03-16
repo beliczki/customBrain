@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import { searchThoughts } from './routes/search.js';
 import { getRecent } from './routes/recent.js';
@@ -9,7 +10,7 @@ import { captureThought } from './routes/capture.js';
 
 export function createMcpServer() {
   const server = new McpServer({
-    name: 'open-brain',
+    name: 'customBrain',
     version: '1.0.0',
   });
 
@@ -66,16 +67,16 @@ export function createMcpServer() {
   return server;
 }
 
-// Map of active transports by session ID
-const transports = new Map();
+// === SSE Transport (legacy) ===
+const sseTransports = new Map();
 
 export function handleMcpSse(req, res) {
   const server = createMcpServer();
   const transport = new SSEServerTransport('/mcp/messages', res);
-  transports.set(transport.sessionId, { server, transport });
+  sseTransports.set(transport.sessionId, { server, transport });
 
   res.on('close', () => {
-    transports.delete(transport.sessionId);
+    sseTransports.delete(transport.sessionId);
   });
 
   server.connect(transport);
@@ -83,9 +84,43 @@ export function handleMcpSse(req, res) {
 
 export function handleMcpMessage(req, res) {
   const sessionId = req.query.sessionId;
-  const session = transports.get(sessionId);
+  const session = sseTransports.get(sessionId);
   if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
   session.transport.handlePostMessage(req, res);
+}
+
+// === Streamable HTTP Transport (modern) ===
+const httpTransports = new Map();
+
+export async function handleMcpHttp(req, res) {
+  // Check for existing session
+  const sessionId = req.headers['mcp-session-id'];
+
+  if (sessionId && httpTransports.has(sessionId)) {
+    const transport = httpTransports.get(sessionId);
+    await transport.handleRequest(req, res);
+    return;
+  }
+
+  // New session
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+  });
+
+  const server = createMcpServer();
+
+  transport.onclose = () => {
+    const sid = transport.sessionId;
+    if (sid) httpTransports.delete(sid);
+  };
+
+  await server.connect(transport);
+
+  if (transport.sessionId) {
+    httpTransports.set(transport.sessionId, transport);
+  }
+
+  await transport.handleRequest(req, res);
 }
