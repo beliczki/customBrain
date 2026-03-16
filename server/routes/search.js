@@ -19,7 +19,19 @@ router.get('/search', async (req, res) => {
 
 export default router;
 
+function applyTimeDecay(results) {
+  const now = Date.now();
+  return results
+    .map((r) => {
+      const days = (now - new Date(r.created_at).getTime()) / 86400000;
+      const decay = 1 / (1 + days / 30);
+      return { ...r, cosine_score: r.score, score: r.score * decay };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
 export async function searchThoughts(query, limit = 5) {
   const vector = await embedText(query);
-  return searchVector(vector, limit);
+  const results = await searchVector(vector, limit);
+  return applyTimeDecay(results);
 }

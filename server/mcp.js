@@ -5,12 +5,23 @@ import { searchThoughts } from './routes/search.js';
 import { getRecent } from './routes/recent.js';
 import { getStats } from './routes/stats.js';
 import { exportThoughts } from './routes/export.js';
+import { captureThought } from './routes/capture.js';
 
 export function createMcpServer() {
   const server = new McpServer({
     name: 'open-brain',
     version: '1.0.0',
   });
+
+  server.tool(
+    'capture_thought',
+    'Capture a new thought into the brain — extracts metadata (people, topics, projects, type, action items) automatically',
+    { text: z.string() },
+    async ({ text }) => {
+      const result = await captureThought(text);
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    }
+  );
 
   server.tool(
     'search_brain',

@@ -114,11 +114,25 @@
 
 ## What's NOT Done / Next Steps
 
-### From todo.md — not yet completed
-- [ ] **Hetzner deployment** — everything runs locally on Mac, not yet on Hetzner CX22
+### Hetzner deployment — 90% DONE (2026-03-16)
+- [x] Hetzner CX22 provisioned: `46.224.60.159`, domain: `brain.beliczki.hu`
+- [x] Docker + Qdrant running, collection initialized
+- [x] Repo cloned, server deps installed, client built
+- [x] Production .env with real CAPTURE_SECRET: `0be0c7a00f2f3c3779cec85c406ecb784bf6023900faf6cd`
+- [x] Nginx reverse proxy configured for brain.beliczki.hu
+- [x] Server running via nohup (http://brain.beliczki.hu works)
+- [ ] **HTTPS certbot** — DNS propagation pending, run tomorrow morning (2026-03-17):
+  ```bash
+  ssh -i ~/.ssh/hetzner_customBrain root@46.224.60.159 'certbot --nginx -d brain.beliczki.hu --non-interactive --agree-tos -m beliczki.robert@gmail.com'
+  ```
 - [ ] **Crontab setup** — `cron/export.js` exists but no system crontab configured
+- [ ] **Firewall** — lock down Qdrant 6333 to internal only
+- [ ] **Process manager** — replace nohup with systemd service for auto-restart
+
+### Remaining tasks
 - [ ] **MCP testing** — server exposes /mcp SSE endpoint but not yet connected to Claude Desktop or Claude Code
-- [ ] **Production CAPTURE_SECRET** — still using `test-secret-123`
+- [ ] **P1a** — Time decay in search scoring
+- [ ] **P3** — capture_thought MCP tool
 
 ### Known issues
 - **Embedding model mismatch**: todo.md says `gemini-embedding-exp-03-07` but code uses `gemini-embedding-001` (the experimental model doesn't exist)

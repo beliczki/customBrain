@@ -97,7 +97,7 @@ export default function Search() {
               )}
             </div>
 
-            <p className="text-xs text-gray-500 mt-3">Score: {r.score?.toFixed(3)} · {new Date(r.created_at).toLocaleString()}</p>
+            <p className="text-xs text-gray-500 mt-3">Score: {r.score?.toFixed(3)}{r.cosine_score ? ` (cosine: ${r.cosine_score.toFixed(3)})` : ''} · {new Date(r.created_at).toLocaleString()}</p>
           </div>
         ))}
       </div>
