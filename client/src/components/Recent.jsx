@@ -27,7 +27,7 @@ export default function Recent() {
         <div key={t.id} className="p-4 bg-gray-800 rounded-lg">
           <div className="flex justify-between items-start mb-3">
             <div className="flex-1">
-              {t.title && <h3 className="text-sm font-semibold mb-1">{t.title}</h3>}
+              {t.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide">{t.title}</h3>}
               <p className="text-sm text-gray-300">{t.text}</p>
             </div>
             <button

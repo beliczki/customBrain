@@ -12,7 +12,7 @@ export default function App() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Open Brain</h1>
+      <h1 className="text-2xl font-bold mb-6">customBrain</h1>
       <nav className="flex gap-2 mb-8">
         {tabs.map((tab) => (
           <button
