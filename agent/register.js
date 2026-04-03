@@ -43,8 +43,12 @@ export function registerAgentTools(server, z) {
       end: z.string().optional().describe('End date ISO string'),
     },
     async ({ start, end }) => {
-      const dateRange = start || end ? { start, end } : undefined;
-      return json(await getCalendarEvents(dateRange));
+      try {
+        const dateRange = start || end ? { start, end } : undefined;
+        return json(await getCalendarEvents(dateRange));
+      } catch (e) {
+        return json({ error: e.message, status: e.response?.status, data: e.response?.data });
+      }
     }
   );
 
