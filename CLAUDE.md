@@ -48,6 +48,22 @@ HTTP routes are the source of truth. Route files export both an Express router (
 - **Auth**: `POST /capture` requires Bearer token matching `CAPTURE_SECRET` env var. Other routes are open.
 - **MCP**: Two transports — SSE legacy (`GET /mcp` + `POST /mcp/messages`) and Streamable HTTP modern (`ALL /mcp/http`). Each connection gets its own McpServer instance.
 
+## Agent tools
+
+New MCP tools live in `agent/` directory (isolated from server code). `agent/register.js` exports `registerAgentTools(server, z)` — receives the zod instance from the caller to avoid dual-instance issues. Tools: `get_fireflies_transcripts`, `get_youtube_likes`, `get_gmail_threads`, `get_calendar_events`, `get_event_context`, `get_task_context`, `manage_drafts`.
+
+## Chrome extension
+
+`extension/` — Manifest v3 "Save to Brain" web clipper. Calls `/capture` and `/search` directly via HTTP. Load unpacked in `chrome://extensions`.
+
+## Known deployment gotchas
+
+- **zod must be v3** — zod v4 causes `_zod` property errors with `@modelcontextprotocol/sdk`. The MCP SDK claims v4 support but `zod-to-json-schema` breaks. Keep `zod@3.x` in `server/package.json`.
+- **pm2 cwd matters** — pm2 must start with `--cwd /root/customBrain/server` on Hetzner, otherwise `dotenv` can't find `.env` and Qdrant/API calls fail with "fetch failed".
+- **express.json() blocks Streamable HTTP** — `/mcp/http` route is excluded from `express.json()` middleware because `StreamableHTTPServerTransport` needs the raw body.
+- **Claude Desktop MCP config** — only supports `command`+`args` (stdio), not SSE/HTTP directly. Use `npx mcp-remote https://brain.beliczki.hu/mcp/http` as the command to bridge stdio↔Hetzner.
+- **OAuth2 scope expansion** — when adding Google API scopes, must re-run `server/get-drive-token.js` and update the refresh token in `.env` on all environments (local + Hetzner).
+
 ## Client
 
 Vite + React 19 + Tailwind 3. Components in `client/src/components/`. No routing library — tab-based navigation in `App.jsx`. API base URL comes from Vite proxy or direct fetch to server origin.

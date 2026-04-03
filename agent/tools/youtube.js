@@ -1,4 +1,4 @@
-import { getYouTube } from '../google-auth.js';
+import { getYouTube } from '../../server/google-auth.js';
 
 export async function getYoutubeLikes(sinceDate) {
   const youtube = getYouTube();

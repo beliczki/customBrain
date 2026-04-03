@@ -1,4 +1,4 @@
-import { getGmail } from '../google-auth.js';
+import { getGmail } from '../../server/google-auth.js';
 
 const SKIP_SENDERS = ['noreply@', 'no-reply@', 'notifications@', 'mailer-daemon@'];
 

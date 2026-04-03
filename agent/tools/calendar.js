@@ -1,4 +1,4 @@
-import { getCalendar } from '../google-auth.js';
+import { getCalendar } from '../../server/google-auth.js';
 
 export async function getCalendarEvents(dateRange) {
   const calendar = getCalendar();
