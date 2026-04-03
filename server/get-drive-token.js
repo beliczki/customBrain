@@ -12,7 +12,12 @@ const oauth2 = new google.auth.OAuth2(client_id, client_secret, REDIRECT);
 const url = oauth2.generateAuthUrl({
   access_type: 'offline',
   prompt: 'consent',
-  scope: ['https://www.googleapis.com/auth/drive.file'],
+  scope: [
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/calendar.readonly',
+    'https://www.googleapis.com/auth/youtube.readonly',
+  ],
 });
 
 console.log('\nOpening browser for Google sign-in...\n');

@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Save to Brain",
+  "version": "1.0",
+  "description": "Clip any webpage to customBrain",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://brain.beliczki.hu/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
+}

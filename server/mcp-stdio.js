@@ -7,6 +7,7 @@ import { getRecent } from './routes/recent.js';
 import { getStats } from './routes/stats.js';
 import { exportThoughts } from './routes/export.js';
 import { captureThought } from './routes/capture.js';
+import { registerAgentTools } from '../agent/register.js';
 
 const server = new McpServer({
   name: 'customBrain',
@@ -62,6 +63,8 @@ server.tool(
     return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
   }
 );
+
+registerAgentTools(server);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
