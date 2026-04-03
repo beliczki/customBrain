@@ -1,3 +1,4 @@
+import { captureThought } from '../../server/routes/capture.js';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,15 +36,20 @@ export function saveDraft({ source, summary, original, metadata }) {
   return draft;
 }
 
-export function approveDraft(id) {
+export async function approveDraft(id) {
   const data = load();
   const idx = data.pending.findIndex((d) => d.id === id);
   if (idx === -1) return null;
   const [draft] = data.pending.splice(idx, 1);
   draft.approved_at = new Date().toISOString();
+
+  // Auto-capture to brain
+  const captureResult = await captureThought(draft.summary);
+  draft.brain_id = captureResult.id;
+
   data.approved.push(draft);
   save(data);
-  return draft;
+  return { draft, captured: captureResult };
 }
 
 export function rejectDraft(id) {
