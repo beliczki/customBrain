@@ -89,7 +89,7 @@ async function init() {
     const container = document.getElementById('relatedItems');
     if (data.length > 0) {
       container.innerHTML = data
-        .map((r) => `<div class="related-item">${r.payload?.title || r.payload?.text?.substring(0, 60) || 'untitled'}</div>`)
+        .map((r) => `<div class="related-item">${r.title || r.text?.substring(0, 60) || 'untitled'}</div>`)
         .join('');
     } else {
       container.textContent = 'No related thoughts found';
