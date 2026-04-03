@@ -5,15 +5,19 @@ let cachedContext = null;
 let cacheTime = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+function getOAuth2Client() {
+  const oauth2 = new google.auth.OAuth2(
+    process.env.GOOGLE_DRIVE_CLIENT_ID,
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET
+  );
+  oauth2.setCredentials({ refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN });
+  return oauth2;
+}
+
 function getDrive() {
   // Try OAuth2 first
   if (process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
-    const oauth2 = new google.auth.OAuth2(
-      process.env.GOOGLE_DRIVE_CLIENT_ID,
-      process.env.GOOGLE_DRIVE_CLIENT_SECRET
-    );
-    oauth2.setCredentials({ refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN });
-    return google.drive({ version: 'v3', auth: oauth2 });
+    return google.drive({ version: 'v3', auth: getOAuth2Client() });
   }
   // Fallback to service account
   const saPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH || './service-account.json';
@@ -24,6 +28,18 @@ function getDrive() {
     scopes: ['https://www.googleapis.com/auth/drive'],
   });
   return google.drive({ version: 'v3', auth });
+}
+
+export function getGmail() {
+  return google.gmail({ version: 'v1', auth: getOAuth2Client() });
+}
+
+export function getCalendar() {
+  return google.calendar({ version: 'v3', auth: getOAuth2Client() });
+}
+
+export function getYouTube() {
+  return google.youtube({ version: 'v3', auth: getOAuth2Client() });
 }
 
 async function listMdFiles(drive, folderId) {

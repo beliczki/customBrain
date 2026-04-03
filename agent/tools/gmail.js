@@ -1,4 +1,4 @@
-import { getGmail } from '../../server/google-auth.js';
+import { getGmail } from '../../server/drive-context.js';
 
 const SKIP_SENDERS = ['noreply@', 'no-reply@', 'notifications@', 'mailer-daemon@'];
 

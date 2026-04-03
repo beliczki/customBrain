@@ -1,4 +1,4 @@
-import { getCalendar } from '../../server/google-auth.js';
+import { getCalendar } from '../../server/drive-context.js';
 
 export async function getCalendarEvents(dateRange) {
   const calendar = getCalendar();

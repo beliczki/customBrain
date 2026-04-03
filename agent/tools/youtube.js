@@ -1,4 +1,4 @@
-import { getYouTube } from '../../server/google-auth.js';
+import { getYouTube } from '../../server/drive-context.js';
 
 export async function getYoutubeLikes(sinceDate) {
   const youtube = getYouTube();
