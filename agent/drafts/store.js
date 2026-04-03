@@ -44,8 +44,13 @@ export async function approveDraft(id) {
   draft.approved_at = new Date().toISOString();
 
   // Auto-capture to brain
-  const captureResult = await captureThought(draft.summary);
-  draft.brain_id = captureResult.id;
+  let captureResult = null;
+  try {
+    captureResult = await captureThought(draft.summary);
+    draft.brain_id = captureResult.id;
+  } catch (err) {
+    draft.capture_error = err.message;
+  }
 
   data.approved.push(draft);
   save(data);

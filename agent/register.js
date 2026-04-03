@@ -87,7 +87,7 @@ export function registerAgentTools(server, z) {
       switch (action) {
         case 'list': return json(listDrafts(status));
         case 'save': return json(saveDraft(data));
-        case 'approve': return json(approveDraft(id));
+        case 'approve': return json(await approveDraft(id));
         case 'reject': return json(rejectDraft(id));
         default: return json({ error: 'Unknown action' });
       }
