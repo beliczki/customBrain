@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { getFirefliesTranscripts } from './tools/fireflies.js';
 import { getYoutubeLikes } from './tools/youtube.js';
 import { getGmailThreads } from './tools/gmail.js';
@@ -11,7 +10,7 @@ function json(data) {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
 }
 
-export function registerAgentTools(server) {
+export function registerAgentTools(server, z) {
   server.tool(
     'get_fireflies_transcripts',
     'Fetch raw meeting transcripts from Fireflies since a given date',

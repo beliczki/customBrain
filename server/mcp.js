@@ -65,7 +65,7 @@ export function createMcpServer() {
     }
   );
 
-  registerAgentTools(server);
+  registerAgentTools(server, z);
   return server;
 }
 
