@@ -46,7 +46,7 @@ function extractPage() {
   clone.querySelectorAll('nav, footer, aside, script, style, header, [role="navigation"], .ad, .ads, .sidebar')
     .forEach((el) => el.remove());
 
-  const text = clone.innerText.trim().substring(0, 5000);
+  const text = clone.innerText.trim().substring(0, 15000);
   return { title, url, author, og_description: ogDesc, content: text };
 }
 
