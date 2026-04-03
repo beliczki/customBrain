@@ -7,7 +7,7 @@ One backend, two interfaces: HTTP routes for the React UI + MCP over SSE for AI 
 ## Stack
 
 - **Qdrant** — vector storage (3072-dim HNSW)
-- **Google Gemini** — embeddings (`gemini-embedding-exp-03-07`)
+- **Google Gemini** — embeddings (`gemini-embedding-001`, 3072 dims)
 - **Claude Haiku** — metadata extraction
 - **Express** — HTTP + MCP SSE server
 - **React + Tailwind** — web UI

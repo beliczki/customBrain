@@ -1,5 +1,7 @@
+> **ARCHIVED** — see [ROADMAP.md](../../ROADMAP.md) for current state
+
 # Open Brain - Owned AI Memory System
-# Claude Code Handoff Plan
+# Claude Code Handoff Plan (Original — All Phases Completed 2026-03-16)
 
 ## Architecture Decision Log
 - **Embeddings**: Google `gemini-embedding-exp-03-07` @ 3072 dims

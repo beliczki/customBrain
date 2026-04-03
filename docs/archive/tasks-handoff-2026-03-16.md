@@ -1,3 +1,5 @@
+> **ARCHIVED** — see [ROADMAP.md](../../ROADMAP.md) for current state
+
 # customBrain — Project State Document
 ## For conductor handoff — 2026-03-16
 
@@ -130,9 +132,12 @@
 - [ ] **Process manager** — replace nohup with systemd service for auto-restart
 
 ### Remaining tasks
-- [ ] **MCP testing** — server exposes /mcp SSE endpoint but not yet connected to Claude Desktop or Claude Code
+- [x] **MCP testing** — tesztelve claude.ai Chat-ből (brain.beliczki remote connector) + Claude Desktop Chat ✓ (2026-04-03)
+- [x] **capture_thought MCP tool** — megvan `server/mcp.js`-ben, tesztelve ✓
+- [x] **Agent tools** — Fireflies, Gmail, YouTube, Calendar mind tesztelve ✓ (2026-04-03)
+- [ ] **Draft store tesztelés** — manage_drafts tool még nem tesztelve
+- [ ] **Task context tesztelés** — get_task_context tool még nem tesztelve
 - [ ] **P1a** — Time decay in search scoring
-- [ ] **P3** — capture_thought MCP tool
 
 ### Known issues
 - **Embedding model mismatch**: todo.md says `gemini-embedding-exp-03-07` but code uses `gemini-embedding-001` (the experimental model doesn't exist)

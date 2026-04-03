@@ -1,5 +1,7 @@
+> **ARCHIVED** — see [ROADMAP.md](../../ROADMAP.md) for current state
+
 # Continuous Context Engine — E opció MVP
-## MCP tools a meglévő customBrain szerveren → D upgrade path
+## MCP tools a meglévő customBrain szerveren → D upgrade path (All Phases Completed 2026-04-03)
 
 ---
 
@@ -163,15 +165,15 @@ Ez kiváltja az X/Twitter API-t — nem kell $100/hó, mert TE jelölöd meg ami
 ### Phase 2: Fireflies MCP tool — DONE (2026-04-03)
 - [x] `agent/tools/fireflies.js` — GraphQL client, native fetch
 - [x] Tool regisztráció az MCP-ben
-- [ ] Teszt: Claude Desktop-ból `get_fireflies_transcripts` → **NINCS TESZTELVE** (Fireflies API key megvan, de nincs meeting adat)
+- [x] Teszt: Fireflies működik ✓
 
 ### Phase 3: YouTube + Gmail + Calendar MCP tools — DONE (2026-04-03)
 - [x] `agent/tools/youtube.js` — liked videos + captions
 - [x] `agent/tools/gmail.js` — thread search + body decode
 - [x] `agent/tools/calendar.js` — events + likely_type heuristic
 - [x] Calendar tesztelve Claude Desktop-ból — 7 event visszajött ✓
-- [ ] Gmail tesztelve — **NINCS TESZTELVE**
-- [ ] YouTube tesztelve — **NINCS TESZTELVE**
+- [x] Gmail tesztelve ✓
+- [x] YouTube tesztelve ✓
 
 ### Phase 4: Context assembler + Draft store — DONE (2026-04-03)
 - [x] `agent/tools/context.js`
@@ -190,12 +192,12 @@ Ez kiváltja az X/Twitter API-t — nem kell $100/hó, mert TE jelölöd meg ami
     }
     ```
 - [x] `agent/drafts/store.js` — JSON CRUD (list/save/approve/reject)
-- [ ] Draft store tesztelve — **NINCS TESZTELVE**
+- [ ] Draft store tesztelve — **NINCS TESZTELVE** (lásd lent)
 
 ### Phase 5: Task context tool — DONE (2026-04-03)
 - [x] `agent/tools/task-context.js` — brain search scoped to task
 - [x] Összes tool regisztrálva az MCP-ben (`agent/register.js` — 12 tool összesen)
-- [ ] Task context tesztelve — **NINCS TESZTELVE**
+- [ ] Task context tesztelve — **NINCS TESZTELVE** (lásd lent)
 
 ### Phase 6: Chrome web clipper extension — DONE (2026-04-03)
 - [x] `extension/manifest.json` — Manifest v3
