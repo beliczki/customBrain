@@ -153,54 +153,28 @@ Ez kiváltja az X/Twitter API-t — nem kell $100/hó, mert TE jelölöd meg ami
 
 ## Phases
 
-### Phase 1: Projekt setup + OAuth2 scope bővítés (~1 óra)
-- [ ] `agent/` mappa létrehozása a customBrain repo-ban
-- [ ] GCP projekt: Gmail API + Calendar API + YouTube Data API v3 engedélyezés
-- [ ] OAuth2 refresh token újragenerálás a bővített scope-okkal:
-  - Meglévő: `drive.file` (vagy ami most van)
-  - Új: `gmail.readonly`, `calendar.readonly`, `youtube.readonly`
-- [ ] .env bővítés:
-  ```
-  FIREFLIES_API_KEY=xxx              # már megvan?
-  # A Google OAuth2 token-ök a meglévők, csak bővített scope-pal
-  ```
-- [ ] `agent/register.js` — tool regisztrációs boilerplate
-  - A meglévő mcp.js-hez hozzáköti az agent tool-okat
-  - Egyszerű: importálja a tool definíciókat, regisztrálja őket
+### Phase 1: Projekt setup + OAuth2 scope bővítés — DONE (2026-04-03)
+- [x] `agent/` mappa létrehozása a customBrain repo-ban
+- [x] GCP projekt: Gmail API + Calendar API + YouTube Data API v3 engedélyezés
+- [x] OAuth2 refresh token újragenerálás a bővített scope-okkal
+- [x] .env bővítés: FIREFLIES_API_KEY + friss refresh token (lokál + Hetzner)
+- [x] `agent/register.js` — 7 tool regisztrálva (z paraméterként átadva, zod v3)
 
-### Phase 2: Fireflies MCP tool (~1.5 óra)
-- [ ] `agent/tools/fireflies.js`
-  - Fireflies GraphQL API client
-  - `get_fireflies_transcripts(since_date)` tool
-  - Input: since_date (default: yesterday)
-  - Output: array of { id, title, date, participants, duration, transcript_text }
-  - FULL transcript — nem summary, nem chunks
-  - Deduplikáció: meeting_id mentése → ne adja vissza amit már feldolgoztál
-- [ ] Tool regisztráció az MCP-ben
-- [ ] Teszt: Claude Desktop-ból `get_fireflies_transcripts("2024-03-01")` → nyers transcript jön
+### Phase 2: Fireflies MCP tool — DONE (2026-04-03)
+- [x] `agent/tools/fireflies.js` — GraphQL client, native fetch
+- [x] Tool regisztráció az MCP-ben
+- [ ] Teszt: Claude Desktop-ból `get_fireflies_transcripts` → **NINCS TESZTELVE** (Fireflies API key megvan, de nincs meeting adat)
 
-### Phase 3: YouTube + Gmail + Calendar MCP tools (~2 óra)
-- [ ] `agent/tools/youtube.js`
-  - YouTube Data API v3: liked videos playlist
-  - `get_youtube_likes(since_date)` tool
-  - Output: array of { video_id, title, channel, description, published_at, tags }
-  - Captions: ha van auto-generated felirat, letölti (YouTube Captions API)
-  - Ha nincs caption: csak a title + description + tags megy
-  - Deduplikáció: video_id alapján
-- [ ] `agent/tools/gmail.js`
-  - Gmail API: szálak keresése
-  - `get_gmail_threads(query, max_results=10)` tool
-  - Output: array of { thread_id, subject, from, date, snippet, body_text }
-  - Szűrés: skip noreply@, notifications@, automated
-- [ ] `agent/tools/calendar.js`
-  - Calendar API: mai/holnapi/adott nap bejegyzései
-  - `get_calendar_events(date_range?)` tool
-  - Output: array of { event_id, title, start, end, attendees, description, is_all_day }
-  - Heurisztika mező: `likely_type: "meeting" | "task" | "reminder"` 
-    (van attendee → meeting, nincs → task/reminder)
+### Phase 3: YouTube + Gmail + Calendar MCP tools — DONE (2026-04-03)
+- [x] `agent/tools/youtube.js` — liked videos + captions
+- [x] `agent/tools/gmail.js` — thread search + body decode
+- [x] `agent/tools/calendar.js` — events + likely_type heuristic
+- [x] Calendar tesztelve Claude Desktop-ból — 7 event visszajött ✓
+- [ ] Gmail tesztelve — **NINCS TESZTELVE**
+- [ ] YouTube tesztelve — **NINCS TESZTELVE**
 
-### Phase 4: Context assembler + Draft store (~1.5 óra)
-- [ ] `agent/tools/context.js`
+### Phase 4: Context assembler + Draft store — DONE (2026-04-03)
+- [x] `agent/tools/context.js`
   - `get_event_context(event_title, attendees?)` tool
   - Lépések:
     1. `search_brain(event_title)` — meglévő brain search hívása (belső HTTP)
@@ -215,55 +189,28 @@ Ez kiváltja az X/Twitter API-t — nem kell $100/hó, mert TE jelölöd meg ami
       "event_info": { "title": "...", "attendees": [...] }
     }
     ```
-- [ ] `agent/drafts/store.js`
-  - JSON fájl alapú: `agent/drafts/data/pending.json`, `approved.json`
-  - `manage_drafts(action, data?)` MCP tool:
-    - `list` → pending draft-ok
-    - `save` → új draft mentése (source, summary, original, metadata)
-    - `approve` → draft → approved log-ba (audit trail, a capture_thought külön megy)
-    - `reject` → draft → elutasítva
-  - Ez biztonsági háló: ha bezárod a chat-et, a pending-ek megmaradnak
+- [x] `agent/drafts/store.js` — JSON CRUD (list/save/approve/reject)
+- [ ] Draft store tesztelve — **NINCS TESZTELVE**
 
-### Phase 5: Task decomposer tool + integráció (~1 óra)
-- [ ] `agent/tools/task-decompose.js`
-  - Nem hív Claude API-t — csak összeszedi a brain kontextust a feladathoz
-  - `get_task_context(task_title)` tool
-  - Output: brain search eredmények a task-hoz (mikor merült fel, melyik meetingben, ki említette)
-  - A tényleges bontást (auto_loop / human / needs_info) Claude Desktop csinálja a beszélgetésben
-- [ ] Összes tool regisztrálása az MCP-ben (`agent/register.js` véglegesítés)
+### Phase 5: Task context tool — DONE (2026-04-03)
+- [x] `agent/tools/task-context.js` — brain search scoped to task
+- [x] Összes tool regisztrálva az MCP-ben (`agent/register.js` — 12 tool összesen)
+- [ ] Task context tesztelve — **NINCS TESZTELVE**
 
-### Phase 6: Chrome web clipper extension (~2 óra)
-> Pinterest-szerű "Save to Brain" gomb bármilyen weboldalon.
-> Ez az univerzális intake — kiváltja az X/Twitter API-t és minden platform-specifikus bookmark API-t.
+### Phase 6: Chrome web clipper extension — DONE (2026-04-03)
+- [x] `extension/manifest.json` — Manifest v3
+- [x] `extension/popup.html + popup.js` — preview + brain cross-ref + save
+- [x] `extension/icons/` — 16, 48, 128px PNG-k
+- [x] Chrome-ba betöltve developer mode-ban
+- [x] Tesztelve: X poszt → clipper → Save to Brain → megjelenik ✓
+- [x] Related in brain: search eredmények megjelennek (title fallback fixelve)
 
-- [ ] `extension/manifest.json` — Manifest v3
-  - Permissions: `activeTab`, `scripting` (csak az aktív tab-ot olvassa, kattintásra)
-  - Host permission: `brain.beliczki.hu` (csak ide küld adatot)
-- [ ] `extension/content.js` — page → markdown kinyerés (~40 sor)
-  - Readability-szerű: main content kinyerés, reklám/nav/footer kiszűrés
-  - Output: { title, author, url, content_markdown, og_description }
-  - Egyszerű implementáció: `document.querySelector('article')` vagy heurisztika
-  - Nem kell tökéletes — te úgyis szerkeszted a popup-ban
-- [ ] `extension/popup.html + popup.js` — preview + brain context + save (~180 sor összesen)
-  - Popup megnyílik → `content.js` kinyeri az oldalt → megjelenik:
-    - **Kinyert szöveg** (szerkeszthető textarea, markdown)
-    - **Brain cross-reference**: popup hív `brain.beliczki.hu/search?q={title}` → kapcsolódó gondolatok
-    - **Source link** (automatikusan kitöltve az URL-lel)
-    - **Tags** (opcionális, kézzel hozzáadható)
-    - **[Save to Brain]** gomb → POST `brain.beliczki.hu/capture`
-  - Auth: Bearer token (CAPTURE_SECRET) a localStorage-ból (egyszer beírod, megmarad)
-- [ ] `extension/icons/` — egyszerű brain ikon (16, 48, 128px)
-- [ ] Teszt: LinkedIn poszt → extension → preview + brain context → save → megjelenik Obsidian-ban
-- [ ] Chrome-ba betöltés developer mode-ban (nem kell Chrome Web Store, saját használatra)
-
-**Fontos:** A extension NEM MCP tool — közvetlen HTTP hívás a brain API-ra. Független az MCP tool-októl, 
-bármikor használható. A brain /capture endpoint és a /search endpoint már létezik, nincs backend munka.
-
-### Phase 7: End-to-end teszt + deploy (~1 óra)
-- [ ] Lokális teszt: Claude Desktop → "dolgozd fel a tegnapit" → működik az egész flow
-- [ ] Extension teszt: random weboldal → clipper → brain-be kerül
-- [ ] Hetzner deploy: git pull, npm restart (nincs új szerver, nincs nginx módosítás!)
-- [ ] Teszt production-ben: Claude Desktop → brain.beliczki.hu MCP → agent tool-ok
+### Phase 7: End-to-end teszt + deploy — DONE (2026-04-03)
+- [x] Hetzner deploy: git pull, npm install, pm2 restart
+- [x] Remote MCP: `npx mcp-remote` bridge → Claude Desktop csatlakozik Hetznerhez
+- [x] Calendar tesztelve production-ben: 7 event visszajött ✓
+- [x] capture_thought tesztelve MCP HTTP-n keresztül ✓
+- [x] brain_stats + list_recent + search_brain MCP-n keresztül ✓
 - [ ] Egy valódi napi ciklus végigpróbálása:
   1. Reggel: "dolgozd fel a tegnapit" → Fireflies + YouTube
   2. Review a beszélgetésben → javítás → approve → brain-be kerül
