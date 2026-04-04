@@ -40,6 +40,7 @@ export async function captureThought(text, { conflictThreshold = 0.85 } = {}) {
   // Check for near-duplicate that might be contradicted
   let supersedes = null;
   const nearMatches = await searchVector(vector, 1);
+  console.log(`Conflict check: top match score=${nearMatches[0]?.score ?? 'none'}, threshold=${conflictThreshold}`);
   if (nearMatches.length > 0 && nearMatches[0].score > conflictThreshold) {
     const existing = nearMatches[0];
     const check = await checkContradiction(text, existing.text);
