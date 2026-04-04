@@ -37,15 +37,15 @@ export async function captureThought(text, { conflictThreshold = 0.85 } = {}) {
     extractMetadata(text, vaultCtx),
   ]);
 
-  // Check for near-duplicate that might be contradicted
+  // Check near-duplicates for contradictions (top 3, not just top 1)
   let supersedes = null;
-  const nearMatches = await searchVector(vector, 1);
-  console.log(`Conflict check: top match score=${nearMatches[0]?.score ?? 'none'}, threshold=${conflictThreshold}`);
-  if (nearMatches.length > 0 && nearMatches[0].score > conflictThreshold) {
-    const existing = nearMatches[0];
+  const nearMatches = await searchVector(vector, 3);
+  const candidates = nearMatches.filter((m) => m.score > conflictThreshold);
+  console.log(`Conflict check: ${candidates.length} candidates above ${conflictThreshold} (scores: ${nearMatches.map((m) => m.score.toFixed(3)).join(', ')})`);
+  for (const existing of candidates) {
     try {
       const check = await checkContradiction(text, existing.text);
-      console.log(`Contradiction result: ${JSON.stringify(check)}`);
+      console.log(`vs "${existing.title}": ${JSON.stringify(check)}`);
       if (check.contradicts) {
         await updatePayload(existing.id, {
           status: 'archived',
@@ -54,9 +54,10 @@ export async function captureThought(text, { conflictThreshold = 0.85 } = {}) {
         });
         supersedes = existing.id;
         console.log(`Archived thought ${existing.id} (${existing.title}): ${check.reason}`);
+        break; // archive one at a time
       }
     } catch (err) {
-      console.error(`Conflict check failed: ${err.message}`);
+      console.error(`Conflict check failed for ${existing.id}: ${err.message}`);
     }
   }
 
