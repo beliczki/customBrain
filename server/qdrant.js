@@ -78,6 +78,10 @@ export async function deletePoint(id) {
   await qdrant.delete(COLLECTION, { points: [id] });
 }
 
+export async function updatePayload(id, payload) {
+  await qdrant.setPayload(COLLECTION, { points: [id], payload });
+}
+
 export async function scrollFiltered(filter, limit = 100) {
   const all = [];
   let offset = undefined;

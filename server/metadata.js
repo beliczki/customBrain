@@ -47,6 +47,43 @@ ${contextBlock}
 Text: ${text}`;
 }
 
+export async function checkContradiction(newText, existingText) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [
+        {
+          role: 'user',
+          content: `Do these two thoughts contradict each other? The new thought may update, replace, or directly conflict with the existing one.
+
+Existing thought: ${existingText}
+
+New thought: ${newText}
+
+Reply ONLY with a JSON object: {"contradicts": true/false, "reason": "one sentence explanation"}`,
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Contradiction check failed: ${err}`);
+  }
+
+  const json = await res.json();
+  const raw = json.content[0].text;
+  const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
+  return JSON.parse(match[1].trim());
+}
+
 export async function extractMetadata(text, vaultContext) {
   const localCtx = loadContext();
 

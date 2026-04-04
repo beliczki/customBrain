@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { embedText } from '../embeddings.js';
-import { extractMetadata } from '../metadata.js';
-import { upsertPoint } from '../qdrant.js';
+import { extractMetadata, checkContradiction } from '../metadata.js';
+import { upsertPoint, searchVector, updatePayload } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
 
 const router = Router();
@@ -36,6 +36,23 @@ export async function captureThought(text) {
     extractMetadata(text, vaultCtx),
   ]);
 
+  // Check for near-duplicate that might be contradicted
+  let supersedes = null;
+  const nearMatches = await searchVector(vector, 1);
+  if (nearMatches.length > 0 && nearMatches[0].score > 0.92) {
+    const existing = nearMatches[0];
+    const check = await checkContradiction(text, existing.text);
+    if (check.contradicts) {
+      await updatePayload(existing.id, {
+        status: 'archived',
+        archived_at: new Date().toISOString(),
+        archived_reason: check.reason,
+      });
+      supersedes = existing.id;
+      console.log(`Archived thought ${existing.id} (${existing.title}): ${check.reason}`);
+    }
+  }
+
   const payload = {
     text,
     title: metadata.title || '',
@@ -44,9 +61,11 @@ export async function captureThought(text) {
     projects: metadata.projects || [],
     type: metadata.type || 'note',
     action_items: metadata.action_items || [],
+    status: 'active',
     created_at: new Date().toISOString(),
+    ...(supersedes && { supersedes }),
   };
 
   const id = await upsertPoint(vector, payload);
-  return { ok: true, id, metadata };
+  return { ok: true, id, metadata, ...(supersedes && { supersedes, archived: supersedes }) };
 }

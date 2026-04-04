@@ -1,6 +1,6 @@
 import { getGmail } from '../../server/drive-context.js';
 
-const SKIP_SENDERS = ['noreply@', 'no-reply@', 'notifications@', 'mailer-daemon@'];
+const SKIP_SENDERS = ['noreply@', 'no-reply@', 'notifications@', 'mailer-daemon@', 'fred@fireflies.ai'];
 
 function decodeBase64Url(str) {
   return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
@@ -8,12 +8,16 @@ function decodeBase64Url(str) {
 
 function extractBody(payload) {
   // Direct body
-  if (payload.body?.data) return decodeBase64Url(payload.body.data);
+  if (payload.body?.data) {
+    return decodeBase64Url(payload.body.data).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
 
   // Multipart — prefer text/plain
   if (payload.parts) {
     const plain = payload.parts.find((p) => p.mimeType === 'text/plain');
-    if (plain?.body?.data) return decodeBase64Url(plain.body.data);
+    if (plain?.body?.data) {
+      return decodeBase64Url(plain.body.data).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    }
 
     const html = payload.parts.find((p) => p.mimeType === 'text/html');
     if (html?.body?.data) {

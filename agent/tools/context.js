@@ -4,8 +4,8 @@ import { getFirefliesTranscripts } from './fireflies.js';
 
 export async function getEventContext(eventTitle, attendees) {
   const [brainResults, emails, transcripts] = await Promise.all([
-    searchThoughts(eventTitle, 5).catch(() => []),
-    getGmailThreads(eventTitle, 5).catch(() => []),
+    searchThoughts(eventTitle, 3).catch(() => []),
+    getGmailThreads(eventTitle, 3).catch(() => []),
     getFirefliesTranscripts().catch(() => []),
   ]);
 
@@ -24,7 +24,10 @@ export async function getEventContext(eventTitle, attendees) {
   return {
     event_info: { title: eventTitle, attendees: attendees || [] },
     brain_results: brainResults,
-    related_emails: emails,
+    related_emails: emails.map((e) => ({
+      ...e,
+      body_text: e.body_text ? e.body_text.substring(0, 500) : '',
+    })),
     past_meetings: pastMeetings,
   };
 }

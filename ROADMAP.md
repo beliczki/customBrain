@@ -35,6 +35,28 @@ Historical build plans archived in `docs/archive/`.
 
 ---
 
+## Next up (2026-04-04)
+
+Tested `get_event_context` on real calendar events (ArtAI javítások, Bizi tudásbázis). Results:
+- Tool works but search results are noisy — irrelevant thoughts rank above relevant ones
+- "Draft approve teszt" (irrelevant) outranks "Bizi platformfeladatok" (highly relevant) because cosine alone decides
+- Email bodies return raw HTML (Fireflies recap), not useful text
+
+**Action items for today's session, in order:**
+
+1. **P1a: Time decay in search** (30min) — `server/routes/search.js`
+   - Apply `final_score = cosine_score * (1 / (1 + days / 30))` after Qdrant returns
+   - Return both scores. This alone improves ranking for context tool.
+
+2. **`get_event_context` quality fixes** (30-60min) — `agent/tools/context.js`
+   - Brain search: filter by project if event title matches a known project in brain
+   - Limit brain results to top 3 (currently 5, too noisy)
+   - Strip HTML from email bodies, truncate to ~500 chars
+
+3. **Re-test**: run ArtAI + Bizi context again, verify improved ranking
+
+---
+
 ## P1: Make the Brain Smarter
 
 ### P1a: Time decay in search scoring (~30min)
@@ -80,6 +102,57 @@ One field. Five states. No project management overhead.
 Already built: Claude Desktop capture (#3), Browser extension (#6). Standup (#7) and briefing (#8) work via MCP without extra code.
 
 Not planned: Voice agydump (Whisper API), WhatsApp bot — lower priority, can use Telegram + iOS Shortcut instead.
+
+---
+
+## P4f: Calendar AI assistant — brain context at the point of need
+
+**Problem**: `get_event_context` works via MCP but requires switching to Claude Desktop/Code. The value is in having context *where you already are* — Google Calendar.
+
+### Options considered
+
+| Option | How | Pro | Con |
+|--------|-----|-----|-----|
+| **A. Extend existing Chrome extension** | Calendar page detection → popup shows brain + email context for current event | Builds on existing code, full control, fast | Popup only, not inline |
+| **B. Calendar content script overlay** | Content script injects brain icon next to each Calendar event card. Click/hover → mini context card inline | Most seamless UX, zero context switch | DOM scraping fragile (Google changes Calendar markup), higher effort |
+| **C. Claude Chrome extension + MCP** | Use Claude's official extension, ask it about events, it calls `get_event_context` | Zero code | Manual, not automatic, not integrated |
+| **D. Google Workspace Calendar Add-on** | Apps Script sidebar inside Calendar | Native Google integration | Publish flow complex, Apps Script limited, can't call brain API easily |
+
+### Best bet: A+B hybrid (~3-4hrs)
+
+Extend the existing `extension/` with a Calendar-aware mode:
+1. **Content script** (`extension/calendar.js`): detects `calendar.google.com`, reads event title + attendees from DOM when user opens an event
+2. **Popup mode switch**: on Calendar pages, popup shows "Event Context" instead of "Save to Brain"
+3. **Context display**: calls `brain.beliczki.hu/search` + a new lightweight `/event-context` HTTP endpoint (reuses `get_event_context` logic but over HTTP, not MCP)
+4. **Later**: inject small brain icon overlay next to event cards for inline access (B-style)
+
+Key files: `extension/manifest.json` (add `calendar.google.com` content script), `extension/calendar.js` (new), `extension/popup.js` (mode detection)
+
+---
+
+## P4g: Google Slides brain assistant — context-aware slide work
+
+**Problem**: Slides work is frequent — preparing decks for meetings, clients, pitches. The brain + email context that helps with Calendar events would be equally valuable while editing slides: "what do I know about this topic?", "what did the client say about this?", "what are the next steps from the last meeting?"
+
+### What it would do
+- Read slide content (titles, body text, speaker notes) from the current presentation
+- Search brain + emails for related context
+- Surface: related thoughts, people involved, action items, contradictions, missing info
+- Help: clarify messaging, discover next steps, connect dots across projects
+
+### Options
+
+| Option | How | Pro | Con |
+|--------|-----|-----|-----|
+| **A. Chrome extension (same as Calendar)** | Content script on `docs.google.com/presentation`, reads slide text from DOM, popup shows brain context | Reuses existing extension, consistent UX | DOM scraping, limited Slides API access |
+| **B. Google Workspace Slides Add-on** | Apps Script sidebar inside Slides editor. Uses Slides API (native access to all slide content + speaker notes) | Full slide content access, native UI, can write back to slides | Apps Script → brain API needs proxy or fetch, publish flow |
+| **C. Hybrid: Add-on reads slides → calls brain HTTP API** | Apps Script sidebar for UI + slide reading, brain.beliczki.hu for search/context | Best of both: native slide access + brain power | Two codebases (Apps Script + brain API) |
+
+### Best bet: C hybrid, but after Calendar extension is proven
+
+The Calendar extension (P4f) validates the pattern first. If popup-based context works well there, Slides is the next surface. The Slides version likely needs the Add-on route (option B/C) because slide content is harder to scrape from DOM than calendar events, and the Slides API gives clean access to text + speaker notes.
+
+**Dependency**: P4f (Calendar extension) should ship first. The HTTP context endpoint built for P4f (`/event-context` or generalized to `/context?q=...`) would be reused by the Slides add-on.
 
 ---
 

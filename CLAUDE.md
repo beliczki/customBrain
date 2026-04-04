@@ -27,6 +27,12 @@ The Express server serves `client/dist/` as static files in production. No separ
 ### Local development
 Server env lives in `server/.env` (copy from `.env.example`). Qdrant must be running on port 6333. Server runs on port 3000.
 
+### Dependency management
+Root `package.json` and `server/package.json` have separate dependency trees (no workspaces). Run `npm install` in both. Client has its own `package.json` too. Agent code has no `package.json` — it imports from server's `node_modules` via relative paths.
+
+### Production (Hetzner)
+pm2 manages the server process. Restart with `pm2 restart all --cwd /root/customBrain/server`. Nginx reverse-proxies port 3000.
+
 ## Architecture
 
 - **Plain JavaScript** — Node.js ESM (`"type": "module"`), no TypeScript, no build step for server
@@ -49,9 +55,10 @@ HTTP routes are the source of truth. Route files export both an Express router (
 
 ## Key patterns
 
-- **Capture pipeline**: text → parallel [Gemini embedding + Haiku metadata extraction] → Qdrant upsert. Metadata extraction is context-aware: `server/drive-context.js` reads People/Projects folders from Google Drive, `server/context.json` has exclusion lists.
+- **Capture pipeline**: text → parallel [Gemini embedding + Haiku metadata extraction] → Qdrant upsert. Metadata extraction is context-aware: `server/drive-context.js` reads People/Projects folders from Google Drive to provide known names/projects to Haiku. `server/context.json` has `not_people` exclusion lists (prevents AI assistant names like "Gábor" from being tagged as people).
 - **Obsidian export**: full vault rebuild (not incremental). Deletes all .md in `customBrain/` subfolder, rewrites everything from Qdrant. YAML frontmatter contains Obsidian wikilinks for people/projects.
-- **Auth**: `POST /capture` requires Bearer token matching `CAPTURE_SECRET` env var. Other routes are open.
+- **Delete**: `DELETE /thoughts/:id` lives in `server/routes/recent.js` (not its own route file).
+- **Auth**: `POST /capture` requires Bearer token matching `CAPTURE_SECRET` env var. Other routes (including delete) are open.
 - **MCP**: Two transports — SSE legacy (`GET /mcp` + `POST /mcp/messages`) and Streamable HTTP modern (`ALL /mcp/http`). Each connection gets its own McpServer instance.
 
 ## MCP tools
