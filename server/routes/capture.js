@@ -43,15 +43,20 @@ export async function captureThought(text, { conflictThreshold = 0.85 } = {}) {
   console.log(`Conflict check: top match score=${nearMatches[0]?.score ?? 'none'}, threshold=${conflictThreshold}`);
   if (nearMatches.length > 0 && nearMatches[0].score > conflictThreshold) {
     const existing = nearMatches[0];
-    const check = await checkContradiction(text, existing.text);
-    if (check.contradicts) {
-      await updatePayload(existing.id, {
-        status: 'archived',
-        archived_at: new Date().toISOString(),
-        archived_reason: check.reason,
-      });
-      supersedes = existing.id;
-      console.log(`Archived thought ${existing.id} (${existing.title}): ${check.reason}`);
+    try {
+      const check = await checkContradiction(text, existing.text);
+      console.log(`Contradiction result: ${JSON.stringify(check)}`);
+      if (check.contradicts) {
+        await updatePayload(existing.id, {
+          status: 'archived',
+          archived_at: new Date().toISOString(),
+          archived_reason: check.reason,
+        });
+        supersedes = existing.id;
+        console.log(`Archived thought ${existing.id} (${existing.title}): ${check.reason}`);
+      }
+    } catch (err) {
+      console.error(`Conflict check failed: ${err.message}`);
     }
   }
 
