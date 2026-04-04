@@ -16,10 +16,11 @@ const server = new McpServer({
 
 server.tool(
   'capture_thought',
-  'Capture a new thought into the brain — extracts metadata (people, topics, projects, type, action items) automatically',
-  { text: z.string() },
-  async ({ text }) => {
-    const result = await captureThought(text);
+  'Capture a new thought into the brain — extracts metadata (people, topics, projects, type, action items) automatically. If a near-duplicate exists and contradicts, the old thought is archived.',
+  { text: z.string(), conflict_threshold: z.number().min(0).max(1).optional().describe('Cosine similarity threshold for conflict detection (default 0.85)') },
+  async ({ text, conflict_threshold }) => {
+    const opts = conflict_threshold != null ? { conflictThreshold: conflict_threshold } : {};
+    const result = await captureThought(text, opts);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );

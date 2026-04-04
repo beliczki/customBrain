@@ -12,13 +12,14 @@ router.post('/capture', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { text } = req.body;
+  const { text, conflict_threshold } = req.body;
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'text field required' });
   }
 
   try {
-    const result = await captureThought(text);
+    const opts = conflict_threshold != null ? { conflictThreshold: conflict_threshold } : {};
+    const result = await captureThought(text, opts);
     res.json(result);
   } catch (err) {
     console.error('Capture error:', err.message);
@@ -28,7 +29,7 @@ router.post('/capture', async (req, res) => {
 
 export default router;
 
-export async function captureThought(text) {
+export async function captureThought(text, { conflictThreshold = 0.85 } = {}) {
   const vaultCtx = await getVaultContext();
 
   const [vector, metadata] = await Promise.all([
@@ -39,7 +40,7 @@ export async function captureThought(text) {
   // Check for near-duplicate that might be contradicted
   let supersedes = null;
   const nearMatches = await searchVector(vector, 1);
-  if (nearMatches.length > 0 && nearMatches[0].score > 0.92) {
+  if (nearMatches.length > 0 && nearMatches[0].score > conflictThreshold) {
     const existing = nearMatches[0];
     const check = await checkContradiction(text, existing.text);
     if (check.contradicts) {
