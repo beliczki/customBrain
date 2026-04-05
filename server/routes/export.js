@@ -170,7 +170,7 @@ export async function rebuildVault() {
   let pageToken;
   do {
     const res = await drive.files.list({
-      q: `'${folderId}' in parents and mimeType='text/markdown' and trashed=false`,
+      q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
       fields: 'nextPageToken, files(id, name)',
       pageSize: 100,
       pageToken,
