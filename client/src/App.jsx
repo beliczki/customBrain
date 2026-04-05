@@ -6,15 +6,23 @@ import Stats from './components/Stats.jsx';
 import Export from './components/Export.jsx';
 
 const tabs = ['Capture', 'Search', 'Recent', 'Stats', 'Export'];
+const APP_NAME = import.meta.env.VITE_APP_NAME || 'customBrain';
 
 export default function App() {
   const [active, setActive] = useState('Capture');
   const [token, setToken] = useState(localStorage.getItem('capture_secret') || '');
 
+  const header = (
+    <div className="flex items-center gap-3 mb-6">
+      <img src="/brain.svg" alt="" className="w-8 h-8" />
+      <h1 className="text-2xl font-bold">{APP_NAME}</h1>
+    </div>
+  );
+
   if (!token) {
     return (
       <div className="max-w-md mx-auto px-4 py-24 text-center">
-        <h1 className="text-2xl font-bold mb-6">customBrain</h1>
+        {header}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -46,7 +54,7 @@ export default function App() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">customBrain</h1>
+      {header}
       <nav className="flex gap-2 mb-8">
         {tabs.map((tab) => (
           <button
