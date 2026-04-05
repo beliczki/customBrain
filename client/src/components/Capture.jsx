@@ -53,6 +53,9 @@ export default function Capture() {
                   {result.metadata.topics?.length > 0 && (
                     <p>Topics: {result.metadata.topics.join(', ')}</p>
                   )}
+                  {result.metadata.projects?.length > 0 && (
+                    <p>Projects: {result.metadata.projects.join(', ')}</p>
+                  )}
                   {result.metadata.people?.length > 0 && (
                     <p>People: {result.metadata.people.join(', ')}</p>
                   )}
