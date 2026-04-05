@@ -236,6 +236,7 @@ export async function rebuildVault() {
       q: `'${rootFolderId}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
       fields: 'files(id)',
     });
+    console.log(`writeStubs: ${folderName} — found ${folderRes.data.files.length} folders, names: [${[...names].join(', ')}]`);
     if (folderRes.data.files.length === 0) return;
     const subfolderId = folderRes.data.files[0].id;
 
@@ -255,7 +256,11 @@ export async function rebuildVault() {
 
     // Only create stubs for names that don't have a file yet
     for (const name of names) {
-      if (existingNames.has(`${name}.md`)) continue;
+      if (existingNames.has(`${name}.md`)) {
+        console.log(`  skip: ${name}.md exists`);
+        continue;
+      }
+      console.log(`  create: ${name}.md`);
 
       const related = thoughts
         .filter((t) => (t.people || []).includes(name) || (t.projects || []).includes(name))
