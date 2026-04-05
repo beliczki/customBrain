@@ -120,7 +120,7 @@
 - [x] Hetzner CX22 provisioned: `46.224.60.159`, domain: `brain.beliczki.hu`
 - [x] Docker + Qdrant running, collection initialized
 - [x] Repo cloned, server deps installed, client built
-- [x] Production .env with real CAPTURE_SECRET: `0be0c7a00f2f3c3779cec85c406ecb784bf6023900faf6cd`
+- [x] Production .env with real CAPTURE_SECRET: `****` (rotated 2026-04-05, old token revoked)
 - [x] Nginx reverse proxy configured for brain.beliczki.hu
 - [x] Server running via nohup (http://brain.beliczki.hu works)
 - [ ] **HTTPS certbot** — DNS propagation pending, run tomorrow morning (2026-03-17):
