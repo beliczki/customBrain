@@ -229,11 +229,17 @@ export async function rebuildVault() {
     for (const pr of t.projects || []) allProjects.add(pr);
   }
 
+  // Collect types for stats
+  const typeCounts = {};
+  for (const t of thoughts) {
+    const type = t.type || 'unknown';
+    typeCounts[type] = (typeCounts[type] || 0) + 1;
+  }
+
   async function writeStubs(folderName, names) {
-    if (names.size === 0) return;
+    if (names.size === 0) return { total: 0, created: [], existing: [] };
     const subfolderId = await getOrCreateSubfolder(drive, rootFolderId, folderName);
 
-    // List existing files to avoid overwriting hand-written content
     const existingNames = new Set();
     let pt;
     do {
@@ -247,9 +253,13 @@ export async function rebuildVault() {
       pt = res.data.nextPageToken;
     } while (pt);
 
-    // Only create stubs for names that don't have a file yet
+    const created = [];
+    const existing = [];
     for (const name of names) {
-      if (existingNames.has(`${name}.md`)) continue;
+      if (existingNames.has(`${name}.md`)) {
+        existing.push(name);
+        continue;
+      }
 
       const related = thoughts
         .filter((t) => (t.people || []).includes(name) || (t.projects || []).includes(name))
@@ -265,11 +275,13 @@ export async function rebuildVault() {
         },
         media: { mimeType: 'text/markdown', body: content },
       });
+      created.push(name);
     }
+    return { total: names.size, created, existing };
   }
 
-  await writeStubs('People', allPeople);
-  await writeStubs('Projects', allProjects);
+  const peopleResult = await writeStubs('People', allPeople);
+  const projectsResult = await writeStubs('Projects', allProjects);
 
   return {
     ok: true,
@@ -277,6 +289,19 @@ export async function rebuildVault() {
     deleted: existingFiles.length,
     exported_count: files.length,
     files,
+    by_type: typeCounts,
+    people: {
+      total: allPeople.size,
+      all: [...allPeople],
+      created: peopleResult.created,
+      existing: peopleResult.existing,
+    },
+    projects: {
+      total: allProjects.size,
+      all: [...allProjects],
+      created: projectsResult.created,
+      existing: projectsResult.existing,
+    },
   };
 }
 

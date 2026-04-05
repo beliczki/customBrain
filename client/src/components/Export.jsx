@@ -47,18 +47,89 @@ export default function Export() {
         {loading ? 'Exporting...' : 'Export to Google Drive'}
       </button>
       {result && (
-        <div className="p-4 bg-surface border border-subtle text-sm">
+        <div className="text-sm">
           {result.error ? (
             <p className="text-red-600 dark:text-red-400">{result.error}</p>
           ) : (
             <div>
-              <p className="text-green-600 dark:text-green-400">Exported {result.exported_count} files</p>
+              {/* Summary */}
+              <div className="py-4 border-t border-[var(--border)]">
+                <p className="text-green-600 dark:text-green-400 font-medium mb-2">
+                  Vault rebuilt — {result.exported_count} thoughts exported
+                </p>
+                <p className="text-txt-ter">{result.deleted} old files deleted</p>
+              </div>
+
+              {/* By type */}
+              {result.by_type && (
+                <div className="py-4 border-t border-[var(--border)]">
+                  <h3 className="text-xs font-medium text-txt-ter uppercase tracking-wide mb-2">By type</h3>
+                  <div className="flex gap-3 flex-wrap">
+                    {Object.entries(result.by_type).map(([type, count]) => (
+                      <span key={type} className="text-txt-sec">{type} <span className="text-txt-ter">({count})</span></span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* People */}
+              {result.people && (
+                <div className="py-4 border-t border-[var(--border)]">
+                  <h3 className="text-xs font-medium text-txt-ter uppercase tracking-wide mb-2">
+                    People ({result.people.total})
+                  </h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {result.people.all.map((name) => (
+                      <span
+                        key={name}
+                        className={`px-2 py-0.5 text-xs ${
+                          result.people.created.includes(name)
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
+                        }`}
+                      >
+                        {name}{result.people.created.includes(name) ? ' (new)' : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Projects */}
+              {result.projects && (
+                <div className="py-4 border-t border-[var(--border)]">
+                  <h3 className="text-xs font-medium text-txt-ter uppercase tracking-wide mb-2">
+                    Projects ({result.projects.total})
+                  </h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {result.projects.all.map((name) => (
+                      <span
+                        key={name}
+                        className={`px-2 py-0.5 text-xs ${
+                          result.projects.created.includes(name)
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                            : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                        }`}
+                      >
+                        {name}{result.projects.created.includes(name) ? ' (new)' : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* File list (collapsible) */}
               {result.files?.length > 0 && (
-                <ul className="mt-2 text-txt-sec space-y-1">
-                  {result.files.map((f) => (
-                    <li key={f}>{f}</li>
-                  ))}
-                </ul>
+                <details className="py-4 border-t border-[var(--border)]">
+                  <summary className="text-xs font-medium text-txt-ter uppercase tracking-wide cursor-pointer">
+                    Files ({result.files.length})
+                  </summary>
+                  <ul className="mt-2 text-txt-sec space-y-1">
+                    {result.files.map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
+                  </ul>
+                </details>
               )}
             </div>
           )}
