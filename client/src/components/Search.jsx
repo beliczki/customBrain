@@ -38,7 +38,7 @@ export default function Search() {
       </form>
       <div>
         {results.map((r) => (
-          <div key={r.id} className="py-6 border-t border-subtle">
+          <div key={r.id} className="py-6 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
             <div className="mb-3">
               {r.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide text-txt">{r.title}</h3>}
               <p className="text-sm text-txt-sec">{r.text}</p>

@@ -24,7 +24,7 @@ export default function Recent() {
     <div>
       {thoughts.length === 0 && <p className="text-txt-ter text-sm">No thoughts yet.</p>}
       {thoughts.map((t) => (
-        <div key={t.id} className="py-6 border-t border-subtle">
+        <div key={t.id} className="py-6 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
           <div className="flex justify-between items-start mb-3">
             <div className="flex-1">
               {t.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide text-txt">{t.title}</h3>}
