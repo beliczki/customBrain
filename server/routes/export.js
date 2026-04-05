@@ -265,35 +265,34 @@ export async function rebuildVault(onLog) {
       emit(`[${ts()}] Skipping ${folderName}/ — no folder ID configured`);
       return { total: names.size, created: [], existing: [...names] };
     }
-    emit(`[${ts()}] Syncing ${folderName}/ (${names.size} entries)...`);
+    emit(`[${ts()}] Rebuilding ${folderName}/ (${names.size} entries)...`);
     const subfolderId = envFolderId;
 
-    const existingNames = new Set();
+    // Delete all existing stubs (avoids SA/OAuth2 ownership visibility issues)
     let pt;
+    const toDelete = [];
     do {
       const res = await drive.files.list({
         q: `'${subfolderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`,
-        fields: 'nextPageToken, files(name)',
+        fields: 'nextPageToken, files(id, name)',
         pageSize: 100,
         pageToken: pt,
         includeItemsFromAllDrives: true,
         supportsAllDrives: true,
       });
-      for (const f of res.data.files) {
-        existingNames.add(f.name);
-        existingNames.add(f.name.replace(/\.md$/, ''));
-      }
+      toDelete.push(...res.data.files);
       pt = res.data.nextPageToken;
     } while (pt);
 
-    const created = [];
-    const existing = [];
-    for (const name of names) {
-      if (existingNames.has(name) || existingNames.has(`${name}.md`)) {
-        existing.push(name);
-        continue;
-      }
+    for (let i = 0; i < toDelete.length; i += 10) {
+      const batch = toDelete.slice(i, i + 10);
+      await Promise.all(batch.map((f) => drive.files.delete({ fileId: f.id }).catch(() => {})));
+    }
+    if (toDelete.length > 0) emit(`[${ts()}]   Deleted ${toDelete.length} old stubs`);
 
+    // Recreate all stubs
+    const created = [];
+    for (const name of names) {
       const related = thoughts
         .filter((t) => (t.people || []).includes(name) || (t.projects || []).includes(name))
         .map((t) => thoughtFilename(t).replace('.md', ''));
@@ -309,10 +308,9 @@ export async function rebuildVault(onLog) {
         media: { mimeType: 'text/markdown', body: content },
       });
       created.push(name);
-      emit(`[${ts()}]   + ${folderName}/${name}.md (new)`);
+      emit(`[${ts()}]   ✓ ${folderName}/${name}.md`);
     }
-    if (created.length === 0) emit(`[${ts()}]   No new ${folderName.toLowerCase()} entries`);
-    return { total: names.size, created, existing };
+    return { total: names.size, created, existing: [] };
   }
 
   const peopleResult = await writeStubs('People', allPeople, process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID);
