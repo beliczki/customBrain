@@ -233,23 +233,24 @@ export async function rebuildVault() {
     if (names.size === 0) return;
     const subfolderId = await getOrCreateSubfolder(drive, rootFolderId, folderName);
 
-    // Delete existing stubs
-    let existing = [];
+    // List existing files to avoid overwriting hand-written content
+    const existingNames = new Set();
     let pt;
     do {
       const res = await drive.files.list({
         q: `'${subfolderId}' in parents and name contains '.md' and trashed=false`,
-        fields: 'nextPageToken, files(id)',
+        fields: 'nextPageToken, files(name)',
         pageSize: 100,
         pageToken: pt,
       });
-      existing.push(...res.data.files);
+      for (const f of res.data.files) existingNames.add(f.name);
       pt = res.data.nextPageToken;
     } while (pt);
-    await Promise.all(existing.map((f) => drive.files.delete({ fileId: f.id })));
 
-    // Write new stubs with backlinks
+    // Only create stubs for names that don't have a file yet
     for (const name of names) {
+      if (existingNames.has(`${name}.md`)) continue;
+
       const related = thoughts
         .filter((t) => (t.people || []).includes(name) || (t.projects || []).includes(name))
         .map((t) => thoughtFilename(t).replace('.md', ''));
