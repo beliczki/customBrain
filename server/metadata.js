@@ -29,6 +29,19 @@ function buildPrompt(text, localCtx, vaultCtx) {
     contextBlock += `\n\nKnown people in the vault (use these exact names if they appear in the text): ${vaultCtx.people.join(', ')}`;
   }
 
+  if (vaultCtx?.aliases && Object.keys(vaultCtx.aliases).length) {
+    // Group aliases by canonical name
+    const byCanonical = {};
+    for (const [alias, canonical] of Object.entries(vaultCtx.aliases)) {
+      if (!byCanonical[canonical]) byCanonical[canonical] = [];
+      byCanonical[canonical].push(alias);
+    }
+    const lines = Object.entries(byCanonical).map(
+      ([canonical, alts]) => `- "${canonical}" is also known as: ${alts.join(', ')}`
+    );
+    contextBlock += `\n\nName aliases (always use the canonical name on the left, never the alias on the right):\n${lines.join('\n')}`;
+  }
+
   if (vaultCtx?.projects?.length) {
     contextBlock += `\n\nKnown projects in the vault (match to these if relevant): ${vaultCtx.projects.join(', ')}`;
   }
@@ -84,6 +97,18 @@ Reply ONLY with a JSON object: {"contradicts": true/false, "reason": "one senten
   return JSON.parse(match[1].trim());
 }
 
+function resolveAliases(people, aliases) {
+  if (!aliases || !people?.length) return people;
+  const resolved = people.map((p) => {
+    const lower = p.toLowerCase();
+    for (const [alias, canonical] of Object.entries(aliases)) {
+      if (alias.toLowerCase() === lower) return canonical;
+    }
+    return p;
+  });
+  return [...new Set(resolved)];
+}
+
 export async function extractMetadata(text, vaultContext) {
   const localCtx = loadContext();
 
@@ -114,5 +139,7 @@ export async function extractMetadata(text, vaultContext) {
   const json = await res.json();
   const raw = json.content[0].text;
   const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
-  return JSON.parse(match[1].trim());
+  const metadata = JSON.parse(match[1].trim());
+  metadata.people = resolveAliases(metadata.people, vaultContext?.aliases);
+  return metadata;
 }

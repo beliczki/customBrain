@@ -22,8 +22,13 @@ npm run dev                       # Vite dev server with HMR
 npm run build                     # production build → client/dist/
 ```
 
+### MCP stdio (local Claude Desktop)
+```bash
+node server/mcp-stdio.js            # connects Claude Desktop without Express
+```
+
 ### Environment setup
-Copy `.env.example` to `server/.env`. Key vars: `GOOGLE_API_KEY` (Gemini), `ANTHROPIC_API_KEY` (Haiku), `CAPTURE_SECRET`, Google Drive service account + OAuth2 creds. Run `scripts/get-drive-token.js` to generate the OAuth2 refresh token.
+Copy `.env.example` to `server/.env`. Key vars: `GOOGLE_API_KEY` (Gemini), `ANTHROPIC_API_KEY` (Haiku), `CAPTURE_SECRET`, Google Drive service account + OAuth2 creds. Run `scripts/get-drive-token.js` to generate the OAuth2 refresh token. Note: `.env.example` is incomplete — OAuth2 vars (`GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`) needed by agent tools and Drive writes are not listed.
 
 ### Dependency management
 Root `package.json` and `server/package.json` have separate dependency trees (no workspaces). Client has its own `package.json` too. Agent code imports from server's `node_modules` via relative paths.
@@ -66,6 +71,7 @@ Route files export an Express router (default) and a named function for core log
 - **Obsidian export**: full vault rebuild (not incremental). Deletes all .md, rewrites from Qdrant.
 - **Delete**: `DELETE /thoughts/:id` lives in `server/routes/recent.js`.
 - **Auth**: All API and MCP routes require `Authorization: Bearer <CAPTURE_SECRET>` (also accepts `?token=` query param). Static files (React SPA) are open — token gate in the client. MCP stdio has no auth (local only).
+- **SPA routing**: `server/index.js` serves `client/dist/` as static, with a wildcard `GET *` that sends `index.html` for any path not matching an API route. API routes are hardcoded in the wildcard guard — new routes need to be added there too.
 - **MCP**: Streamable HTTP only (`/mcp/http`). Each connection gets its own McpServer.
 
 ## MCP tools
@@ -86,7 +92,7 @@ Draft workflow: `manage_drafts` stores in-memory (`agent/drafts/store.js`). `app
 
 - `cron/export.js` — hourly Obsidian vault export
 - `scripts/init-collection.js` — one-time Qdrant setup (`npm run init`)
-- `scripts/get-drive-token.js` — OAuth2 refresh token flow
+- `scripts/get-drive-token.js` — OAuth2 refresh token flow (also duplicated at `server/get-drive-token.js`)
 
 ## Client
 

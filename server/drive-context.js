@@ -57,6 +57,42 @@ async function listMdFiles(drive, folderId) {
   }
 }
 
+async function listPeopleWithAliases(drive, folderId) {
+  try {
+    const res = await drive.files.list({
+      q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
+      fields: 'files(id, name)',
+      pageSize: 100,
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+    });
+    const people = [];
+    const aliases = {};
+    for (const file of res.data.files) {
+      const canonical = file.name.replace('.md', '');
+      people.push(canonical);
+      try {
+        const content = await drive.files.get(
+          { fileId: file.id, alt: 'media' },
+          { responseType: 'text' }
+        );
+        const text = typeof content.data === 'string' ? content.data : '';
+        for (const line of text.split('\n')) {
+          const match = line.match(/^alias:\s*(.+)/i);
+          if (match) {
+            aliases[match[1].trim()] = canonical;
+          }
+        }
+      } catch {
+        // skip files that can't be read
+      }
+    }
+    return { people, aliases };
+  } catch {
+    return { people: [], aliases: {} };
+  }
+}
+
 export async function getVaultContext() {
   if (cachedContext && Date.now() - cacheTime < CACHE_TTL) {
     return cachedContext;
@@ -67,12 +103,14 @@ export async function getVaultContext() {
     const peopleFolderId = process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID;
     const projectsFolderId = process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID;
 
-    const people = peopleFolderId ? await listMdFiles(drive, peopleFolderId) : [];
+    const { people, aliases } = peopleFolderId
+      ? await listPeopleWithAliases(drive, peopleFolderId)
+      : { people: [], aliases: {} };
     const projects = projectsFolderId ? await listMdFiles(drive, projectsFolderId) : [];
 
-    cachedContext = { people, projects };
+    cachedContext = { people, projects, aliases };
     cacheTime = Date.now();
-    console.log(`Vault context loaded: ${people.length} people, ${projects.length} projects`);
+    console.log(`Vault context loaded: ${people.length} people, ${Object.keys(aliases).length} aliases, ${projects.length} projects`);
     return cachedContext;
   } catch (err) {
     console.error('Failed to load vault context:', err.message);
