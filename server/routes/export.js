@@ -130,13 +130,23 @@ function toFrontmatter(thought) {
 }
 
 router.post('/export', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const onLog = (line) => {
+    res.write(`data: ${JSON.stringify({ type: 'log', line })}\n\n`);
+  };
+
   try {
-    const result = await rebuildVault();
-    res.json(result);
+    const result = await rebuildVault(onLog);
+    res.write(`data: ${JSON.stringify({ type: 'result', ...result })}\n\n`);
   } catch (err) {
     console.error('Export error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
   }
+  res.end();
 });
 
 export default router;
@@ -159,20 +169,20 @@ async function getOrCreateSubfolder(drive, parentId, name) {
   return folder.data.id;
 }
 
-export async function rebuildVault() {
+export async function rebuildVault(onLog) {
   const startTime = Date.now();
-  const log = [];
   const ts = () => `${((Date.now() - startTime) / 1000).toFixed(1)}s`;
+  const emit = (line) => { if (onLog) onLog(line); };
 
   const drive = getDriveClient();
   const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-  log.push(`[${ts()}] Connecting to Google Drive...`);
+  emit(`[${ts()}] Connecting to Google Drive...`);
   const folderId = await getOrCreateSubfolder(drive, rootFolderId, 'customBrain');
-  log.push(`[${ts()}] Found customBrain folder`);
+  emit(`[${ts()}] Found customBrain folder`);
 
   // Step 1: Delete all existing .md files
-  log.push(`[${ts()}] Scanning for old files...`);
+  emit(`[${ts()}] Scanning for old files...`);
   let existingFiles = [];
   let pageToken;
   do {
@@ -186,30 +196,30 @@ export async function rebuildVault() {
     pageToken = res.data.nextPageToken;
   } while (pageToken);
 
-  log.push(`[${ts()}] Deleting ${existingFiles.length} old files...`);
+  emit(`[${ts()}] Deleting ${existingFiles.length} old files...`);
   for (let i = 0; i < existingFiles.length; i += 10) {
     const batch = existingFiles.slice(i, i + 10);
     await Promise.all(batch.map((f) => drive.files.delete({ fileId: f.id })));
   }
-  log.push(`[${ts()}] Old files deleted`);
+  emit(`[${ts()}] Old files deleted`);
 
   // Step 2: Fetch all thoughts from Qdrant
-  log.push(`[${ts()}] Fetching thoughts from Qdrant...`);
+  emit(`[${ts()}] Fetching thoughts from Qdrant...`);
   const thoughts = await scrollFiltered();
-  log.push(`[${ts()}] Found ${thoughts.length} thoughts`);
+  emit(`[${ts()}] Found ${thoughts.length} thoughts`);
 
   if (thoughts.length === 0) {
-    log.push(`[${ts()}] Nothing to export`);
-    return { ok: true, rebuilt: true, deleted: existingFiles.length, exported_count: 0, files: [], log };
+    emit(`[${ts()}] Nothing to export`);
+    return { ok: true, rebuilt: true, deleted: existingFiles.length, exported_count: 0, files: [] };
   }
 
   // Step 3: Build filenames and link index
   const filenames = thoughts.map(thoughtFilename);
   const linkIndex = buildLinkIndex(thoughts, filenames);
-  log.push(`[${ts()}] Built link index`);
+  emit(`[${ts()}] Built link index`);
 
   // Step 4: Write all thoughts as .md files
-  log.push(`[${ts()}] Writing ${thoughts.length} thought files...`);
+  emit(`[${ts()}] Writing ${thoughts.length} thought files...`);
   const files = [];
   for (let i = 0; i < thoughts.length; i++) {
     const t = thoughts[i];
@@ -233,7 +243,7 @@ export async function rebuildVault() {
     });
 
     files.push(filename);
-    log.push(`[${ts()}]   ✓ ${filename}`);
+    emit(`[${ts()}]   ✓ ${filename}`);
   }
 
   // Step 5: People & Projects
@@ -252,7 +262,7 @@ export async function rebuildVault() {
 
   async function writeStubs(folderName, names) {
     if (names.size === 0) return { total: 0, created: [], existing: [] };
-    log.push(`[${ts()}] Syncing ${folderName}/ (${names.size} entries)...`);
+    emit(`[${ts()}] Syncing ${folderName}/ (${names.size} entries)...`);
     const subfolderId = await getOrCreateSubfolder(drive, rootFolderId, folderName);
 
     const existingNames = new Set();
@@ -291,9 +301,9 @@ export async function rebuildVault() {
         media: { mimeType: 'text/markdown', body: content },
       });
       created.push(name);
-      log.push(`[${ts()}]   + ${folderName}/${name}.md (new)`);
+      emit(`[${ts()}]   + ${folderName}/${name}.md (new)`);
     }
-    if (created.length === 0) log.push(`[${ts()}]   No new ${folderName.toLowerCase()} entries`);
+    if (created.length === 0) emit(`[${ts()}]   No new ${folderName.toLowerCase()} entries`);
     return { total: names.size, created, existing };
   }
 
@@ -301,12 +311,12 @@ export async function rebuildVault() {
   const projectsResult = await writeStubs('Projects', allProjects);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  log.push(`[${elapsed}s] ── Export complete ──`);
-  log.push(`  ${files.length} thoughts · ${existingFiles.length} deleted · ${peopleResult.created.length} new people · ${projectsResult.created.length} new projects`);
-  log.push(`  Types: ${Object.entries(typeCounts).map(([k, v]) => `${k}(${v})`).join(' · ')}`);
-  log.push(`  People: ${[...allPeople].join(', ')}`);
-  log.push(`  Projects: ${[...allProjects].join(', ')}`);
-  log.push(`  Duration: ${elapsed}s`);
+  emit(`[${elapsed}s] ── Export complete ──`);
+  emit(`  ${files.length} thoughts · ${existingFiles.length} deleted · ${peopleResult.created.length} new people · ${projectsResult.created.length} new projects`);
+  emit(`  Types: ${Object.entries(typeCounts).map(([k, v]) => `${k}(${v})`).join(' · ')}`);
+  emit(`  People: ${[...allPeople].join(', ')}`);
+  emit(`  Projects: ${[...allProjects].join(', ')}`);
+  emit(`  Duration: ${elapsed}s`);
 
   return {
     ok: true,
@@ -314,7 +324,6 @@ export async function rebuildVault() {
     deleted: existingFiles.length,
     exported_count: files.length,
     files,
-    log,
     by_type: typeCounts,
     people: {
       total: allPeople.size,
