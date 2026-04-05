@@ -276,6 +276,8 @@ export async function rebuildVault(onLog) {
         fields: 'nextPageToken, files(name)',
         pageSize: 100,
         pageToken: pt,
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true,
       });
       for (const f of res.data.files) existingNames.add(f.name);
       pt = res.data.nextPageToken;
