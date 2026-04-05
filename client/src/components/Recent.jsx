@@ -21,10 +21,10 @@ export default function Recent() {
   if (loading) return <p className="text-txt-ter text-sm">Loading...</p>;
 
   return (
-    <div className="space-y-4">
+    <div>
       {thoughts.length === 0 && <p className="text-txt-ter text-sm">No thoughts yet.</p>}
       {thoughts.map((t) => (
-        <div key={t.id} className="p-4 bg-surface border border-subtle">
+        <div key={t.id} className="py-6 border-t border-subtle">
           <div className="flex justify-between items-start mb-3">
             <div className="flex-1">
               {t.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide text-txt">{t.title}</h3>}

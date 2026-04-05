@@ -13,13 +13,13 @@ export default function Stats() {
   if (!data) return <p className="text-txt-ter text-sm">No data.</p>;
 
   return (
-    <div className="space-y-6">
-      <div className="p-4 bg-surface border border-subtle">
+    <div>
+      <div className="py-6 border-t border-subtle">
         <p className="text-lg font-bold text-txt">{data.total}</p>
         <p className="text-sm text-txt-sec">Total thoughts</p>
       </div>
 
-      <div className="p-4 bg-surface border border-subtle">
+      <div className="py-6 border-t border-subtle">
         <h3 className="text-sm font-medium mb-3 text-txt">By Type</h3>
         <div className="space-y-1">
           {Object.entries(data.by_type || {}).map(([type, count]) => (
@@ -31,7 +31,7 @@ export default function Stats() {
         </div>
       </div>
 
-      <div className="p-4 bg-surface border border-subtle">
+      <div className="py-6 border-t border-subtle">
         <h3 className="text-sm font-medium mb-3 text-txt">Top Topics</h3>
         <div className="flex gap-2 flex-wrap">
           {(data.top_topics || []).map(({ topic, count }) => (
