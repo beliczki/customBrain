@@ -12,6 +12,7 @@ import { registerAgentTools } from '../agent/register.js';
 const server = new McpServer({
   name: 'customBrain',
   version: '1.0.0',
+  icons: [{ src: 'https://brain.beliczki.hu/favicon-32x32.png', sizes: ['32x32'], mimeType: 'image/png' }],
 });
 
 server.tool(
