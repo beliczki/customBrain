@@ -40,6 +40,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Layout — beliczki.hu section-row + container system */
+.section-row {
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+}
+
+.container {
+  max-width: 90%;
+  margin: 0 auto;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 900px;
+  }
+}
+
 /* Theme toggle */
 .theme-toggle {
   position: fixed;

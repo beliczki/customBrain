@@ -17,35 +17,39 @@ export default function App() {
     return (
       <div className="min-h-screen">
         <ThemeToggle />
-        <div className="max-w-md mx-auto px-4 py-24 flex flex-col items-center">
-          <img src="/brain_darkmode.svg" alt="" className="w-24 h-24 mb-4 dark:block hidden" />
-          <img src="/brain.svg" alt="" className="w-24 h-24 mb-4 dark:hidden" />
-          <h1 className="text-2xl font-bold mb-8 text-txt">{APP_NAME}</h1>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const val = e.target.elements.token.value.trim();
-              if (val) {
-                localStorage.setItem('capture_secret', val);
-                setToken(val);
-              }
-            }}
-            className="w-full space-y-4"
-          >
-            <input
-              name="token"
-              type="password"
-              placeholder="API token"
-              className="w-full px-3 py-2 bg-surface border border-subtle text-txt text-sm"
-              autoFocus
-            />
-            <button
-              type="submit"
-              className="w-full px-6 py-2 bg-accent text-white text-sm font-medium hover:bg-accent-dark transition-colors"
-            >
-              Unlock
-            </button>
-          </form>
+        <div className="section-row">
+          <div className="container">
+            <div className="py-24 flex flex-col items-center px-6">
+              <img src="/brain_darkmode.svg" alt="" className="w-24 h-24 mb-4 dark:block hidden" />
+              <img src="/brain.svg" alt="" className="w-24 h-24 mb-4 dark:hidden" />
+              <h1 className="text-2xl font-bold mb-8 text-txt">{APP_NAME}</h1>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const val = e.target.elements.token.value.trim();
+                  if (val) {
+                    localStorage.setItem('capture_secret', val);
+                    setToken(val);
+                  }
+                }}
+                className="w-full max-w-sm space-y-4"
+              >
+                <input
+                  name="token"
+                  type="password"
+                  placeholder="API token"
+                  className="w-full px-3 py-2 bg-surface border border-subtle text-txt text-sm"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="w-full px-6 py-2 bg-accent text-white text-sm font-medium hover:bg-accent-dark transition-colors"
+                >
+                  Unlock
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -54,32 +58,47 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <ThemeToggle />
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-3 mb-6">
-          <img src="/brain_darkmode.svg" alt="" className="w-8 h-8 dark:block hidden" />
-          <img src="/brain.svg" alt="" className="w-8 h-8 dark:hidden" />
-          <h1 className="text-2xl font-bold text-txt">{APP_NAME}</h1>
+      {/* Header row */}
+      <div className="section-row">
+        <div className="container">
+          <div className="flex items-center gap-3 px-6 py-4">
+            <img src="/brain_darkmode.svg" alt="" className="w-8 h-8 dark:block hidden" />
+            <img src="/brain.svg" alt="" className="w-8 h-8 dark:hidden" />
+            <h1 className="text-2xl font-bold text-txt">{APP_NAME}</h1>
+          </div>
         </div>
-        <nav className="flex gap-2 mb-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActive(tab)}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                active === tab
-                  ? 'bg-accent text-white'
-                  : 'bg-surface text-txt-sec hover:text-txt'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </nav>
-        {active === 'Capture' && <Capture />}
-        {active === 'Search' && <Search />}
-        {active === 'Recent' && <Recent />}
-        {active === 'Stats' && <Stats />}
-        {active === 'Export' && <Export />}
+      </div>
+      {/* Nav row */}
+      <div className="section-row">
+        <div className="container">
+          <nav className="flex px-6">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActive(tab)}
+                className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                  active === tab
+                    ? 'border-[var(--accent-blue)] text-txt'
+                    : 'border-transparent text-txt-sec hover:text-txt'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+      {/* Content row */}
+      <div className="section-row min-h-[calc(100vh-120px)]">
+        <div className="container">
+          <div className="px-6 py-8">
+            {active === 'Capture' && <Capture />}
+            {active === 'Search' && <Search />}
+            {active === 'Recent' && <Recent />}
+            {active === 'Stats' && <Stats />}
+            {active === 'Export' && <Export />}
+          </div>
+        </div>
       </div>
     </div>
   );
