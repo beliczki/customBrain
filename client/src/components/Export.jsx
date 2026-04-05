@@ -29,32 +29,32 @@ export default function Export() {
           placeholder="Filter by topic (optional)"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
-          className="flex-1 px-3 py-2 bg-gray-800 rounded-lg text-sm"
+          className="flex-1 px-3 py-2 bg-surface border border-subtle text-txt text-sm"
         />
         <input
           placeholder="Last N days"
           type="number"
           value={days}
           onChange={(e) => setDays(e.target.value)}
-          className="w-32 px-3 py-2 bg-gray-800 rounded-lg text-sm"
+          className="w-32 px-3 py-2 bg-surface border border-subtle text-txt text-sm"
         />
       </div>
       <button
         onClick={handleExport}
         disabled={loading}
-        className="px-6 py-2 bg-indigo-600 rounded-lg text-sm font-medium disabled:opacity-50"
+        className="px-6 py-2 bg-accent text-white text-sm font-medium disabled:opacity-50 hover:bg-accent-dark transition-colors"
       >
         {loading ? 'Exporting...' : 'Export to Google Drive'}
       </button>
       {result && (
-        <div className="p-4 bg-gray-800 rounded-lg text-sm">
+        <div className="p-4 bg-surface border border-subtle text-sm">
           {result.error ? (
-            <p className="text-red-400">{result.error}</p>
+            <p className="text-red-600 dark:text-red-400">{result.error}</p>
           ) : (
             <div>
-              <p className="text-green-400">Exported {result.exported_count} files</p>
+              <p className="text-green-600 dark:text-green-400">Exported {result.exported_count} files</p>
               {result.files?.length > 0 && (
-                <ul className="mt-2 text-gray-400 space-y-1">
+                <ul className="mt-2 text-txt-sec space-y-1">
                   {result.files.map((f) => (
                     <li key={f}>{f}</li>
                   ))}

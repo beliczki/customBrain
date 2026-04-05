@@ -29,25 +29,25 @@ export default function Capture() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
-          className="w-full px-3 py-2 bg-gray-800 rounded-lg text-sm resize-y min-h-[120px]"
+          className="w-full px-3 py-2 bg-surface border border-subtle text-txt text-sm resize-y min-h-[120px]"
         />
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-2 bg-indigo-600 rounded-lg text-sm font-medium disabled:opacity-50"
+          className="px-6 py-2 bg-accent text-white text-sm font-medium disabled:opacity-50 hover:bg-accent-dark transition-colors"
         >
           {loading ? 'Capturing...' : 'Capture'}
         </button>
       </form>
       {result && (
-        <div className="mt-4 p-4 bg-gray-800 rounded-lg text-sm">
+        <div className="mt-4 p-4 bg-surface border border-subtle text-sm">
           {result.error ? (
-            <p className="text-red-400">{result.error}</p>
+            <p className="text-red-600 dark:text-red-400">{result.error}</p>
           ) : (
             <div>
-              <p className="text-green-400 mb-2">Captured!</p>
+              <p className="text-green-600 dark:text-green-400 mb-2">Captured!</p>
               {result.metadata && (
-                <div className="space-y-1 text-gray-400">
+                <div className="space-y-1 text-txt-sec">
                   <p>Type: {result.metadata.type}</p>
                   {result.metadata.topics?.length > 0 && (
                     <p>Topics: {result.metadata.topics.join(', ')}</p>
