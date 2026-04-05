@@ -28,9 +28,9 @@ function getDriveClient() {
 function slugify(text) {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
     .replace(/^-|-$/g, '')
-    .slice(0, 50);
+    .slice(0, 80);
 }
 
 function thoughtFilename(t) {
