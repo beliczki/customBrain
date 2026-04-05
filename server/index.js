@@ -32,7 +32,6 @@ app.get('*', (req, res, next) => {
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   const auth = req.headers.authorization || (req.query.token ? `Bearer ${req.query.token}` : '');
-  console.log(`Auth check: path=${req.path} method=${req.method} hasHeader=${!!req.headers.authorization} queryToken=${!!req.query.token} match=${auth === `Bearer ${process.env.CAPTURE_SECRET}`}`);
   if (!auth || auth !== `Bearer ${process.env.CAPTURE_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
