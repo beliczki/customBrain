@@ -25,8 +25,8 @@ html.dark {
   --border: rgba(255, 255, 255, 0.1);
   --border-solid: #FFFFFF;
   --border-subtle: rgba(255, 255, 255, 0.15);
-  --accent-blue: #4D4DFF;
-  --accent-blue-dark: #6666FF;
+  --accent-blue: #0014FF;
+  --accent-blue-dark: #0000CC;
   --text-primary: #E0E0E0;
   --text-secondary: #999999;
   --text-tertiary: #666666;
