@@ -272,21 +272,24 @@ export async function rebuildVault(onLog) {
     let pt;
     do {
       const res = await drive.files.list({
-        q: `'${subfolderId}' in parents and name contains '.md' and trashed=false`,
+        q: `'${subfolderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`,
         fields: 'nextPageToken, files(name)',
         pageSize: 100,
         pageToken: pt,
         includeItemsFromAllDrives: true,
         supportsAllDrives: true,
       });
-      for (const f of res.data.files) existingNames.add(f.name);
+      for (const f of res.data.files) {
+        existingNames.add(f.name);
+        existingNames.add(f.name.replace(/\.md$/, ''));
+      }
       pt = res.data.nextPageToken;
     } while (pt);
 
     const created = [];
     const existing = [];
     for (const name of names) {
-      if (existingNames.has(`${name}.md`)) {
+      if (existingNames.has(name) || existingNames.has(`${name}.md`)) {
         existing.push(name);
         continue;
       }
