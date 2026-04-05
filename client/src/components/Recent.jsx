@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { recent, deleteThought } from '../api.js';
 
 export default function Recent() {
@@ -28,7 +29,7 @@ export default function Recent() {
           <div className="flex justify-between items-start mb-3">
             <div className="flex-1">
               {t.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide text-txt">{t.title}</h3>}
-              <p className="text-sm text-txt-sec">{t.text}</p>
+              <div className="text-sm text-txt-sec prose-sm"><ReactMarkdown>{t.text}</ReactMarkdown></div>
             </div>
             <button
               onClick={() => handleDelete(t.id)}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { search } from '../api.js';
 
 export default function Search() {
@@ -41,7 +42,7 @@ export default function Search() {
           <div key={r.id} className="py-6 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
             <div className="mb-3">
               {r.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide text-txt">{r.title}</h3>}
-              <p className="text-sm text-txt-sec">{r.text}</p>
+              <div className="text-sm text-txt-sec prose-sm"><ReactMarkdown>{r.text}</ReactMarkdown></div>
             </div>
 
             <div className="space-y-2 text-xs">
