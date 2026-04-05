@@ -108,7 +108,7 @@ function toFrontmatter(thought) {
   const lines = ['---'];
   if (thought.people?.length) {
     lines.push('people:');
-    for (const p of thought.people) lines.push(`  - "[[../People/${p}|${p}]]"`);
+    for (const p of thought.people) lines.push(`  - "[[People/${p}|${p}]]"`);
   }
   if (thought.topics?.length) {
     lines.push('topics:');
@@ -116,7 +116,7 @@ function toFrontmatter(thought) {
   }
   if (thought.projects?.length) {
     lines.push('projects:');
-    for (const p of thought.projects) lines.push(`  - "[[../Projects/${p}|${p}]]"`);
+    for (const p of thought.projects) lines.push(`  - "[[Projects/${p}|${p}]]"`);
   }
   if (thought.type) lines.push(`type: "${thought.type}"`);
   if (thought.action_items?.length) {
@@ -259,14 +259,10 @@ export async function rebuildVault(onLog) {
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   }
 
-  async function writeStubs(folderName, names, envFolderId) {
+  async function writeStubs(folderName, names) {
     if (names.size === 0) return { total: 0, created: [], existing: [] };
-    if (!envFolderId) {
-      emit(`[${ts()}] Skipping ${folderName}/ — no folder ID configured`);
-      return { total: names.size, created: [], existing: [...names] };
-    }
     emit(`[${ts()}] Syncing ${folderName}/ (${names.size} entries)...`);
-    const subfolderId = envFolderId;
+    const subfolderId = await getOrCreateSubfolder(drive, folderId, folderName);
 
     const existingNames = new Set();
     let pt;
@@ -294,7 +290,7 @@ export async function rebuildVault(onLog) {
       const related = thoughts
         .filter((t) => (t.people || []).includes(name) || (t.projects || []).includes(name))
         .map((t) => thoughtFilename(t).replace('.md', ''));
-      const backlinks = related.map((fn) => `- [[../customBrain/${fn}]]`).join('\n');
+      const backlinks = related.map((fn) => `- [[${fn}]]`).join('\n');
       const content = `# ${name}\n\n## Mentions\n${backlinks}\n`;
 
       await drive.files.create({
@@ -312,8 +308,8 @@ export async function rebuildVault(onLog) {
     return { total: names.size, created, existing };
   }
 
-  const peopleResult = await writeStubs('People', allPeople, process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID);
-  const projectsResult = await writeStubs('Projects', allProjects, process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID);
+  const peopleResult = await writeStubs('People', allPeople);
+  const projectsResult = await writeStubs('Projects', allProjects);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   emit(`[${elapsed}s] ── Export complete ──`);
