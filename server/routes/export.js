@@ -231,7 +231,13 @@ export async function rebuildVault() {
 
   async function writeStubs(folderName, names) {
     if (names.size === 0) return;
-    const subfolderId = await getOrCreateSubfolder(drive, rootFolderId, folderName);
+    // Only write into existing folders — never create them
+    const folderRes = await drive.files.list({
+      q: `'${rootFolderId}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id)',
+    });
+    if (folderRes.data.files.length === 0) return;
+    const subfolderId = folderRes.data.files[0].id;
 
     // List existing files to avoid overwriting hand-written content
     const existingNames = new Set();
