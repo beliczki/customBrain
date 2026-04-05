@@ -15,14 +15,8 @@ function loadContext() {
 function buildPrompt(text, localCtx, vaultCtx) {
   let contextBlock = '';
 
-  if (localCtx) {
-    const lines = [];
-    if (localCtx.not_people?.length) {
-      lines.push('These are NOT real people — do NOT put them in "people":');
-      for (const np of localCtx.not_people) lines.push(`- "${np.name}" → ${np.what}`);
-    }
-    if (localCtx.notes) lines.push(`\nNotes: ${localCtx.notes}`);
-    contextBlock += '\n' + lines.join('\n');
+  if (localCtx?.notes) {
+    contextBlock += `\nNotes: ${localCtx.notes}`;
   }
 
   if (vaultCtx?.people?.length) {

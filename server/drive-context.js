@@ -14,12 +14,7 @@ function getOAuth2Client() {
   return oauth2;
 }
 
-function getDrive() {
-  // Try OAuth2 first
-  if (process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
-    return google.drive({ version: 'v3', auth: getOAuth2Client() });
-  }
-  // Fallback to service account
+function getSaDrive() {
   const saPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH || './service-account.json';
   const sa = JSON.parse(readFileSync(saPath, 'utf-8'));
   const auth = new google.auth.JWT({
@@ -28,6 +23,14 @@ function getDrive() {
     scopes: ['https://www.googleapis.com/auth/drive'],
   });
   return google.drive({ version: 'v3', auth });
+}
+
+function getDrive() {
+  // Try OAuth2 first
+  if (process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
+    return google.drive({ version: 'v3', auth: getOAuth2Client() });
+  }
+  return getSaDrive();
 }
 
 export function getGmail() {
@@ -80,7 +83,8 @@ async function listPeopleWithAliases(drive, folderId) {
         for (const line of text.split('\n')) {
           const match = line.match(/^alias:\s*(.+)/i);
           if (match) {
-            aliases[match[1].trim()] = canonical;
+            const alias = match[1].trim().replace(/^\[\[|]]$/g, '');
+            aliases[alias] = canonical;
           }
         }
       } catch {
@@ -99,7 +103,8 @@ export async function getVaultContext() {
   }
 
   try {
-    const drive = getDrive();
+    // SA sees all files regardless of owner (OAuth2 misses some)
+    const drive = getSaDrive();
     const peopleFolderId = process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID;
     const projectsFolderId = process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID;
 
