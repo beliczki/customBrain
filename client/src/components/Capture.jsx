@@ -38,7 +38,7 @@ export default function Capture() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
-          className="w-full px-3 py-2 bg-gray-800 rounded-lg text-sm resize-none"
+          className="w-full px-3 py-2 bg-gray-800 rounded-lg text-sm resize-y min-h-[120px]"
         />
         <button
           type="submit"

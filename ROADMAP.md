@@ -18,12 +18,29 @@ Historical build plans archived in `docs/archive/`.
 
 ---
 
+## USE IT FIRST — one week before building anything new
+
+**Status (2026-04-04)**: Infra is done. The brain is empty. 19 thoughts, ~4 are test garbage, ~5 are meta about itself. Building more features on an unused system is wasted effort.
+
+**Commit to one week of daily use (2026-04-04 → 2026-04-11) before any new development:**
+
+- [ ] **Reggeli rutin**: Claude Desktop-ban "dolgozd fel a tegnapit" — Fireflies transcripts + YouTube likes + Calendar context → review → approve → brain-be
+- [ ] **Napközben**: Chrome extension ha látsz cikket/posztot/tweetet ami értékes — clip → brain
+- [ ] **Meeting előtt**: "mi a kontextus ehhez a meetinghez?" — get_event_context
+- [ ] **Hét végén**: rebuild_obsidian_vault → Obsidian Graph view → mit gondoltál a héten, milyen kapcsolatok rajzolódnak ki?
+- [ ] **Teszt szemét törlése**: "Draft approve teszt", "MCP naptár teszt", "Szeretem/Felmondtam" tesztpárok — ki a brain-ből
+
+**After one week**: evaluate what's actually missing from real use, not theory. Then decide what to build next.
+
+---
+
 ## Ops — do first (stability)
 
 - [ ] **HTTPS**: certbot for brain.beliczki.hu (was scheduled 2026-03-17, status unknown)
 - [ ] **Firewall**: lock Qdrant port 6333 to internal only
 - [ ] **Crontab**: configure `cron/export.js` hourly on Hetzner: `0 * * * * cd /root/customBrain && node cron/export.js`
 - [ ] **pm2 startup**: ensure auto-restart on server reboot (`pm2 startup` + `pm2 save`)
+- [ ] **Qdrant backup**: automated Qdrant snapshot/backup strategy — the brain is irreplaceable data. Options: Qdrant snapshot API (`POST /collections/thoughts/snapshots`), periodic export to JSON, or volume-level backup of `qdrant_data` Docker volume. Should run on schedule (daily minimum) and store off-server (S3, Google Drive, or local download).
 
 ---
 
@@ -35,40 +52,35 @@ Historical build plans archived in `docs/archive/`.
 
 ---
 
-## Next up (2026-04-04)
+## Session log — 2026-04-04
 
-Tested `get_event_context` on real calendar events (ArtAI javítások, Bizi tudásbázis). Results:
-- Tool works but search results are noisy — irrelevant thoughts rank above relevant ones
-- "Draft approve teszt" (irrelevant) outranks "Bizi platformfeladatok" (highly relevant) because cosine alone decides
-- Email bodies return raw HTML (Fireflies recap), not useful text
+### Done
+- **P1a: Time decay** — implemented and verified
+- **P1b: Conflict resolution** — implemented with configurable `conflict_threshold` (default 0.85). Works well for near-duplicate detection (cosine > 0.85). Archives old thought with `status: archived`, `archived_at`, `archived_reason`. New thought gets `supersedes: old_id` link. Files: `server/routes/capture.js`, `server/metadata.js` (`checkContradiction`), `server/qdrant.js` (`updatePayload`), `server/mcp.js` + `mcp-stdio.js`
+- **Event context quality** — brain/email results 5→3, email body truncate 500 char, HTML strip, Fireflies recap emails filtered out. File: `agent/tools/context.js`
+- **CLAUDE.md** updated: dependency management, production deploy, delete endpoint docs
+- **PM2 deploy fix**: zombie process handling, `pm2 save` on Hetzner
 
-**Action items for today's session, in order:**
+### Known limitation: semantic contradiction detection
+Embedding model measures topic similarity, not logical relationship. Test results:
+- "Utálom a munkámat" vs "Gyűlölöm a munkámat" (same sentiment): **0.977**
+- "Szeretem a munkámat" vs "Imádom a munkámat" (same sentiment): **0.919**
+- "Szeretem a munkámat" vs "Felmondtam a munkámban" (contradiction): **0.77**
 
-1. **P1a: Time decay in search** (30min) — `server/routes/search.js`
-   - Apply `final_score = cosine_score * (1 / (1 + days / 30))` after Qdrant returns
-   - Return both scores. This alone improves ranking for context tool.
+Contradicting thoughts score *lower* than confirming ones — lowering threshold to 0.75 would catch them but flood with false positives. Current P1b is a **duplicate detector**, not a true contradiction detector.
 
-2. **`get_event_context` quality fixes** (30-60min) — `agent/tools/context.js`
-   - Brain search: filter by project if event title matches a known project in brain
-   - Limit brain results to top 3 (currently 5, too noisy)
-   - Strip HTML from email bodies, truncate to ~500 chars
-
-3. **Re-test**: run ArtAI + Bizi context again, verify improved ranking
+**Future options for real contradiction detection:**
+- **Option A**: At capture, send top 5-10 results (lower threshold) to Haiku to identify contradictions — more API calls but accurate
+- **Option B**: Nightly batch cron (P6) — pair all thoughts and check for contradictions offline, not real-time
 
 ---
 
 ## P1: Make the Brain Smarter
 
-### P1a: Time decay in search scoring (~30min)
-After Qdrant returns results, apply: `final_score = cosine_score * (1 / (1 + days_since_capture / 30))`
-Return both `final_score` and `cosine_score`. Applies to MCP `search_brain` too (same handler).
-- File: `server/routes/search.js`
-- Inspired by Rohit's "agent that never forgets" article (in brain) — "Embeddings measure similarity, not truth"
+### ~~P1a: Time decay in search scoring~~ — DONE (2026-04-04)
 
-### P1b: Conflict resolution at capture
-After embedding, before upsert: search for top 1 result with score > 0.92. If found, ask Haiku if the new thought contradicts the existing one. If YES: archive old point (`status: archived`), store new with `supersedes: old_id`.
-- File: `server/routes/capture.js`
-- Prevents "I love my job" + "I quit my job" both living as equal truth
+### ~~P1b: Conflict resolution at capture~~ — DONE (2026-04-04)
+Works for near-duplicates (>0.85). True semantic contradiction detection requires different approach — see session log above.
 
 ### P1c: Evolving People/Projects summaries
 After vault rebuild, group thoughts by person/project. Fetch existing summary .md from Drive, call Haiku to rewrite integrating new thoughts. Write updated summaries back.
