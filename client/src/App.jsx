@@ -9,6 +9,40 @@ const tabs = ['Capture', 'Search', 'Recent', 'Stats', 'Export'];
 
 export default function App() {
   const [active, setActive] = useState('Capture');
+  const [token, setToken] = useState(localStorage.getItem('capture_secret') || '');
+
+  if (!token) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-24 text-center">
+        <h1 className="text-2xl font-bold mb-6">customBrain</h1>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const val = e.target.elements.token.value.trim();
+            if (val) {
+              localStorage.setItem('capture_secret', val);
+              setToken(val);
+            }
+          }}
+          className="space-y-4"
+        >
+          <input
+            name="token"
+            type="password"
+            placeholder="API token"
+            className="w-full px-3 py-2 bg-gray-800 rounded-lg text-sm"
+            autoFocus
+          />
+          <button
+            type="submit"
+            className="px-6 py-2 bg-indigo-600 rounded-lg text-sm font-medium"
+          >
+            Unlock
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">

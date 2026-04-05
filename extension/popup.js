@@ -84,7 +84,9 @@ async function init() {
   // Search brain for related thoughts
   try {
     const searchUrl = `${settings.brainUrl}/search?q=${encodeURIComponent(pageData.title)}&limit=3`;
-    const res = await fetch(searchUrl);
+    const res = await fetch(searchUrl, {
+      headers: { Authorization: `Bearer ${settings.captureSecret}` },
+    });
     const data = await res.json();
     const container = document.getElementById('relatedItems');
     if (data.length > 0) {

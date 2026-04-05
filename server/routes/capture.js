@@ -7,11 +7,6 @@ import { getVaultContext } from '../drive-context.js';
 const router = Router();
 
 router.post('/capture', async (req, res) => {
-  const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${process.env.CAPTURE_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   const { text, conflict_threshold } = req.body;
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'text field required' });

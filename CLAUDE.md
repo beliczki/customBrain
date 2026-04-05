@@ -51,8 +51,8 @@ Route files export an Express router (default) and a named function for core log
 - **Capture pipeline**: text → parallel [embedding + metadata extraction] → Qdrant upsert. Context-aware: `server/drive-context.js` reads People/Projects from Drive. `server/context.json` has `not_people` exclusions.
 - **Obsidian export**: full vault rebuild (not incremental). Deletes all .md, rewrites from Qdrant.
 - **Delete**: `DELETE /thoughts/:id` lives in `server/routes/recent.js`.
-- **Auth**: `POST /capture` requires Bearer token (`CAPTURE_SECRET`). Other routes are open.
-- **MCP**: SSE legacy (`/mcp`) and Streamable HTTP (`/mcp/http`). Each connection gets its own McpServer.
+- **Auth**: All API and MCP routes require `Authorization: Bearer <CAPTURE_SECRET>`. Static files (React SPA) are open — token gate in the client. MCP stdio has no auth (local only).
+- **MCP**: Streamable HTTP only (`/mcp/http`). Each connection gets its own McpServer.
 
 ## MCP tools
 

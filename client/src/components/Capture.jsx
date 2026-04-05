@@ -3,7 +3,6 @@ import { capture } from '../api.js';
 
 export default function Capture() {
   const [text, setText] = useState('');
-  const [secret, setSecret] = useState(localStorage.getItem('capture_secret') || '');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -13,8 +12,7 @@ export default function Capture() {
     setLoading(true);
     setResult(null);
     try {
-      localStorage.setItem('capture_secret', secret);
-      const res = await capture(text, secret);
+      const res = await capture(text);
       setResult(res);
       if (res.ok) setText('');
     } catch (err) {
@@ -26,13 +24,6 @@ export default function Capture() {
   return (
     <div>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="password"
-          placeholder="Capture secret"
-          value={secret}
-          onChange={(e) => setSecret(e.target.value)}
-          className="w-full px-3 py-2 bg-gray-800 rounded-lg text-sm"
-        />
         <textarea
           placeholder="What's on your mind?"
           value={text}

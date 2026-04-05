@@ -1,6 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAgentTools } from '../agent/register.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import { searchThoughts } from './routes/search.js';
@@ -70,31 +69,7 @@ export function createMcpServer() {
   return server;
 }
 
-// === SSE Transport (legacy) ===
-const sseTransports = new Map();
-
-export function handleMcpSse(req, res) {
-  const server = createMcpServer();
-  const transport = new SSEServerTransport('/mcp/messages', res);
-  sseTransports.set(transport.sessionId, { server, transport });
-
-  res.on('close', () => {
-    sseTransports.delete(transport.sessionId);
-  });
-
-  server.connect(transport);
-}
-
-export function handleMcpMessage(req, res) {
-  const sessionId = req.query.sessionId;
-  const session = sseTransports.get(sessionId);
-  if (!session) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-  session.transport.handlePostMessage(req, res);
-}
-
-// === Streamable HTTP Transport (modern) ===
+// === Streamable HTTP Transport ===
 const httpTransports = new Map();
 
 export async function handleMcpHttp(req, res) {
