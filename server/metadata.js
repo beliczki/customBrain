@@ -141,5 +141,6 @@ export async function extractMetadata(text, vaultContext) {
   const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
   const metadata = JSON.parse(match[1].trim());
   metadata.people = resolveAliases(metadata.people, vaultContext?.aliases);
+  metadata._prompt = buildPrompt(text, localCtx, vaultContext);
   return metadata;
 }

@@ -5,6 +5,7 @@ export default function Capture() {
   const [text, setText] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -57,6 +58,20 @@ export default function Capture() {
                   )}
                   {result.metadata.action_items?.length > 0 && (
                     <p>Actions: {result.metadata.action_items.join(', ')}</p>
+                  )}
+                  {result.metadata._prompt && (
+                    <details
+                      open={promptOpen}
+                      onToggle={(e) => setPromptOpen(e.target.open)}
+                      className="mt-3 border-t border-subtle pt-2"
+                    >
+                      <summary className="cursor-pointer text-xs text-txt-sec hover:text-txt">
+                        Haiku prompt
+                      </summary>
+                      <pre className="mt-2 text-xs whitespace-pre-wrap text-txt-sec overflow-x-auto">
+                        {result.metadata._prompt}
+                      </pre>
+                    </details>
                   )}
                 </div>
               )}
