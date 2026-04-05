@@ -221,6 +221,55 @@ export async function rebuildVault() {
     files.push(filename);
   }
 
+  // Step 5: Create stub .md files in People/ and Projects/ folders
+  const allPeople = new Set();
+  const allProjects = new Set();
+  for (const t of thoughts) {
+    for (const p of t.people || []) allPeople.add(p);
+    for (const pr of t.projects || []) allProjects.add(pr);
+  }
+
+  async function writeStubs(folderName, names) {
+    if (names.size === 0) return;
+    const subfolderId = await getOrCreateSubfolder(drive, rootFolderId, folderName);
+
+    // Delete existing stubs
+    let existing = [];
+    let pt;
+    do {
+      const res = await drive.files.list({
+        q: `'${subfolderId}' in parents and name contains '.md' and trashed=false`,
+        fields: 'nextPageToken, files(id)',
+        pageSize: 100,
+        pageToken: pt,
+      });
+      existing.push(...res.data.files);
+      pt = res.data.nextPageToken;
+    } while (pt);
+    await Promise.all(existing.map((f) => drive.files.delete({ fileId: f.id })));
+
+    // Write new stubs with backlinks
+    for (const name of names) {
+      const related = thoughts
+        .filter((t) => (t.people || []).includes(name) || (t.projects || []).includes(name))
+        .map((t) => thoughtFilename(t).replace('.md', ''));
+      const backlinks = related.map((fn) => `- [[../customBrain/${fn}]]`).join('\n');
+      const content = `# ${name}\n\n## Mentions\n${backlinks}\n`;
+
+      await drive.files.create({
+        requestBody: {
+          name: `${name}.md`,
+          mimeType: 'text/markdown',
+          parents: [subfolderId],
+        },
+        media: { mimeType: 'text/markdown', body: content },
+      });
+    }
+  }
+
+  await writeStubs('People', allPeople);
+  await writeStubs('Projects', allProjects);
+
   return {
     ok: true,
     rebuilt: true,
