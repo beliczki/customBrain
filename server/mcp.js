@@ -12,7 +12,7 @@ export function createMcpServer() {
   const server = new McpServer({
     name: 'customBrain',
     version: '1.0.0',
-    icons: [{ src: 'https://brain.beliczki.hu/favicon-32x32.png', sizes: ['32x32'], mimeType: 'image/png' }],
+    icons: [{ src: 'https://brain.beliczki.hu/favicon-64x64.png', sizes: ['64x64'], mimeType: 'image/png' }],
   });
 
   server.tool(
