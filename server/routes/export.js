@@ -14,7 +14,10 @@ function getDriveClient() {
     oauth2.setCredentials({ refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN });
     return google.drive({ version: 'v3', auth: oauth2 });
   }
+  return getSaDriveClient();
+}
 
+function getSaDriveClient() {
   const saPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH || './service-account.json';
   const sa = JSON.parse(readFileSync(saPath, 'utf-8'));
   const auth = new google.auth.JWT({
@@ -260,6 +263,8 @@ export async function rebuildVault(onLog) {
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   }
 
+  const saDrive = getSaDriveClient();
+
   async function writeStubs(folderName, names, envFolderId) {
     if (names.size === 0) return { total: 0, created: [], existing: [] };
     if (!envFolderId) {
@@ -272,7 +277,7 @@ export async function rebuildVault(onLog) {
     const existingNames = new Set();
     let pt;
     do {
-      const res = await drive.files.list({
+      const res = await saDrive.files.list({
         q: `'${subfolderId}' in parents and name contains '.md' and trashed=false`,
         fields: 'nextPageToken, files(name)',
         pageSize: 100,
@@ -296,7 +301,7 @@ export async function rebuildVault(onLog) {
       const backlinks = related.map((fn) => `- [[../customBrain/${fn}]]`).join('\n');
       const content = `# ${name}\n\n## Mentions\n${backlinks}\n`;
 
-      await drive.files.create({
+      await saDrive.files.create({
         requestBody: {
           name: `${name}.md`,
           mimeType: 'text/markdown',
