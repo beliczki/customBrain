@@ -260,10 +260,14 @@ export async function rebuildVault(onLog) {
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   }
 
-  async function writeStubs(folderName, names) {
+  async function writeStubs(folderName, names, envFolderId) {
     if (names.size === 0) return { total: 0, created: [], existing: [] };
+    if (!envFolderId) {
+      emit(`[${ts()}] Skipping ${folderName}/ — no folder ID configured`);
+      return { total: names.size, created: [], existing: [...names] };
+    }
     emit(`[${ts()}] Syncing ${folderName}/ (${names.size} entries)...`);
-    const subfolderId = await getOrCreateSubfolder(drive, rootFolderId, folderName);
+    const subfolderId = envFolderId;
 
     const existingNames = new Set();
     let pt;
@@ -307,8 +311,8 @@ export async function rebuildVault(onLog) {
     return { total: names.size, created, existing };
   }
 
-  const peopleResult = await writeStubs('People', allPeople);
-  const projectsResult = await writeStubs('Projects', allProjects);
+  const peopleResult = await writeStubs('People', allPeople, process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID);
+  const projectsResult = await writeStubs('Projects', allProjects, process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   emit(`[${elapsed}s] ── Export complete ──`);
