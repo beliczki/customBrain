@@ -14,15 +14,16 @@ export default function App() {
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
-      <img src="/brain.svg" alt="" className="w-8 h-8" />
+      <img src="/brain_darkmode.svg" alt="" className="w-8 h-8" />
       <h1 className="text-2xl font-bold">{APP_NAME}</h1>
     </div>
   );
 
   if (!token) {
     return (
-      <div className="max-w-md mx-auto px-4 py-24 text-center">
-        {header}
+      <div className="max-w-md mx-auto px-4 py-24 flex flex-col items-center">
+        <img src="/brain_darkmode.svg" alt="" className="w-24 h-24 mb-4" />
+        <h1 className="text-2xl font-bold mb-8">{APP_NAME}</h1>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -32,7 +33,7 @@ export default function App() {
               setToken(val);
             }
           }}
-          className="space-y-4"
+          className="w-full space-y-4"
         >
           <input
             name="token"
@@ -43,7 +44,7 @@ export default function App() {
           />
           <button
             type="submit"
-            className="px-6 py-2 bg-indigo-600 rounded-lg text-sm font-medium"
+            className="w-full px-6 py-2 bg-indigo-600 rounded-lg text-sm font-medium"
           >
             Unlock
           </button>
