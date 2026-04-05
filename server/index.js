@@ -31,7 +31,7 @@ app.get('*', (req, res, next) => {
 // Auth middleware — all routes below require Bearer token
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return next();
-  const auth = req.headers.authorization;
+  const auth = req.headers.authorization || (req.query.token ? `Bearer ${req.query.token}` : '');
   if (!auth || auth !== `Bearer ${process.env.CAPTURE_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
