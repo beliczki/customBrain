@@ -30,8 +30,14 @@ app.get('*', (req, res, next) => {
 });
 
 // Webhook routes use their own secret — mounted before Bearer auth.
-// Needs JSON body parsing, so parse before mounting.
-app.use('/fireflies-webhook', express.json(), firefliesWebhookRouter);
+// Parse JSON but save raw body on req so HMAC can verify the exact bytes.
+app.use(
+  '/fireflies-webhook',
+  express.json({
+    verify: (req, _res, buf) => { req.rawBody = buf; },
+  }),
+  firefliesWebhookRouter,
+);
 
 // Auth middleware — all routes below require Bearer token
 app.use((req, res, next) => {

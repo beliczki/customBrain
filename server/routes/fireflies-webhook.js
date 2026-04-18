@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'node:crypto';
 import { getFirefliesTranscriptById } from '../../agent/tools/fireflies.js';
 import { findBySourceId } from '../qdrant.js';
 import { captureThought } from './capture.js';
@@ -11,6 +12,23 @@ const FETCH_BACKOFF_MS = 30000;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function verifySignature(rawBody, header, secret) {
+  if (!header || !rawBody || !secret) return false;
+  const provided = header.startsWith('sha256=') ? header.slice(7) : header;
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(provided, 'hex'),
+      Buffer.from(expected, 'hex'),
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function fetchTranscriptWithRetry(id) {
@@ -39,29 +57,27 @@ function buildText(t) {
 }
 
 router.post('/', async (req, res) => {
-  const expected = process.env.FIREFLIES_WEBHOOK_SECRET;
-  if (!expected) {
+  const secret = process.env.FIREFLIES_WEBHOOK_SECRET;
+  if (!secret) {
     console.error('FIREFLIES_WEBHOOK_SECRET not set — rejecting webhook');
     return res.status(500).json({ error: 'webhook not configured' });
   }
 
-  // DIAGNOSTIC: log headers + body so we can see how Fireflies signs requests.
-  // Remove after auth is wired up.
-  console.log('=== FIREFLIES WEBHOOK REQUEST ===');
-  console.log('Method:', req.method);
-  console.log('URL:', req.originalUrl);
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('Body:', JSON.stringify(req.body));
-  console.log('Query:', JSON.stringify(req.query));
-  console.log('=================================');
-
-  if (req.query.secret !== expected) {
-    return res.status(401).json({ error: 'invalid secret' });
+  const sigHeader = req.header('x-hub-signature') || req.header('x-hub-signature-256');
+  if (!verifySignature(req.rawBody, sigHeader, secret)) {
+    console.warn('Fireflies webhook: signature verification failed');
+    return res.status(401).json({ error: 'invalid signature' });
   }
 
-  const meetingId = req.body?.meetingId;
+  const { event, meeting_id: meetingId } = req.body || {};
+  console.log(`Fireflies webhook: event=${event} meeting_id=${meetingId}`);
+
+  if (event === 'test' || meetingId === 'test_00000000') {
+    return res.status(200).json({ ok: true, test: true });
+  }
+
   if (!meetingId) {
-    return res.status(400).json({ error: 'meetingId required' });
+    return res.status(400).json({ error: 'meeting_id required' });
   }
 
   try {
