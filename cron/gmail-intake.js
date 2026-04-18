@@ -92,7 +92,9 @@ async function run() {
       }
     } catch (err) {
       failed++;
-      console.error(`  failed: ${msg.id} — ${err.message}`);
+      const cause = err.cause ? ` (cause: ${err.cause.code || err.cause.message || err.cause})` : '';
+      console.error(`  failed: ${msg.id} — ${err.message}${cause}`);
+      if (err.stack) console.error(err.stack.split('\n').slice(0, 5).join('\n'));
     }
   }
 
