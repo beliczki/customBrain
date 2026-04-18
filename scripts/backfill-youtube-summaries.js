@@ -36,13 +36,16 @@ async function run() {
   );
   console.log(`Found ${existing.length} existing YouTube captures in Qdrant`);
 
-  // scrollFiltered doesn't return source_id in its shape — need to query the
-  // raw payload. But for our ~10-entry scale, re-fetch from Qdrant isn't worth
-  // it: instead, match by title+channel after pulling fresh likes.
-  const existingByTitle = new Map();
+  // Match by video_id extracted from the stored text — titles in Qdrant are
+  // Haiku-generated short forms, which don't match YouTube's full titles.
+  // Each capture contains a line like "https://youtube.com/watch?v=VIDEOID".
+  const existingByVideoId = new Map();
+  const VIDEO_URL_RE = /youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})/;
   for (const p of existing) {
-    if (p.title) existingByTitle.set(p.title, p);
+    const m = p.text?.match(VIDEO_URL_RE);
+    if (m) existingByVideoId.set(m[1], p);
   }
+  console.log(`Matched ${existingByVideoId.size}/${existing.length} existing captures to video_ids`);
 
   // Pull a wide window — any liked video in last year.
   const since = new Date(Date.now() - 365 * 86400000).toISOString().split('T')[0];
@@ -60,7 +63,7 @@ async function run() {
       continue;
     }
 
-    const match = existingByTitle.get(item.title);
+    const match = existingByVideoId.get(item.video_id);
     if (!match) {
       skippedNoExisting++;
       continue;
