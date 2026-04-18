@@ -1,4 +1,8 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', 'server', '.env') });
+
 import { getGmail } from '../server/drive-context.js';
 import { extractBody, getHeader, ensureLabel } from '../agent/tools/gmail.js';
 import { cleanEmailBody, NO_CONTENT_MARKER } from '../agent/tools/gmail-clean.js';
