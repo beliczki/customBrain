@@ -1,10 +1,25 @@
 import 'dotenv/config';
 import { google } from 'googleapis';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import http from 'node:http';
 
-const credentials = JSON.parse(readFileSync('./client_secret.json', 'utf8'));
-const { client_id, client_secret } = credentials.web || credentials.installed;
+function loadCreds() {
+  if (process.env.GOOGLE_DRIVE_CLIENT_ID && process.env.GOOGLE_DRIVE_CLIENT_SECRET) {
+    return {
+      client_id: process.env.GOOGLE_DRIVE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_DRIVE_CLIENT_SECRET,
+    };
+  }
+  if (existsSync('./client_secret.json')) {
+    const raw = JSON.parse(readFileSync('./client_secret.json', 'utf8'));
+    return raw.web || raw.installed;
+  }
+  throw new Error(
+    'No creds: set GOOGLE_DRIVE_CLIENT_ID + GOOGLE_DRIVE_CLIENT_SECRET in env, or provide ./client_secret.json'
+  );
+}
+
+const { client_id, client_secret } = loadCreds();
 const REDIRECT = 'http://localhost:3001/callback';
 
 const oauth2 = new google.auth.OAuth2(client_id, client_secret, REDIRECT);
