@@ -19,11 +19,16 @@ function buildText(item) {
     `# ${item.title}`,
     `Channel: ${item.channel}`,
     `https://youtube.com/watch?v=${item.video_id}`,
-    '',
-    item.description || '',
   ];
-  if (item.captions_text) {
-    lines.push('', '## Transcript', '', item.captions_text);
+  if (item.video_summary) {
+    // Gemini already produced a structured summary with its own headers —
+    // use it as the primary body. Description becomes a small footer.
+    lines.push('', item.video_summary);
+    if (item.description) {
+      lines.push('', '---', '', '## Original description', '', item.description);
+    }
+  } else {
+    lines.push('', item.description || '');
   }
   return lines.join('\n').trim();
 }

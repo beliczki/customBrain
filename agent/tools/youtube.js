@@ -1,31 +1,5 @@
 import { getYouTube } from '../../server/drive-context.js';
-// The package has "type": "module" but its "main" entry is a CJS file —
-// Node can't resolve the named export via the default path. Pin to the
-// actual ESM build.
-import { YoutubeTranscript } from 'youtube-transcript/dist/youtube-transcript.esm.js';
-
-async function fetchTranscript(videoId) {
-  try {
-    // Try preferred languages in order — auto-generated falls back last.
-    for (const lang of ['en', 'hu']) {
-      try {
-        const segments = await YoutubeTranscript.fetchTranscript(videoId, { lang });
-        if (segments?.length) {
-          return segments.map((s) => s.text).join(' ').replace(/\s+/g, ' ').trim();
-        }
-      } catch {
-        /* try next lang */
-      }
-    }
-    // Last resort: default (whatever YouTube returns, often auto-gen)
-    const segments = await YoutubeTranscript.fetchTranscript(videoId);
-    return segments?.length
-      ? segments.map((s) => s.text).join(' ').replace(/\s+/g, ' ').trim()
-      : null;
-  } catch {
-    return null;
-  }
-}
+import { fetchVideoSummary } from './youtube-gemini.js';
 
 export async function getYoutubeLikes(sinceDate) {
   const youtube = getYouTube();
@@ -64,7 +38,7 @@ export async function getYoutubeLikes(sinceDate) {
       published_at: item.snippet.publishedAt,
       tags: [],
       category_id: null,
-      captions_text: null,
+      video_summary: null,
     };
 
     // Fetch tags + category from video details
@@ -75,11 +49,14 @@ export async function getYoutubeLikes(sinceDate) {
       entry.category_id = snip?.categoryId || null;
     } catch {}
 
-    // Fetch transcript from YouTube's open timedtext endpoint via
-    // youtube-transcript (works for auto-generated captions on third-party
-    // videos — unlike the official captions.download which requires channel
-    // ownership).
-    entry.captions_text = await fetchTranscript(videoId);
+    // Video summary via Gemini multimodal (watches the full video).
+    // Skipped for filtered categories (cron layer filters before calling
+    // this anyway, but belt-and-braces here too).
+    try {
+      entry.video_summary = await fetchVideoSummary(videoId);
+    } catch (err) {
+      console.warn(`Gemini summary failed for ${videoId}: ${err.message}`);
+    }
 
     results.push(entry);
   }
