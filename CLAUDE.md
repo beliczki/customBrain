@@ -10,6 +10,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## No local environment — deploy-tested only
 There is no `server/.env` or `service-account.json` on the local Mac filesystem. Local `npm start`, local crons, and the Vite dev server will all fail without them. All testing happens directly on Hetzner (`brain.beliczki.hu`). Static checks (syntax, pure-function unit tests, regex validation) are fine locally; anything that hits Qdrant, Google APIs, Fireflies, or Anthropic needs the server. Propose SSH-based verification instead of "run it locally first".
 
+## Where plans live
+- **`ROADMAP.md`** — canonical priority list (P1–P9, sequenced with a usage gate at position 0). Stubs cross-reference brain thought IDs for full specs.
+- **Brain with `TODO-<NAME>` marker** — spec-grade handoffs other Claude sessions execute from (e.g. `TODO-STEAL-4-MEMMOLT`, `TODO-DEMO-INFRA-v1`). Searchable from any future session, audit-preserved.
+- **`CHANGELOG.md`** — what shipped, per version.
+- **`docs/archive/`** — finished plan history (pre-0.3.0 era).
+- **`~/.claude/plans/`** — ephemeral plan-mode scratchpads per session. Do NOT rely on for anything >1 session; if a plan matters beyond the session, capture it to brain or stub it in ROADMAP.
+- **`tasks/todo.md`** (global CLAUDE.md convention) — not used for customBrain; ROADMAP covers this better here.
+
 ## Versioning
 Semver (`major.minor.patch`), currently `0.3.0`. Versions sync across root `package.json`, `server/package.json`, `client/package.json`, `extension/manifest.json`. Bump all four together and log the change in `CHANGELOG.md`. `0.x.y` = pre-1.0, breaking changes allowed on minor bumps.
 
