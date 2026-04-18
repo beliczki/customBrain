@@ -2,6 +2,12 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.3.2 — 2026-04-18
+
+- YouTube intake filters by `categoryId`. Default skip: `10` (Music). Override via `YOUTUBE_SKIP_CATEGORIES` env var (comma-separated). Fixes the case where liked music videos flooded the brain — they're in the likes playlist but aren't content the user wants to remember.
+- YouTube tool surfaces `category_id` on each entry for the cron to filter.
+- Per-run log now shows `captured / skipped / filtered / failed` so filtered items are visible.
+
 ## 0.3.1 — 2026-04-18
 
 Deploy-time fixes surfaced while bringing 0.3.0 live on Hetzner. No new features.
