@@ -44,6 +44,17 @@ router.post('/', async (req, res) => {
     console.error('FIREFLIES_WEBHOOK_SECRET not set — rejecting webhook');
     return res.status(500).json({ error: 'webhook not configured' });
   }
+
+  // DIAGNOSTIC: log headers + body so we can see how Fireflies signs requests.
+  // Remove after auth is wired up.
+  console.log('=== FIREFLIES WEBHOOK REQUEST ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.originalUrl);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body));
+  console.log('Query:', JSON.stringify(req.query));
+  console.log('=================================');
+
   if (req.query.secret !== expected) {
     return res.status(401).json({ error: 'invalid secret' });
   }
