@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', 'server', '.env') });
 
 import { getYoutubeLikes } from '../agent/tools/youtube.js';
+import { fetchVideoSummary } from '../agent/tools/youtube-gemini.js';
 import { scrollFiltered, deletePoint } from '../server/qdrant.js';
 import { captureThought } from '../server/routes/capture.js';
 
@@ -68,6 +69,14 @@ async function run() {
     try {
       console.log(`\nRefreshing: ${item.title}`);
       console.log(`  old point id: ${match.id}`);
+
+      // Gemini summary happens AFTER filter, only for items we're keeping
+      console.log(`  fetching Gemini summary...`);
+      try {
+        item.video_summary = await fetchVideoSummary(item.video_id);
+      } catch (err) {
+        console.warn(`  Gemini failed, proceeding without summary: ${err.message}`);
+      }
       console.log(`  summary length: ${item.video_summary?.length ?? 0}`);
 
       await deletePoint(match.id);

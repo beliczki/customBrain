@@ -1,5 +1,4 @@
 import { getYouTube } from '../../server/drive-context.js';
-import { fetchVideoSummary } from './youtube-gemini.js';
 
 export async function getYoutubeLikes(sinceDate) {
   const youtube = getYouTube();
@@ -38,7 +37,7 @@ export async function getYoutubeLikes(sinceDate) {
       published_at: item.snippet.publishedAt,
       tags: [],
       category_id: null,
-      video_summary: null,
+      video_summary: null, // filled in by caller if wanted — Gemini call is expensive
     };
 
     // Fetch tags + category from video details
@@ -48,15 +47,6 @@ export async function getYoutubeLikes(sinceDate) {
       entry.tags = snip?.tags || [];
       entry.category_id = snip?.categoryId || null;
     } catch {}
-
-    // Video summary via Gemini multimodal (watches the full video).
-    // Skipped for filtered categories (cron layer filters before calling
-    // this anyway, but belt-and-braces here too).
-    try {
-      entry.video_summary = await fetchVideoSummary(videoId);
-    } catch (err) {
-      console.warn(`Gemini summary failed for ${videoId}: ${err.message}`);
-    }
 
     results.push(entry);
   }

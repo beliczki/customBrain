@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', 'server', '.env') });
 
 import { getYoutubeLikes } from '../agent/tools/youtube.js';
+import { fetchVideoSummary } from '../agent/tools/youtube-gemini.js';
 import { captureThought } from '../server/routes/capture.js';
 
 const BOOTSTRAP_WARN_THRESHOLD = 20;
@@ -50,6 +51,14 @@ async function run() {
       continue;
     }
     try {
+      // Gemini summary AFTER the filter — skip for music/etc, no wasted API calls
+      console.log(`  summarizing: ${item.title}`);
+      try {
+        item.video_summary = await fetchVideoSummary(item.video_id);
+      } catch (err) {
+        console.warn(`  Gemini failed for ${item.video_id}: ${err.message}`);
+      }
+
       const text = buildText(item);
       const result = await captureThought(text, {
         source: 'youtube',
