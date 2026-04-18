@@ -1,5 +1,8 @@
 import { getYouTube } from '../../server/drive-context.js';
-import { YoutubeTranscript } from 'youtube-transcript';
+// The package has "type": "module" but its "main" entry is a CJS file —
+// Node can't resolve the named export via the default path. Pin to the
+// actual ESM build.
+import { YoutubeTranscript } from 'youtube-transcript/dist/youtube-transcript.esm.js';
 
 async function fetchTranscript(videoId) {
   try {
