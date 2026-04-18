@@ -2,7 +2,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import crypto from 'node:crypto';
 
 const qdrant = new QdrantClient({
-  url: process.env.QDRANT_URL || 'http://qdrant:6333',
+  url: process.env.QDRANT_URL || 'http://localhost:6333',
 });
 
 const COLLECTION = 'thoughts';
