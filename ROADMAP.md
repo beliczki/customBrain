@@ -103,6 +103,12 @@ After vault rebuild, group thoughts by person/project. Fetch existing summary .m
 - File: `server/routes/export.js`
 - Note: People/Projects folders owned by service account — may need OAuth2 for writing
 
+### P1d: Semantic autolinks in export (~1hr)
+Append `## Related` section to every exported `.md` with top-3 cosine-neighbor wikilinks (threshold > 0.75, else omit). Turns Obsidian Graph view from metadata-only into semantic edges.
+- Files: `server/routes/export.js` (new `findRelated(thought)` in `renderThought`), `server/qdrant.js` (`searchByVector(vector, limit, excludeId)` helper if not already present).
+- Full spec in brain thought `11e3aa53-f685-4c29-8d13-c1b8fcdd5e2f` (Task 3).
+- Perf watch: O(N) queries during export. At >500 thoughts, batch or time-budget.
+
 ---
 
 ## P2: Idea Lifecycle
@@ -190,7 +196,14 @@ Templates that make the system compound:
 - [ ] **Memory migration** — extract context from Claude/ChatGPT existing memory → bulk captures
 - [ ] **Open Brain Spark** — interview-style: asks about tools, decisions, key people → personalized capture list
 - [ ] **Quick capture templates** — 5 starters: Decision, Person note, Insight, Meeting debrief, Idea
-- [ ] **Weekly review** — calls list_recent + brain_stats + lifecycle stats → clusters, surfaces unresolved actions, finds patterns
+- [ ] **Weekly review** — calls list_recent + brain_stats + lifecycle stats → clusters, surfaces unresolved actions, finds patterns. **Largely subsumed by P5a below.**
+
+### P5a: hot.md — nightly session context cache (~2hr)
+Daily cron (~05:00 UTC) regenerates a ~500-word markdown at the vault root. Contents: last-7-days `list_recent` + active project summaries + top-5 people. Haiku-compressed. Every Claude Desktop / Code / Obsidian session opens warm — zero tool calls to establish context. Daily-automatic equivalent of the manual "Weekly review" above, compounding automatically with auto-intake volume.
+- New: `cron/hot-cache.js` (~60 lines). No server changes, no new MCP tool.
+- Writes via `drive-context.js` OAuth2.
+- Full spec in brain thought `11e3aa53-f685-4c29-8d13-c1b8fcdd5e2f` (Task 1).
+- **Highest-leverage of the four MemMolt ideas** — compounds per session forever.
 
 ---
 
@@ -207,8 +220,26 @@ Without this, the brain rots over time.
 
 - [ ] **P7a**: Edit thought (`PUT /thoughts/:id` + re-embed if text changed + UI edit button)
 - [ ] **P7b**: Re-process old thoughts — backfill missing titles/projects with current metadata prompt
+- [ ] **P7e**: `index.md` — flat one-line catalog of every thought at vault root (`- [[title]] — <first summary sentence>`, sorted by created_at DESC, Hungarian-aware word-boundary truncation). ~30 lines in `server/routes/export.js`, no new Qdrant fields. Full spec: brain thought `11e3aa53-...` (Task 2).
 - [ ] **P7c**: Bulk import from Obsidian (`scripts/import-vault.js`)
 - [ ] **P7d**: UI polish — auto-resize textarea, filter/sort on Recent (by type, project, person, date), stats charts
+
+---
+
+## P8: Search Quality — RRF hybrid (vector + BM25) (~2 days, NOT a weekend)
+
+Current pure-dense search misses exact-name queries and Hungarian agglutinative inflections ("megbeszélhetjük" vs "megbeszéltük" may not score as high as they should despite being nearly identical in meaning). Qdrant 1.10+ supports named sparse vectors and server-side Reciprocal Rank Fusion via the Query API.
+
+- Add sparse vector field at `scripts/init-collection.js` (idempotent).
+- At capture: generate both dense (Gemini) + sparse (BM25-like) vectors in parallel.
+- `/search` route: RRF merge of dense + sparse top-k (server-side via Qdrant Query API preferred over client-side).
+- `scripts/backfill-sparse.js` for existing ~N thoughts.
+- Response shape of `/search` and `/capture` does NOT change. Only ranking improves.
+
+**Open question before implementing**: Hungarian tokenization. Qdrant's default BM25 uses whitespace tokens — won't necessarily fix the morphology case. Options: lemmatization (heavy), subword tokenization (lighter), or accept whitespace + rely on dense vector for morphology while sparse handles exact-name. Resolve before coding.
+
+- Full spec in brain thought `11e3aa53-f685-4c29-8d13-c1b8fcdd5e2f` (Task 4).
+- **Defer until brain has 200+ thoughts and a real recall problem shows up** — current 41-thought brain doesn't produce enough A/B signal to validate the improvement.
 
 ---
 
@@ -224,17 +255,19 @@ When manual "dolgozd fel a tegnapit" becomes tedious:
 
 ## Recommended Execution Order
 
-1. **Ops** (1hr) — HTTPS, firewall, crontab, pm2 startup
-2. **P1a** (30min) — time decay, 10-line change, immediate search improvement
-3. **Testing gaps** (1hr) — verify draft store, task context, daily cycle
-4. **P1b** (2hrs) — conflict resolution before more capture channels go live
-5. **P2a+b** (2hrs) — idea lifecycle schema + endpoint + MCP tool
-6. **P4a** (1hr) — Telegram bot, first mobile capture
-7. **P1c + P2c** (2hrs) — evolving summaries + Obsidian lifecycle
-8. **P5** (1hr) — lifecycle prompts
-9. **P4c** (20min) — iOS Shortcut docs
-10. **P6** (2hrs) — maintenance crons
-11. **P7** — ongoing
+0. **USE IT FIRST** — 1 week of daily auto-intake after 2026-04-18. Gather real signal about which gap hurts most before building. Revisit this ordering with fresh data.
+1. **Ops** — HTTPS (certbot), firewall lock Qdrant 6333, pm2 startup, Qdrant backup
+2. **P5a** (~2hr) — `hot.md` nightly cache. Compounds per session forever — highest-leverage of the MemMolt-four.
+3. **P7e** (~30min) — `index.md` flat catalog. Tiny drop-in during any export-touching session.
+4. **P1c + P1d** (~3hr) — People/Projects summary evolution + semantic autolinks. Share export code path.
+5. **P2a+b** (~2hr) — idea lifecycle schema + endpoint + MCP tool
+6. **P4a** (~1hr) — Telegram bot, first mobile capture
+7. **P2c** (~1hr) — lifecycle in Obsidian frontmatter + index files
+8. **P5** — Open Brain Spark, quick capture templates, memory migration (Weekly review subsumed by P5a)
+9. **P4c** (~20min) — iOS Shortcut docs
+10. **P6** (~2hr) — maintenance crons (nightly dedup, weekly summary refresh, monthly metabolism)
+11. **P8** (~2 days) — RRF hybrid search. Only once brain has >200 thoughts and a real recall problem is measurable.
+12. **P7** — ongoing UI/data quality
 
 ---
 
