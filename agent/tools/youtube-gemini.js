@@ -39,7 +39,7 @@ export async function fetchVideoSummary(videoId) {
     ],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192,
     },
   };
 
@@ -55,7 +55,15 @@ export async function fetchVideoSummary(videoId) {
   }
 
   const json = await res.json();
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+  const candidate = json.candidates?.[0];
+  const text = candidate?.content?.parts?.[0]?.text?.trim() || null;
+  const finish = candidate?.finishReason;
+  const usage = json.usageMetadata;
+
+  if (finish && finish !== 'STOP') {
+    console.warn(`Gemini summary: finishReason=${finish} tokens=${usage?.totalTokenCount} chars=${text?.length || 0}`);
+  }
+
   if (!text || text === '__NO_CONTENT__') return null;
   return text;
 }
