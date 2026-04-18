@@ -17,6 +17,7 @@ export const BOILERPLATE_PATTERNS = [
 ];
 
 const HAIKU_THRESHOLD = 1500;
+const HAIKU_INPUT_CAP = 50000;
 export const NO_CONTENT_MARKER = '__NO_CONTENT__';
 
 function stripQuotedDuplicates(text) {
@@ -49,6 +50,10 @@ export function applyRegexStrip(raw) {
 }
 
 async function haikuExtract(cleaned, { subject, from }) {
+  const input = cleaned.length > HAIKU_INPUT_CAP
+    ? cleaned.slice(0, HAIKU_INPUT_CAP) + '\n\n[...truncated, thread exceeded Haiku input cap]'
+    : cleaned;
+
   const prompt = `This is an email thread body after boilerplate removal. Extract only the substantive human content: decisions, questions, opinions, facts, action items, news.
 
 Strip:
@@ -64,7 +69,7 @@ Email:
 Subject: ${subject || ''}
 From: ${from || ''}
 
-${cleaned}`;
+${input}`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
