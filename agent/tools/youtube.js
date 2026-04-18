@@ -1,4 +1,28 @@
 import { getYouTube } from '../../server/drive-context.js';
+import { YoutubeTranscript } from 'youtube-transcript';
+
+async function fetchTranscript(videoId) {
+  try {
+    // Try preferred languages in order — auto-generated falls back last.
+    for (const lang of ['en', 'hu']) {
+      try {
+        const segments = await YoutubeTranscript.fetchTranscript(videoId, { lang });
+        if (segments?.length) {
+          return segments.map((s) => s.text).join(' ').replace(/\s+/g, ' ').trim();
+        }
+      } catch {
+        /* try next lang */
+      }
+    }
+    // Last resort: default (whatever YouTube returns, often auto-gen)
+    const segments = await YoutubeTranscript.fetchTranscript(videoId);
+    return segments?.length
+      ? segments.map((s) => s.text).join(' ').replace(/\s+/g, ' ').trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function getYoutubeLikes(sinceDate) {
   const youtube = getYouTube();
@@ -48,19 +72,11 @@ export async function getYoutubeLikes(sinceDate) {
       entry.category_id = snip?.categoryId || null;
     } catch {}
 
-    // Try to fetch captions
-    try {
-      const capsRes = await youtube.captions.list({ videoId, part: 'snippet' });
-      const cap = capsRes.data.items?.find(
-        (c) => c.snippet.language === 'en' || c.snippet.trackKind === 'ASR'
-      );
-      if (cap) {
-        const dlRes = await youtube.captions.download({ id: cap.id, tfmt: 'srt' });
-        entry.captions_text = typeof dlRes.data === 'string'
-          ? dlRes.data.replace(/\d+\n[\d:,\s->]+\n/g, '').trim()
-          : null;
-      }
-    } catch {}
+    // Fetch transcript from YouTube's open timedtext endpoint via
+    // youtube-transcript (works for auto-generated captions on third-party
+    // videos — unlike the official captions.download which requires channel
+    // ownership).
+    entry.captions_text = await fetchTranscript(videoId);
 
     results.push(entry);
   }
