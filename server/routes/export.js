@@ -1,7 +1,19 @@
 import { Router } from 'express';
 import { google } from 'googleapis';
 import { readFileSync } from 'node:fs';
+import { isAbsolute, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { scrollFiltered } from '../qdrant.js';
+
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+
+function resolveSaPath() {
+  const envPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
+  if (envPath) {
+    return isAbsolute(envPath) ? envPath : resolve(MODULE_DIR, '..', envPath);
+  }
+  return resolve(MODULE_DIR, '..', 'service-account.json');
+}
 
 const router = Router();
 
@@ -18,9 +30,7 @@ function getDriveClient() {
 }
 
 function getSaDriveClient() {
-  const saPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH ||
-    new URL('../service-account.json', import.meta.url).pathname;
-  const sa = JSON.parse(readFileSync(saPath, 'utf-8'));
+  const sa = JSON.parse(readFileSync(resolveSaPath(), 'utf-8'));
   const auth = new google.auth.JWT({
     email: sa.client_email,
     key: sa.private_key,
