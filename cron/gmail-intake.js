@@ -51,17 +51,19 @@ async function run() {
       const threadRes = await gmail.users.threads.get({ userId: 'me', id: threadId, format: 'full' });
       const thread = threadRes.data;
 
-      const rawBody = thread.messages
-        .map((m) => extractBody(m.payload))
-        .filter(Boolean)
-        .join('\n---\n');
+      // Sort oldest→newest so dedupeAcrossThread sees each paragraph
+      // in its original message first, before the reply chain quotes it.
+      const ordered = [...thread.messages].sort((a, b) =>
+        Number(a.internalDate || 0) - Number(b.internalDate || 0)
+      );
+      const bodies = ordered.map((m) => extractBody(m.payload)).filter(Boolean);
 
-      const { text: cleaned, stats } = await cleanEmailBody(rawBody, {
+      const { text: cleaned, stats } = await cleanEmailBody(bodies, {
         subject: getHeader(thread.messages[0].payload.headers, 'Subject'),
         from: getHeader(thread.messages[0].payload.headers, 'From'),
       });
 
-      console.log(`  ${threadId}: raw=${stats.raw_chars} regex=${stats.after_regex} haiku=${stats.after_haiku ?? '-'} kept=${stats.kept}`);
+      console.log(`  ${threadId}: raw=${stats.raw_chars} dedup=${stats.after_dedup} regex=${stats.after_regex} haiku=${stats.after_haiku ?? '-'} kept=${stats.kept}`);
 
       if (!stats.kept || cleaned === NO_CONTENT_MARKER) {
         await gmail.users.threads.modify({
