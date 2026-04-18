@@ -81,23 +81,45 @@ async function init() {
     `${prefix}Source: ${pageData.url}\n${desc}${pageData.content}`;
   document.getElementById('saveBtn').disabled = false;
 
-  // Search brain for related thoughts
+  // Search brain for related thoughts. Use the article content (not the
+  // page title) — browser tab titles are polluted with site chrome
+  // ("(19) X 🎭 on X: ... / X") which embeds noisily. Content gives a
+  // much stronger semantic signal.
+  const searchQuery = [
+    pageData.title,
+    pageData.og_description,
+    pageData.content?.slice(0, 800),
+  ].filter(Boolean).join('\n').slice(0, 1500);
+
+  const container = document.getElementById('relatedItems');
   try {
-    const searchUrl = `${settings.brainUrl}/search?q=${encodeURIComponent(pageData.title)}&limit=3`;
+    const searchUrl = `${settings.brainUrl}/search?q=${encodeURIComponent(searchQuery)}&limit=5`;
     const res = await fetch(searchUrl, {
       headers: { Authorization: `Bearer ${settings.captureSecret}` },
     });
-    const data = await res.json();
-    const container = document.getElementById('relatedItems');
-    if (data.length > 0) {
-      container.innerHTML = data
-        .map((r) => `<div class="related-item">${r.title || r.text?.substring(0, 60) || 'untitled'}</div>`)
-        .join('');
-    } else {
-      container.textContent = 'No related thoughts found';
+    if (res.status === 401) {
+      container.textContent = 'Unauthorized — set capture secret in Settings';
+      return;
     }
-  } catch {
-    document.getElementById('relatedItems').textContent = 'Could not search brain';
+    if (!res.ok) {
+      container.textContent = `Brain error ${res.status}`;
+      return;
+    }
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      container.textContent = 'No related thoughts found';
+      return;
+    }
+    document.querySelector('.related-label').textContent = `Related in brain (${data.length}):`;
+    container.innerHTML = data
+      .map((r) => {
+        const title = r.title || r.text?.substring(0, 60) || 'untitled';
+        const score = r.cosine_score ? ` · ${(r.cosine_score * 100).toFixed(0)}%` : '';
+        return `<div class="related-item">${title}<span style="color:#666;font-size:10px">${score}</span></div>`;
+      })
+      .join('');
+  } catch (err) {
+    container.textContent = `Could not search brain: ${err.message}`;
   }
 }
 
