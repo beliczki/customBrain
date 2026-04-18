@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Save to Brain",
-  "version": "1.0",
+  "version": "0.3.0",
   "description": "Clip any webpage to customBrain",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["https://brain.beliczki.hu/*"],

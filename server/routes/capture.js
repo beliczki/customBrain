@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { embedText } from '../embeddings.js';
 import { extractMetadata, checkContradiction } from '../metadata.js';
-import { upsertPoint, searchVector, updatePayload } from '../qdrant.js';
+import { upsertPoint, searchVector, updatePayload, findBySourceId } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
 
 const router = Router();
@@ -24,7 +24,14 @@ router.post('/capture', async (req, res) => {
 
 export default router;
 
-export async function captureThought(text, { conflictThreshold = 0.85 } = {}) {
+export async function captureThought(text, { conflictThreshold = 0.85, source = 'manual', sourceId = null } = {}) {
+  if (sourceId) {
+    const existing = await findBySourceId(source, sourceId);
+    if (existing) {
+      return { ok: true, id: existing.id, duplicate: true, source, source_id: sourceId };
+    }
+  }
+
   const vaultCtx = await getVaultContext();
 
   const [vector, metadata] = await Promise.all([
@@ -65,6 +72,8 @@ export async function captureThought(text, { conflictThreshold = 0.85 } = {}) {
     type: metadata.type || 'note',
     action_items: metadata.action_items || [],
     status: 'active',
+    source,
+    source_id: sourceId,
     created_at: new Date().toISOString(),
     ...(supersedes && { supersedes }),
   };

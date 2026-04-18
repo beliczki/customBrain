@@ -82,6 +82,19 @@ export async function updatePayload(id, payload) {
   await qdrant.setPayload(COLLECTION, { points: [id], payload });
 }
 
+export async function findBySourceId(source, sourceId) {
+  const results = await scrollFiltered(
+    {
+      must: [
+        { key: 'source', match: { value: source } },
+        { key: 'source_id', match: { value: sourceId } },
+      ],
+    },
+    1,
+  );
+  return results[0] || null;
+}
+
 export async function scrollFiltered(filter, limit = 100) {
   const all = [];
   let offset = undefined;

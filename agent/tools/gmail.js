@@ -6,7 +6,7 @@ function decodeBase64Url(str) {
   return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
 }
 
-function extractBody(payload) {
+export function extractBody(payload) {
   // Direct body
   if (payload.body?.data) {
     return decodeBase64Url(payload.body.data).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -35,8 +35,24 @@ function extractBody(payload) {
   return '';
 }
 
-function getHeader(headers, name) {
+export function getHeader(headers, name) {
   return headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+}
+
+export async function ensureLabel(gmail, name) {
+  const listRes = await gmail.users.labels.list({ userId: 'me' });
+  const existing = (listRes.data.labels || []).find((l) => l.name === name);
+  if (existing) return existing.id;
+
+  const createRes = await gmail.users.labels.create({
+    userId: 'me',
+    requestBody: {
+      name,
+      labelListVisibility: 'labelShow',
+      messageListVisibility: 'show',
+    },
+  });
+  return createRes.data.id;
 }
 
 export async function getGmailThreads(query, maxResults = 10) {

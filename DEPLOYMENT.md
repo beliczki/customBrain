@@ -8,6 +8,37 @@ pm2 manages the server process. Restart with `pm2 restart all --cwd /root/custom
 ## Build
 **Stop all services before `npm run build`** — CX22 has 4GB RAM, will OOM otherwise.
 
+## Auto-intake setup (Fireflies + YouTube + Gmail)
+
+One-time setup on Hetzner:
+
+1. **Rerun init to add payload indexes:**
+   ```bash
+   npm run init   # idempotent; ensures source + source_id indexes exist
+   ```
+
+2. **Set env vars** in `/root/customBrain/server/.env`:
+   ```
+   FIREFLIES_WEBHOOK_SECRET=<random 32-char string>
+   GMAIL_BRAIN_LABEL=brain
+   GMAIL_CAPTURED_LABEL=brain/captured
+   ```
+
+3. **Fireflies webhook** — in Fireflies Developer Settings → Webhooks, add:
+   `https://brain.beliczki.hu/fireflies-webhook?secret=<FIREFLIES_WEBHOOK_SECRET>`
+   Event: Transcription completed.
+
+4. **Gmail labels** — apply the `brain` label to one email manually first (Gmail only shows labels that exist). The cron auto-creates `brain`, `brain/captured`, `brain/empty` on first run if missing (via `ensureLabel`).
+
+5. **Crontab** — edit with `crontab -e`:
+   ```
+   */30 * * * * cd /root/customBrain && /usr/bin/node cron/youtube-intake.js >> /var/log/brain-youtube.log 2>&1
+   */10 * * * * cd /root/customBrain && /usr/bin/node cron/gmail-intake.js >> /var/log/brain-gmail.log 2>&1
+   0 * * * * cd /root/customBrain && /usr/bin/node cron/export.js >> /var/log/brain-export.log 2>&1
+   ```
+
+6. **Restart the server** (needed for webhook route registration): follow the mandatory pm2 stop + `fuser -k 3000/tcp` dance before starting.
+
 ## Known gotchas
 
 - **pm2 cwd matters** — pm2 must start with `--cwd /root/customBrain/server` on Hetzner, otherwise `dotenv` can't find `.env` and Qdrant/API calls fail with "fetch failed".

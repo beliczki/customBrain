@@ -8,6 +8,7 @@ import searchRouter from './routes/search.js';
 import recentRouter from './routes/recent.js';
 import statsRouter from './routes/stats.js';
 import exportRouter from './routes/export.js';
+import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import { handleMcpHttp } from './mcp.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -22,11 +23,15 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/mcp') || req.path.startsWith('/capture') ||
       req.path.startsWith('/search') || req.path.startsWith('/recent') ||
       req.path.startsWith('/stats') || req.path.startsWith('/export') ||
-      req.path.startsWith('/thoughts')) {
+      req.path.startsWith('/thoughts') || req.path.startsWith('/fireflies-webhook')) {
     return next();
   }
   res.sendFile(join(__dirname, '..', 'client', 'dist', 'index.html'));
 });
+
+// Webhook routes use their own secret — mounted before Bearer auth.
+// Needs JSON body parsing, so parse before mounting.
+app.use('/fireflies-webhook', express.json(), firefliesWebhookRouter);
 
 // Auth middleware — all routes below require Bearer token
 app.use((req, res, next) => {

@@ -13,6 +13,7 @@ Historical build plans archived in `docs/archive/`.
   - Agent tools: `get_fireflies_transcripts`, `get_youtube_likes`, `get_gmail_threads`, `get_calendar_events`, `get_event_context`, `get_task_context`, `manage_drafts`
 - **Chrome extension**: Manifest v3 "Save to Brain" web clipper
 - **React UI**: capture, search, recent, stats, export tabs (Vite + React 19 + Tailwind 3)
+- **Auto-intake (2026-04-18)**: zero-approval capture from Fireflies webhook (meetings), YouTube likes cron (30min), Gmail `label:brain` cron (10min). Shared `source` + `source_id` payload for idempotent dedup. Gmail body cleaner strips legal/confidentiality boilerplate (regex + Haiku).
 - **Obsidian sync**: full vault rebuild via Google Drive (OAuth2 writes, service account reads), wikilinks in YAML frontmatter
 - **Production**: Hetzner CX22 at `brain.beliczki.hu`, pm2, nginx reverse proxy
 
@@ -49,6 +50,21 @@ Historical build plans archived in `docs/archive/`.
 - [ ] `manage_drafts` — draft save/approve/reject flow end-to-end
 - [ ] `get_task_context` — task decomposition with brain context
 - [ ] Full daily cycle e2e: morning "dolgozd fel a tegnapit" → Fireflies/YouTube intake → review → approve → brain → Obsidian
+
+---
+
+## Session log — 2026-04-05
+
+### Done
+- **People alias resolution**: `drive-context.js` reads `alias:` lines from People .md files on Drive, `metadata.js` injects them into Haiku prompt + deterministic post-processing. Files: `server/drive-context.js`, `server/metadata.js`
+- **SA for vault context**: switched `getVaultContext()` from OAuth2 to service account — OAuth2 couldn't see all files (missed Me.md, Pityesz.md, Agaurg.md + 6 projects). SA sees everything.
+- **Stripped wikilink brackets from aliases**: `[[Nate B. Jones]]` → `Nate B. Jones`
+- **Removed `not_people` from Haiku prompt**: Gábor/Vanda exclusions were Bizi-specific, not global
+- **Capture UI: Haiku prompt accordion**: collapsed `<details>` showing the full prompt sent to Haiku after capture
+- **Capture UI: projects in feedback**: projects now shown alongside type, topics, people, actions
+
+### Key finding: OAuth2 vs SA visibility
+OAuth2 (personal account) couldn't see files that exist in shared folders — SA sees all regardless of owner. This affected both People (8/11) and Projects (3/9). Root cause unclear (possibly Google Drive sharing/visibility rules). Fix: use SA for all vault context reads.
 
 ---
 
@@ -108,8 +124,8 @@ One field. Five states. No project management overhead.
 |---------|--------|-------|
 | **P4a: Telegram bot** | ~1hr | Highest value mobile capture. BotFather → webhook → POST /capture |
 | **P4c: iOS Shortcut** | ~20min | Documentation only — no server code needed. Dictate → POST /capture |
-| **P4d: Email forwarding** | ~2hrs | Mailgun/SendGrid webhook → POST /capture |
-| **P4e: Fireflies webhook** | ~1hr | Auto-capture on meeting end (currently manual pull via MCP) |
+| **~~P4d: Email forwarding~~** | DONE | Replaced by Gmail label cron (`cron/gmail-intake.js`). Label = `brain`. |
+| **~~P4e: Fireflies webhook~~** | DONE (2026-04-18) | `server/routes/fireflies-webhook.js`. Auto-capture on meeting end. |
 
 Already built: Claude Desktop capture (#3), Browser extension (#6). Standup (#7) and briefing (#8) work via MCP without extra code.
 
