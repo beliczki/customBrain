@@ -243,6 +243,37 @@ Current pure-dense search misses exact-name queries and Hungarian agglutinative 
 
 ---
 
+## P9: Thinking Tools — outbound brain intelligence
+
+Based on Eugeniu Ghelbur's `obsidian-second-brain` skill (see brain thought `d29c3eb8-4976-4452-a31d-997c81868af0` for the full Karpathy-vs-Eugeniu analysis). The insight: today the brain is passive (you query, it returns). Thinking tools flip it — the brain provokes, aggregates, bridges. Passive lookup → active sparring partner.
+
+Four new MCP tools, each a thin Haiku prompt layer over existing retrieval primitives:
+
+| Tool | Effort | Built on |
+|---|---|---|
+| `challenge_idea(text)` | ~1hr | `search_brain` + contrarian Haiku prompt — the vault argues back using your own past notes |
+| `emerge_patterns(days)` | ~2hr | `list_recent` over timeframe + Haiku pattern-mining — unnamed themes across recent captures |
+| `connect_domains(a, b)` | ~1hr | Dual `search_brain` + Haiku bridge-finder — what ties two apparently-independent topics |
+| `graduate_idea(thought_id)` | ~2hr | P2 status transition (`idea → active`) + Haiku expansion to project spec. **Couple to P2c** — same mechanism, different surface. |
+
+Plus bi-temporal lookup helpers (small, independent):
+- `get_supersedes_chain(id)` — walks the `supersedes` lineage backward to see "what did I think about this 1 month ago?"
+- `get_belief_history(topic)` — aggregates both `active` and `archived` thoughts on a topic, ordered by `created_at`, showing the belief evolution
+
+### Usage gate — defer LONGER than the MemMolt stubs
+
+Thinking tools only pay off when the brain has enough content to produce meaningful output:
+- `challenge_idea` needs enough disagreement in your own past notes to be contrarian — at 41 thoughts, Haiku has weak ammunition
+- `emerge_patterns` needs volume within the timeframe — 7 days × ~2 captures/day = too sparse
+- `connect_domains` needs breadth across domains — currently most captures cluster on customBrain/Bizi/Amundi
+
+**Gate: ~200 thoughts AND P2 idea lifecycle shipped** (so `graduate` has a real status transition to perform). Roughly 2–3 weeks out at current auto-intake pace.
+
+### Version bump when built
+0.5.0 → 0.6.0 (minor — new user-visible capability, new MCP tool surface).
+
+---
+
 ## Future (D upgrade path)
 
 When manual "dolgozd fel a tegnapit" becomes tedious:
@@ -267,7 +298,8 @@ When manual "dolgozd fel a tegnapit" becomes tedious:
 9. **P4c** (~20min) — iOS Shortcut docs
 10. **P6** (~2hr) — maintenance crons (nightly dedup, weekly summary refresh, monthly metabolism)
 11. **P8** (~2 days) — RRF hybrid search. Only once brain has >200 thoughts and a real recall problem is measurable.
-12. **P7** — ongoing UI/data quality
+12. **P9** (~6hr) — Thinking Tools. Gated on ≥200 thoughts AND P2 shipped. `graduate_idea` couples to P2c.
+13. **P7** — ongoing UI/data quality
 
 ---
 
