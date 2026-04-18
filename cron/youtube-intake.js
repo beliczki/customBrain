@@ -8,6 +8,12 @@ import { captureThought } from '../server/routes/capture.js';
 
 const BOOTSTRAP_WARN_THRESHOLD = 20;
 
+// YouTube category IDs to skip: 10=Music (entertainment, not substantive content).
+// Override via env: YOUTUBE_SKIP_CATEGORIES=10,23,24 (comma-separated).
+const SKIP_CATEGORIES = new Set(
+  (process.env.YOUTUBE_SKIP_CATEGORIES || '10').split(',').map((s) => s.trim()).filter(Boolean),
+);
+
 function buildText(item) {
   const lines = [
     `# ${item.title}`,
@@ -29,9 +35,15 @@ async function run() {
 
   let captured = 0;
   let skipped = 0;
+  let filtered = 0;
   let failed = 0;
 
   for (const item of items) {
+    if (item.category_id && SKIP_CATEGORIES.has(item.category_id)) {
+      filtered++;
+      console.log(`  filtered (cat=${item.category_id}): ${item.title}`);
+      continue;
+    }
     try {
       const text = buildText(item);
       const result = await captureThought(text, {
@@ -50,7 +62,7 @@ async function run() {
     }
   }
 
-  console.log(`YouTube intake done: captured=${captured} skipped=${skipped} failed=${failed}`);
+  console.log(`YouTube intake done: captured=${captured} skipped=${skipped} filtered=${filtered} failed=${failed}`);
   if (captured > BOOTSTRAP_WARN_THRESHOLD) {
     console.warn(`Captured ${captured} in one run — likely bootstrap. Consider narrowing sinceDate.`);
   }

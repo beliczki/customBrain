@@ -36,13 +36,16 @@ export async function getYoutubeLikes(sinceDate) {
       description: item.snippet.description || '',
       published_at: item.snippet.publishedAt,
       tags: [],
+      category_id: null,
       captions_text: null,
     };
 
-    // Fetch tags from video details
+    // Fetch tags + category from video details
     try {
       const videoRes = await youtube.videos.list({ id: videoId, part: 'snippet' });
-      entry.tags = videoRes.data.items?.[0]?.snippet?.tags || [];
+      const snip = videoRes.data.items?.[0]?.snippet;
+      entry.tags = snip?.tags || [];
+      entry.category_id = snip?.categoryId || null;
     } catch {}
 
     // Try to fetch captions
