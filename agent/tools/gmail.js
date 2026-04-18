@@ -6,23 +6,57 @@ function decodeBase64Url(str) {
   return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
 }
 
+function normalizePlainText(raw) {
+  // Preserve newlines from the original; just tidy horizontal whitespace
+  // and collapse excessive blank-line runs.
+  return raw
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function htmlToText(raw) {
+  // Block-level tags become newlines so paragraph boundaries survive.
+  // Inline tags become a single space. Entities are decoded cheaply.
+  return raw
+    .replace(/\r\n/g, '\n')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<\/?(p|div|li|h[1-6]|br|blockquote|tr|table|ul|ol|pre|hr|section|article|header|footer)\b[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function bodyPartToText(part) {
+  if (!part?.body?.data) return '';
+  const raw = decodeBase64Url(part.body.data);
+  if (part.mimeType === 'text/html') return htmlToText(raw);
+  return normalizePlainText(raw);
+}
+
 export function extractBody(payload) {
   // Direct body
   if (payload.body?.data) {
-    return decodeBase64Url(payload.body.data).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return bodyPartToText(payload);
   }
 
   // Multipart — prefer text/plain
   if (payload.parts) {
     const plain = payload.parts.find((p) => p.mimeType === 'text/plain');
-    if (plain?.body?.data) {
-      return decodeBase64Url(plain.body.data).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    }
+    if (plain?.body?.data) return bodyPartToText(plain);
 
     const html = payload.parts.find((p) => p.mimeType === 'text/html');
-    if (html?.body?.data) {
-      return decodeBase64Url(html.body.data).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    }
+    if (html?.body?.data) return bodyPartToText(html);
 
     // Nested multipart
     for (const part of payload.parts) {
