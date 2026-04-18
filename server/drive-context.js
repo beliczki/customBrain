@@ -15,7 +15,8 @@ function getOAuth2Client() {
 }
 
 function getSaDrive() {
-  const saPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH || './service-account.json';
+  const saPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH ||
+    new URL('./service-account.json', import.meta.url).pathname;
   const sa = JSON.parse(readFileSync(saPath, 'utf-8'));
   const auth = new google.auth.JWT({
     email: sa.client_email,
