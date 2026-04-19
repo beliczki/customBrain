@@ -2,6 +2,17 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.4.1 — 2026-04-19
+
+Patch roll-up. All data-integrity fixes surfaced while bringing meeting + brain workflows into daily use. No new features.
+
+- **Fireflies backfill support** — `scripts/backfill-fireflies.js` pulls transcripts from Fireflies since a date (default: last 90 days), dedup'd by meeting id. Idempotent with the live webhook path. First run imported 48 real meetings from Feb–Apr 2026.
+- **Fireflies duration + date fields** — `agent/tools/fireflies.js` was dividing `duration` by 60 under the wrong assumption it was seconds. Fireflies returns duration in **minutes** directly; every meeting was reading as 0–2 min. Also converts `date` (Unix ms) to ISO string for downstream display.
+- **checkContradiction prompt rewrite** — original prompt asked "do these contradict?" and Haiku correctly answered "different" which our code archived. Recurring meetings (weekly syncs, biweekly statuses) hit this every time. New prompt defaults to FALSE, requires LOGICAL contradiction (mutually exclusive claims, reversed decisions, explicit corrections), not just "different content". Covers the recurring-meeting case with an explicit NOT-a-contradiction list.
+- **`scripts/unarchive-fireflies.js`** — one-off recovery script for the 13 fireflies captures wrongly archived during the first backfill run. Restored all 13 to `active`. Scoped to `source='fireflies' + status='archived'` — safe because two different meeting events are never a true logical contradiction.
+- **Chrome extension search uses content, not tab title** — `extension/popup.js` was embedding only `document.title` (polluted with "(19) Defileo 🎭 on X: ... / X" and similar noise). Now concatenates title + og:description + first 800 chars of extracted content, capped at 1500 chars. Distinguishes 401 from "no matches" in the UI, shows cosine score % per related-thought.
+- **Gemini video summary — architectural cleanup** — `fetchVideoSummary` moved OUT of `getYoutubeLikes` (which was calling Gemini for every liked video including music that would be filtered). Callers (cron + backfill) now call Gemini only for items they're actually keeping. Plus 3-min AbortSignal timeout to catch hung Gemini calls. MCP `get_youtube_likes` tool surface unchanged.
+
 ## 0.4.0 — 2026-04-18
 
 New capability: **YouTube captures now include full video summaries via Gemini multimodal**, not just title + description. Behavior change — Haiku metadata extraction and semantic search now operate on dense signal from the actual video content.
