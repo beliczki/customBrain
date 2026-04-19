@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.5.4 — 2026-04-19
+
+Alias parser defense — matches how users actually write aliases in People/Projects markdown files.
+
+- **Comma-separated alias values supported.** `alias: foo, bar, baz` now expands to three separate alias entries instead of being stored as a single-key string. Real-world case: `Projects/Bizi.md` had `alias: B2B asszisztens, Dasszisztens, B2B digitális tudakozó` — previously stored under one malformed key, none of the aliases resolved. Now they all resolve correctly.
+- **Circular alias loop detection + auto-break.** When `A → B` and `B → A` both exist in the map, the parser breaks the loop deterministically. Rule: if one name is a real filename in the folder and the other isn't, the filename wins. Otherwise, alphabetical tie-break. Warns to the log. Real-world case: `People/Me.md` and `People/Beliczki Róbert.md` both existed and cross-referenced each other; `Me → Beliczki Róbert` silently won, breaking the pilot dry-run. User cleanup deleted the duplicate file; this patch prevents the recurrence from config mistakes.
+- **Self-aliases skipped.** If a file declares `alias: <same-as-filename>`, silently ignored.
+
 ## 0.5.3 — 2026-04-19
 
 Three fixes from the first batch-hygiene dry-run. All three were **caught in dry-run before any Qdrant writes** — the architecture worked as designed.

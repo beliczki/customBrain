@@ -84,13 +84,39 @@ async function listWithAliases(drive, folderId) {
         const text = typeof content.data === 'string' ? content.data : '';
         for (const line of text.split('\n')) {
           const match = line.match(/^alias:\s*(.+)/i);
-          if (match) {
-            const alias = match[1].trim().replace(/^\[\[|]]$/g, '');
-            aliases[alias] = canonical;
+          if (!match) continue;
+          // Split on commas so `alias: foo, bar, baz` expands into three entries.
+          // Also tolerant of `alias: "[[Foo]]"` wikilink syntax.
+          const values = match[1]
+            .split(',')
+            .map((v) => v.trim().replace(/^\[\[|]]$/g, ''))
+            .filter(Boolean);
+          for (const alias of values) {
+            if (alias !== canonical) aliases[alias] = canonical;
           }
         }
       } catch {
         // skip files that can't be read
+      }
+    }
+    // Detect and break circular alias loops (A→B and B→A). Keeps the direction
+    // toward the earlier-alphabetical canonical (deterministic tie-breaker).
+    // If only one of the two names is actually a filename in this folder, the
+    // filename wins; the other direction is removed.
+    const namesSet = new Set(names);
+    for (const [alias, canonical] of Object.entries(aliases)) {
+      const reverse = aliases[canonical];
+      if (reverse === alias) {
+        // Loop detected: alias→canonical AND canonical→alias
+        const aliasIsFile = namesSet.has(alias);
+        const canonicalIsFile = namesSet.has(canonical);
+        let drop;
+        if (aliasIsFile && !canonicalIsFile) drop = alias;       // keep canonical as filename wins
+        else if (canonicalIsFile && !aliasIsFile) drop = canonical; // keep alias as filename wins
+        else drop = [alias, canonical].sort()[1];                 // tie → drop the later-alphabetical
+        const kept = drop === alias ? canonical : alias;
+        delete aliases[drop];
+        console.warn(`Alias loop broken: "${alias}" ↔ "${canonical}" — kept canonical "${kept}"`);
       }
     }
     return { names, aliases };
