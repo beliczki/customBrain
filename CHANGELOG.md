@@ -2,6 +2,44 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.6.0 — 2026-04-19
+
+**P1d shipped: Semantic autolinks in Obsidian export.** Ships the third of the four TODO-STEAL-4-MEMMOLT items (`11e3aa53-...`).
+
+### The problem this fixes
+
+The body-level `## Related thoughts` section in every exported `.md` used to list every other thought sharing ANY person / project / topic via `buildLinkIndex()` + `buildLinksSection()`. A note tagged `[Proficio, Messaging matrix, Bizi]` would backlink to every thought touching any of those three — easily 40+ "related" entries, most of them spurious. The Obsidian graph view became a hairball of false edges.
+
+### The fix
+
+- New `server/qdrant.js::getAllWithVectors()` — fetches all points with both payload and vectors in one pass (vs the previous payload-only scroll).
+- `server/routes/export.js` now switches to `getAllWithVectors()`, computes **in-memory cosine similarity** per thought against all others, and emits only the top-N neighbors above a threshold as the Related section.
+- Tunable constants at the top of `export.js`:
+  - `RELATED_MIN_SCORE = 0.75` — minimum cosine. Below → edge dropped.
+  - `RELATED_MAX = 3` — cap per thought.
+- If no neighbors qualify, the section is omitted entirely (no empty header).
+- Each link gets a small `*(score%)*` trailing marker so you can see WHY the edge is there when you open the .md.
+
+### Dead code removed
+
+- `buildLinkIndex()` — no longer needed.
+- `buildLinksSection()` replaced with `semanticNeighbors()` + new `buildLinksSection()` signature.
+
+### Effects to expect on next rebuild
+
+- Obsidian graph edges drop ~80% — only genuinely similar thoughts link to each other.
+- `slash-loop-projekt-health-check` (the user's pain point): 45+ related thoughts → likely 2-3 real matches (other project-health or monitoring notes).
+- `agent-önbizalom-csapda` (the P10 pilot target): even with its 8 project tags, semantic neighbors are whatever's actually similar in meaning, not "anything touching those 8 projects".
+
+### Performance
+
+At 118 thoughts, 118 × 117 cosine ops over 3072-dim vectors ≈ 43M multiplies ≈ 1–2 sec extra at export time. Linear in `N²`; revisit if the brain hits ~1000 thoughts and export starts exceeding ~30 sec. The `scripts/eval-strict-prompt.js` pattern is available for future A/B if threshold tuning is needed.
+
+### ROADMAP status
+
+- **P1d** → ~~DONE~~ (2026-04-19, v0.6.0)
+- Remaining TODO-STEAL-4-MEMMOLT items: P5a (hot.md), P7e (index.md), P8 (RRF hybrid search).
+
 ## 0.5.4 — 2026-04-19
 
 Alias parser defense — matches how users actually write aliases in People/Projects markdown files.

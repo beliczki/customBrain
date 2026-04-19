@@ -74,6 +74,32 @@ export async function getAllPayloads() {
   return all.map((p) => p.payload);
 }
 
+/**
+ * Fetch all points with both payload AND vectors. Used by the Obsidian
+ * export to compute per-thought semantic neighbors (P1d: semantic autolinks).
+ * At ~100-500 thoughts this is cheap; at 1000s, consider batching.
+ */
+export async function getAllWithVectors() {
+  const all = [];
+  let offset = undefined;
+  while (true) {
+    const batch = await qdrant.scroll(COLLECTION, {
+      limit: 100,
+      with_payload: true,
+      with_vector: true,
+      offset,
+    });
+    all.push(...batch.points);
+    if (!batch.next_page_offset) break;
+    offset = batch.next_page_offset;
+  }
+  return all.map((p) => ({
+    id: p.id,
+    vector: p.vector,
+    payload: p.payload,
+  }));
+}
+
 export async function deletePoint(id) {
   await qdrant.delete(COLLECTION, { points: [id] });
 }

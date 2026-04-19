@@ -3,7 +3,13 @@ import { google } from 'googleapis';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { scrollFiltered } from '../qdrant.js';
+import { getAllWithVectors } from '../qdrant.js';
+
+// P1d — semantic autolinks. Per-thought cosine-neighbor section replaces the
+// old metadata-based "Related thoughts" dump. Tune these two constants if the
+// links feel too sparse or too noisy after a real-world rebuild.
+const RELATED_MIN_SCORE = 0.75;
+const RELATED_MAX = 3;
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 
@@ -62,60 +68,48 @@ function formatDate(iso) {
   return d.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function buildLinkIndex(thoughts, filenames) {
-  const personToFiles = {};
-  const topicToFiles = {};
-  const projectToFiles = {};
-
-  for (let i = 0; i < thoughts.length; i++) {
-    const t = thoughts[i];
-    const fn = filenames[i].replace('.md', '');
-
-    for (const p of t.people || []) {
-      if (!personToFiles[p]) personToFiles[p] = [];
-      personToFiles[p].push(fn);
-    }
-    for (const tp of t.topics || []) {
-      if (!topicToFiles[tp]) topicToFiles[tp] = [];
-      topicToFiles[tp].push(fn);
-    }
-    for (const pr of t.projects || []) {
-      if (!projectToFiles[pr]) projectToFiles[pr] = [];
-      projectToFiles[pr].push(fn);
-    }
+/** In-memory cosine similarity on two equal-length vectors. */
+function cosine(a, b) {
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
   }
-
-  return { personToFiles, topicToFiles, projectToFiles };
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom === 0 ? 0 : dot / denom;
 }
 
-function buildLinksSection(thought, filename, linkIndex) {
-  const myName = filename.replace('.md', '');
-  const lines = [];
+/**
+ * Return top-N semantic neighbors for a thought. Replaces the former
+ * metadata-based "every thought sharing any tag" link dump (P1d).
+ * Filters self, archived thoughts, and anything below RELATED_MIN_SCORE.
+ */
+function semanticNeighbors(thought, allThoughts) {
+  return allThoughts
+    .filter((other) => other.id !== thought.id && other.payload?.status !== 'archived')
+    .map((other) => ({
+      id: other.id,
+      title: other.payload.title,
+      filename: other.filename, // set by caller
+      score: cosine(thought.vector, other.vector),
+    }))
+    .filter((n) => n.score >= RELATED_MIN_SCORE)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, RELATED_MAX);
+}
 
-  // Links to related thoughts (same customBrain folder)
-  const relatedThoughts = new Set();
-  for (const p of thought.people || []) {
-    for (const fn of linkIndex.personToFiles[p] || []) {
-      if (fn !== myName) relatedThoughts.add(`[[${fn}]]`);
-    }
+function buildLinksSection(thought, filename, allThoughts) {
+  const neighbors = semanticNeighbors(thought, allThoughts);
+  if (neighbors.length === 0) return '';
+  const lines = ['\n## Related thoughts'];
+  for (const n of neighbors) {
+    const stem = n.filename.replace('.md', '');
+    // Include cosine score as a small trailing marker so future-me can see
+    // why the link is here. Readers in Obsidian still see it as a wikilink.
+    lines.push(`- [[${stem}]]  *(${(n.score * 100).toFixed(0)}%)*`);
   }
-  for (const tp of thought.topics || []) {
-    for (const fn of linkIndex.topicToFiles[tp] || []) {
-      if (fn !== myName) relatedThoughts.add(`[[${fn}]]`);
-    }
-  }
-  for (const pr of thought.projects || []) {
-    for (const fn of linkIndex.projectToFiles[pr] || []) {
-      if (fn !== myName) relatedThoughts.add(`[[${fn}]]`);
-    }
-  }
-
-  if (relatedThoughts.size > 0) {
-    lines.push('\n## Related thoughts');
-    for (const link of relatedThoughts) lines.push(`- ${link}`);
-  }
-
-  if (lines.length === 0) return '';
   return lines.join('\n');
 }
 
@@ -217,30 +211,34 @@ export async function rebuildVault(onLog) {
   }
   emit(`[${ts()}] Old files deleted`);
 
-  // Step 2: Fetch all thoughts from Qdrant
-  emit(`[${ts()}] Fetching thoughts from Qdrant...`);
-  const thoughts = await scrollFiltered();
-  emit(`[${ts()}] Found ${thoughts.length} thoughts`);
+  // Step 2: Fetch all thoughts + vectors from Qdrant (vectors needed for
+  // semantic autolinks below).
+  emit(`[${ts()}] Fetching thoughts + vectors from Qdrant...`);
+  const rawPoints = await getAllWithVectors();
+  // Skip archived points entirely in the export
+  const thoughts = rawPoints.filter((p) => p.payload.status !== 'archived');
+  emit(`[${ts()}] Found ${thoughts.length} active thoughts (${rawPoints.length - thoughts.length} archived skipped)`);
 
   if (thoughts.length === 0) {
     emit(`[${ts()}] Nothing to export`);
     return { ok: true, rebuilt: true, deleted: existingFiles.length, exported_count: 0, files: [] };
   }
 
-  // Step 3: Build filenames and link index
-  const filenames = thoughts.map(thoughtFilename);
-  const linkIndex = buildLinkIndex(thoughts, filenames);
-  emit(`[${ts()}] Built link index`);
+  // Step 3: Build filenames and attach to points for neighbor lookup
+  const filenames = thoughts.map((p) => thoughtFilename(p.payload));
+  thoughts.forEach((p, i) => { p.filename = filenames[i]; });
+  emit(`[${ts()}] Filenames built — neighbor search will run per-thought (cosine)`);
 
-  // Step 4: Write all thoughts as .md files
+  // Step 4: Write all thoughts as .md files with semantic Related thoughts
   emit(`[${ts()}] Writing ${thoughts.length} thought files...`);
   const files = [];
   for (let i = 0; i < thoughts.length; i++) {
-    const t = thoughts[i];
+    const p = thoughts[i];
+    const t = p.payload;
     const filename = filenames[i];
 
     const frontmatter = toFrontmatter(t);
-    const links = buildLinksSection(t, filename, linkIndex);
+    const links = buildLinksSection({ id: p.id, vector: p.vector, payload: t }, filename, thoughts);
     const dateStr = formatDate(t.created_at);
     const content = `${frontmatter}\n\n*${dateStr}*\n\n${t.text}\n${links}\n`;
 
@@ -263,14 +261,14 @@ export async function rebuildVault(onLog) {
   // Step 5: People & Projects
   const allPeople = new Set();
   const allProjects = new Set();
-  for (const t of thoughts) {
-    for (const p of t.people || []) allPeople.add(p);
-    for (const pr of t.projects || []) allProjects.add(pr);
+  for (const p of thoughts) {
+    for (const person of p.payload.people || []) allPeople.add(person);
+    for (const project of p.payload.projects || []) allProjects.add(project);
   }
 
   const typeCounts = {};
-  for (const t of thoughts) {
-    const type = t.type || 'unknown';
+  for (const p of thoughts) {
+    const type = p.payload.type || 'unknown';
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   }
 
@@ -310,8 +308,8 @@ export async function rebuildVault(onLog) {
       }
 
       const related = thoughts
-        .filter((t) => (t.people || []).includes(name) || (t.projects || []).includes(name))
-        .map((t) => thoughtFilename(t).replace('.md', ''));
+        .filter((p) => (p.payload.people || []).includes(name) || (p.payload.projects || []).includes(name))
+        .map((p) => p.filename.replace('.md', ''));
       const backlinks = related.map((fn) => `- [[${fn}]]`).join('\n');
       const content = `# ${name}\n\n## Mentions\n${backlinks}\n`;
 

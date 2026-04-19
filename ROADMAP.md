@@ -103,11 +103,8 @@ After vault rebuild, group thoughts by person/project. Fetch existing summary .m
 - File: `server/routes/export.js`
 - Note: People/Projects folders owned by service account — may need OAuth2 for writing
 
-### P1d: Semantic autolinks in export (~1hr)
-Append `## Related` section to every exported `.md` with top-3 cosine-neighbor wikilinks (threshold > 0.75, else omit). Turns Obsidian Graph view from metadata-only into semantic edges.
-- Files: `server/routes/export.js` (new `findRelated(thought)` in `renderThought`), `server/qdrant.js` (`searchByVector(vector, limit, excludeId)` helper if not already present).
-- Full spec in brain thought `11e3aa53-f685-4c29-8d13-c1b8fcdd5e2f` (Task 3).
-- Perf watch: O(N) queries during export. At >500 thoughts, batch or time-budget.
+### ~~P1d: Semantic autolinks in export~~ — DONE (2026-04-19, v0.6.0)
+Replaced the metadata-based `Related thoughts` dump (every shared-tag thought) with in-memory cosine top-3 above `RELATED_MIN_SCORE = 0.75`. `getAllWithVectors()` in `server/qdrant.js`; `semanticNeighbors()` + new `buildLinksSection()` in `server/routes/export.js`. Each link carries a `*(score%)*` marker. Expected effect: Obsidian graph edges drop ~80%, remaining edges are genuinely meaningful.
 
 ---
 
