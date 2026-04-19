@@ -35,11 +35,20 @@ const TRANSCRIPT_BY_ID_QUERY = `
 `;
 
 function shapeTranscript(t) {
+  // Fireflies returns `duration` in MINUTES already (not seconds as
+  // originally assumed). Verified 2026-04-19 against 45 real meetings —
+  // values of 30, 45, 60 come back directly; dividing by 60 made every
+  // meeting look like 0-2 minutes.
+  // `date` is a Unix timestamp in milliseconds — convert to ISO for
+  // downstream display.
+  const dateIso = t.date
+    ? new Date(Number(t.date)).toISOString()
+    : null;
   return {
     id: t.id,
     title: t.title,
-    date: t.date,
-    duration_minutes: Math.round((t.duration || 0) / 60),
+    date: dateIso,
+    duration_minutes: Math.round(t.duration || 0),
     participants: t.participants || [],
     transcript_text: (t.sentences || [])
       .map((s) => `${s.speaker_name}: ${s.text}`)
