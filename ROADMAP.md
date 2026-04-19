@@ -243,6 +243,29 @@ Current pure-dense search misses exact-name queries and Hungarian agglutinative 
 
 ---
 
+## ~~P10: Brain Connection Hygiene~~ — DONE (2026-04-19, v0.5.0)
+
+Interactive metadata curation — surfaces over-tagged thoughts, Haiku proposes tighter metadata, user approves, Qdrant patched in place, Obsidian graph self-corrects on next hourly export. Plus: tightened capture-time extraction prompt so new thoughts don't reintroduce the problem.
+
+**Shipped MCP tools:**
+- `find_overconnected(limit, min_project_count, min_hub_score)` — detection
+- `suggest_metadata_fix(thought_id)` — Haiku proposal with classifications
+- `update_thought(thought_id, {people?, projects?, topics?, title?, action_items?})` — apply
+
+**Shipped HTTP:** `PATCH /thoughts/:id`
+
+**Shipped modules:** `server/brain-hygiene.js`, `server/qdrant.js::getById`, `server/qdrant.js::getConnectionStats`, `server/metadata.js::suggestCleanedMetadata`
+
+**Shipped scripts:** `scripts/eval-strict-prompt.js` (read-only A/B of old vs new prompt)
+
+**Pilot (pending, human-led):** walk through top 5-10 offenders from Claude Desktop, capture findings to brain with marker `BRAIN-HYGIENE-PILOT-01`.
+
+Cross-ref: brain thought `3e7538f2-2903-4dcd-ae76-d6734b6e4108` ("Agent önbizalom-csapda") documents the failure mode addressed here. Ironically, that thought is itself the pilot target.
+
+Plan file: `~/.claude/plans/at-this-point-every-purring-stonebraker.md`.
+
+---
+
 ## P9: Thinking Tools — outbound brain intelligence
 
 Based on Eugeniu Ghelbur's `obsidian-second-brain` skill (see brain thought `d29c3eb8-4976-4452-a31d-997c81868af0` for the full Karpathy-vs-Eugeniu analysis). The insight: today the brain is passive (you query, it returns). Thinking tools flip it — the brain provokes, aggregates, bridges. Passive lookup → active sparring partner.
@@ -298,8 +321,9 @@ When manual "dolgozd fel a tegnapit" becomes tedious:
 9. **P4c** (~20min) — iOS Shortcut docs
 10. **P6** (~2hr) — maintenance crons (nightly dedup, weekly summary refresh, monthly metabolism)
 11. **P8** (~2 days) — RRF hybrid search. Only once brain has >200 thoughts and a real recall problem is measurable.
-12. **P9** (~6hr) — Thinking Tools. Gated on ≥200 thoughts AND P2 shipped. `graduate_idea` couples to P2c.
-13. **P7** — ongoing UI/data quality
+12. ~~**P10** — Brain Connection Hygiene.~~ DONE 2026-04-19 (v0.5.0).
+13. **P9** (~6hr) — Thinking Tools. Gated on ≥200 thoughts AND P2 shipped. `graduate_idea` couples to P2c.
+14. **P7** — ongoing UI/data quality
 
 ---
 

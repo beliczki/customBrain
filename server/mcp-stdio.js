@@ -3,10 +3,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { searchThoughts } from './routes/search.js';
-import { getRecent } from './routes/recent.js';
+import { getRecent, updateThought } from './routes/recent.js';
 import { getStats } from './routes/stats.js';
 import { exportThoughts } from './routes/export.js';
 import { captureThought } from './routes/capture.js';
+import { getConnectionStats, getById } from './qdrant.js';
+import { findOverconnected } from './brain-hygiene.js';
+import { suggestCleanedMetadata } from './metadata.js';
+import { getVaultContext } from './drive-context.js';
 import { registerAgentTools } from '../agent/register.js';
 
 const server = new McpServer({
@@ -53,6 +57,75 @@ server.tool(
   async () => {
     const results = await getStats();
     return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+  }
+);
+
+server.tool(
+  'find_overconnected',
+  'Find thoughts wrongly linked to many others via over-broad metadata. Sorted by hub_score. Use before suggest_metadata_fix + update_thought to surface brain-hygiene candidates.',
+  {
+    limit: z.number().optional().describe('How many top candidates to return (default 10)'),
+    min_project_count: z.number().optional().describe('Flag thoughts with this many or more projects (default 5)'),
+    min_hub_score: z.number().optional().describe('Flag thoughts with this or higher hub score (default 20)'),
+  },
+  async ({ limit, min_project_count, min_hub_score }) => {
+    const { stats } = await getConnectionStats();
+    const results = findOverconnected(stats, {
+      limit: limit ?? 10,
+      minProjectCount: min_project_count ?? 5,
+      minHubScore: min_hub_score ?? 20,
+    });
+    return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+  }
+);
+
+server.tool(
+  'suggest_metadata_fix',
+  'Given a thought ID (typically one surfaced by find_overconnected), ask Haiku to propose tighter metadata. Returns the proposed people/projects/topics/title, classification of each current project (primary/example/context), and human-readable reasoning. Does NOT apply — use update_thought with the proposed values after user review.',
+  { thought_id: z.string() },
+  async ({ thought_id }) => {
+    const thought = await getById(thought_id);
+    if (!thought) {
+      return { content: [{ type: 'text', text: JSON.stringify({ error: `Thought ${thought_id} not found` }) }] };
+    }
+    const vaultCtx = await getVaultContext().catch(() => null);
+    const suggestion = await suggestCleanedMetadata(thought, vaultCtx);
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          thought_id,
+          current: {
+            title: thought.title,
+            people: thought.people,
+            projects: thought.projects,
+            topics: thought.topics,
+          },
+          ...suggestion,
+        }, null, 2),
+      }],
+    };
+  }
+);
+
+server.tool(
+  'update_thought',
+  'Update metadata (people, projects, topics, title, action_items) on an existing thought. Text, source, and timestamps are immutable — use this for brain-hygiene corrections, NOT to rewrite content.',
+  {
+    thought_id: z.string(),
+    people: z.array(z.string()).optional(),
+    projects: z.array(z.string()).optional(),
+    topics: z.array(z.string()).optional(),
+    title: z.string().optional(),
+    action_items: z.array(z.string()).optional(),
+  },
+  async ({ thought_id, ...rest }) => {
+    const delta = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
+    if (Object.keys(delta).length === 0) {
+      return { content: [{ type: 'text', text: JSON.stringify({ error: 'No updatable fields provided' }) }] };
+    }
+    const result = await updateThought(thought_id, delta);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );
 

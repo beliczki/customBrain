@@ -82,6 +82,29 @@ export async function updatePayload(id, payload) {
   await qdrant.setPayload(COLLECTION, { points: [id], payload });
 }
 
+export async function getById(id) {
+  const results = await qdrant.retrieve(COLLECTION, {
+    ids: [id],
+    with_payload: true,
+  });
+  if (!results || results.length === 0) return null;
+  const p = results[0];
+  return {
+    id: p.id,
+    text: p.payload.text,
+    title: p.payload.title,
+    people: p.payload.people,
+    topics: p.payload.topics,
+    projects: p.payload.projects,
+    type: p.payload.type,
+    action_items: p.payload.action_items,
+    status: p.payload.status,
+    source: p.payload.source,
+    source_id: p.payload.source_id,
+    created_at: p.payload.created_at,
+  };
+}
+
 export async function findBySourceId(source, sourceId) {
   const results = await scrollFiltered(
     {
@@ -93,6 +116,71 @@ export async function findBySourceId(source, sourceId) {
     1,
   );
   return results[0] || null;
+}
+
+/**
+ * Compute per-thought connection stats for brain-hygiene diagnostics.
+ *
+ * Returns thoughts sorted by suspicion score (hub_score desc, then
+ * project_count desc). Only active thoughts (status != 'archived').
+ *
+ * hub_score is the sum of "thought-count per project" across all the
+ * thought's projects — i.e. how many thoughts this one connects to via
+ * shared-project edges in the Obsidian graph.
+ */
+export async function getConnectionStats() {
+  const all = [];
+  let offset = undefined;
+  while (true) {
+    const batch = await qdrant.scroll(COLLECTION, {
+      limit: 200,
+      with_payload: true,
+      offset,
+    });
+    all.push(...batch.points);
+    if (!batch.next_page_offset) break;
+    offset = batch.next_page_offset;
+  }
+
+  // First pass: reverse index — how many (active) thoughts use each project/person/topic
+  const projectCounts = new Map();
+  const personCounts = new Map();
+  const topicCounts = new Map();
+  for (const p of all) {
+    if (p.payload.status === 'archived') continue;
+    for (const pr of p.payload.projects || []) projectCounts.set(pr, (projectCounts.get(pr) || 0) + 1);
+    for (const pe of p.payload.people || []) personCounts.set(pe, (personCounts.get(pe) || 0) + 1);
+    for (const to of p.payload.topics || []) topicCounts.set(to, (topicCounts.get(to) || 0) + 1);
+  }
+
+  // Second pass: compute per-thought scores
+  const stats = [];
+  for (const p of all) {
+    if (p.payload.status === 'archived') continue;
+    const projects = p.payload.projects || [];
+    const people = p.payload.people || [];
+    const topics = p.payload.topics || [];
+    // hub_score excludes self — if a project has count=1 (only this thought),
+    // it contributes 0 edges to other thoughts.
+    const hubFromProjects = projects.reduce((n, pr) => n + Math.max(0, (projectCounts.get(pr) || 0) - 1), 0);
+    const hubFromPeople = people.reduce((n, pe) => n + Math.max(0, (personCounts.get(pe) || 0) - 1), 0);
+    stats.push({
+      id: p.id,
+      title: p.payload.title,
+      type: p.payload.type,
+      created_at: p.payload.created_at,
+      project_count: projects.length,
+      people_count: people.length,
+      topic_count: topics.length,
+      projects,
+      people,
+      hub_score: hubFromProjects + hubFromPeople,
+      hub_from_projects: hubFromProjects,
+      hub_from_people: hubFromPeople,
+    });
+  }
+
+  return { stats, projectCounts, personCounts, topicCounts };
 }
 
 export async function scrollFiltered(filter, limit = 100) {

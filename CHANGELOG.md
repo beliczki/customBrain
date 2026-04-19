@@ -2,6 +2,26 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.5.0 — 2026-04-19
+
+**P10: Brain Connection Hygiene** — interactive metadata curation. Problem: thoughts were over-tagged with projects they only mentioned in passing, making hubs of notes that connect to everything in Obsidian's graph. Example: `agent-önbizalom-csapda` had 8 project tags because it used them as examples of failure modes; every thought about any of those 8 projects backlinked to it.
+
+Three new MCP tools + a tightened capture prompt.
+
+- `find_overconnected` MCP tool — scans active thoughts and surfaces over-taggers, sorted by hub_score (sum of reachable thoughts via shared projects/people). Defaults: `project_count >= 5` OR `hub_score >= 20`, all tunable. Read-only.
+- `suggest_metadata_fix` MCP tool — given a thought id, Haiku classifies each tagged project as `primary|example|context`, proposes a tighter `{people, projects, topics, title}`, and returns the diff with reasoning. Does NOT apply — review loop is Claude Desktop + user approval.
+- `update_thought` MCP tool + `PATCH /thoughts/:id` HTTP route — applies a partial metadata update to a thought in Qdrant. Allowed fields: `people, projects, topics, title, action_items`. Text, source, source_id, created_at, and status stay immutable via this path. Obsidian `.md` regenerates on the next hourly export cron.
+- `server/metadata.js` `buildPrompt` rewrite — projects rule now explicit: "only projects the thought is PRIMARILY ABOUT; not examples, comparisons, background, inspiration". Most thoughts should have 0–2 projects. Vault-project hint softened from "if relevant" to "do not force a match when mentioned in passing".
+- `scripts/eval-strict-prompt.js` — read-only eval harness. Finds the N worst over-taggers in the brain today, re-runs extractMetadata with the new prompt, prints old-vs-new project diff. Use before relying on the prompt change for daily captures.
+- New `server/brain-hygiene.js` module — pure helpers for the hygiene heuristics, no I/O, easy to test.
+- New `server/qdrant.js` helpers: `getById(id)` (retrieve single point by UUID) and `getConnectionStats()` (per-thought + reverse-indexed project/person/topic counts).
+
+Use pattern (from Claude Desktop): `find_overconnected` → pick a candidate → `suggest_metadata_fix` → review diff → `update_thought` with approved values. Wait for the hourly `cron/export.js` — Obsidian "Linked Mentions" count drops for the fixed thought.
+
+Pilot scope per plan: 5–10 worst offenders walked interactively, NOT a full sweep. Broaden only if pilot validates.
+
+Cross-ref: brain thought `3e7538f2-2903-4dcd-ae76-d6734b6e4108` (Agent önbizalom-csapda) documents the failure mode this release addresses and is the Phase 4 pilot target.
+
 ## 0.4.1 — 2026-04-19
 
 Patch roll-up. All data-integrity fixes surfaced while bringing meeting + brain workflows into daily use. No new features.

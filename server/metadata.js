@@ -37,16 +37,25 @@ function buildPrompt(text, localCtx, vaultCtx) {
   }
 
   if (vaultCtx?.projects?.length) {
-    contextBlock += `\n\nKnown projects in the vault (match to these if relevant): ${vaultCtx.projects.join(', ')}`;
+    contextBlock += `\n\nCanonical project names in the vault (use these exact names if the thought IS about one of these projects; do NOT force a match when the thought merely mentions one in passing): ${vaultCtx.projects.join(', ')}`;
   }
 
   return `Extract metadata from this text. Return ONLY valid JSON with these fields:
 - title: string (2-3 word short title summarizing the thought — in the same language as the text)
-- people: string[] (names of REAL people mentioned — exclude AI assistants, chatbots, virtual characters)
-- topics: string[] (key topics/themes)
-- projects: string[] (project names this thought relates to, from the known projects list if possible)
+- people: string[] (names of REAL people actually discussed; exclude AI assistants, chatbots, virtual characters, and people mentioned only in cc/quotes/passing)
+- topics: string[] (3-8 key topics/themes that capture what the thought is actually about)
+- projects: string[] — see rule below
 - type: string (one of: idea, note, task, meeting, reflection, reference, conversation)
-- action_items: string[] (any action items or todos)
+- action_items: string[] (any concrete action items or todos)
+
+RULE FOR \`projects\` — IMPORTANT:
+Include ONLY projects this thought is PRIMARILY ABOUT. Do NOT include projects mentioned as:
+- examples ("we could apply the same pattern as Bizi")
+- comparisons ("unlike in Proficio, here we...")
+- background context ("this happened during the ERSTE sprint")
+- inspiration / lineage ("this idea originally came from customBrain")
+
+Most thoughts have 0-2 projects. A thought with 3+ projects is genuinely rare — reserved for cross-team meetings, explicit registries, or direct A-vs-B comparison documents. If you're tempted to tag 4+ projects, re-read the text and ask "what ONE project is this thought actually about?". Default to FEWER tags.
 
 IMPORTANT: Respond in the SAME LANGUAGE as the input text. If Hungarian, all values in Hungarian. Match the language exactly.
 ${contextBlock}
@@ -117,6 +126,106 @@ function resolveAliases(people, aliases) {
     return p;
   });
   return [...new Set(resolved)];
+}
+
+/**
+ * Brain-hygiene suggestion: given a thought's text + its current metadata,
+ * ask Haiku to classify each tagged project as primary / example / context
+ * and propose a cleaner set. Removal-biased prompt by design — over-tagging
+ * is the known failure mode (P10).
+ *
+ * Returns:
+ *   {
+ *     proposed: { people, projects, topics, title },
+ *     removed:  [ { field, value, classification, reason } ],
+ *     kept:     [ { field, value, reason } ],
+ *     reasoning: string
+ *   }
+ */
+export async function suggestCleanedMetadata(thought, vaultContext) {
+  const current = {
+    title: thought.title || '',
+    people: thought.people || [],
+    projects: thought.projects || [],
+    topics: thought.topics || [],
+  };
+
+  const vaultProjectsHint = vaultContext?.projects?.length
+    ? `\nCanonical project names in the vault: ${vaultContext.projects.join(', ')}`
+    : '';
+
+  const prompt = `You are reviewing a previously-captured thought's metadata. The thought was captured with over-broad projects/people/topics tags. Your job: propose a tighter set, removal-biased.
+
+For each currently tagged PROJECT, classify:
+- "primary" — the thought is ABOUT this project (keep)
+- "example" — mentioned as an example/comparison/pattern only; the thought is not about it (REMOVE)
+- "context" — provides background but isn't the subject (REMOVE)
+
+A thought can have AT MOST ONE primary project in 90% of cases. Multi-project thoughts are genuinely rare (cross-team meetings, registry documents, comparisons). If you're tempted to keep 3+ as "primary", reconsider which ONE the thought is actually about.
+
+Default to REMOVING. If the thought reads like it could be about "none of these projects", remove ALL project tags — that's fine.
+
+For PEOPLE: keep only people actually discussed in or active in the thought. Remove people mentioned only in quotes, cc lists, examples, or transitively.
+
+For TOPICS: keep 3-8 topics that capture what the thought is actually about. Remove generic noise and over-narrow one-offs.
+
+For TITLE: keep if it accurately summarizes in 2-4 words. Propose a tighter alternative only if clearly wrong.
+
+${vaultProjectsHint}
+
+Thought text:
+"""
+${(thought.text || '').slice(0, 5000)}
+"""
+
+Current metadata:
+${JSON.stringify(current, null, 2)}
+
+Respond with JSON ONLY, matching this schema exactly:
+{
+  "proposed": {
+    "title": "string",
+    "people": ["..."],
+    "projects": ["..."],
+    "topics": ["..."]
+  },
+  "classifications": {
+    "projects": [
+      { "value": "project_name", "classification": "primary|example|context", "reason": "one sentence" }
+    ]
+  },
+  "removed": [
+    { "field": "people|projects|topics", "value": "...", "reason": "one sentence" }
+  ],
+  "kept": [
+    { "field": "people|projects|topics", "value": "...", "reason": "one sentence" }
+  ],
+  "reasoning": "2-3 sentence overall rationale for the proposed version"
+}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`suggestCleanedMetadata failed: ${err}`);
+  }
+
+  const json = await res.json();
+  const raw = json.content[0].text;
+  const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
+  return JSON.parse(match[1].trim());
 }
 
 export async function extractMetadata(text, vaultContext) {
