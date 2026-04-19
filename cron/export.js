@@ -3,14 +3,17 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', 'server', '.env') });
 
-import { exportThoughts } from '../server/routes/export.js';
+import { rebuildVault } from '../server/routes/export.js';
 
-// Export thoughts from the last 24 hours
-// Intended to be run via system crontab: 0 * * * * node /app/cron/export.js
+// Full vault rebuild. Called hourly from crontab.
+// The `filter_days` arg used to be passed here but was never implemented
+// downstream (rebuildVault always exports all active thoughts) — the
+// leftover object-as-argument broke onLog(). Fixed 2026-04-19.
 
 async function run() {
+  const onLog = (line) => console.log(line);
   try {
-    const result = await exportThoughts({ filter_days: 1 });
+    const result = await rebuildVault(onLog);
     console.log(`Exported ${result.exported_count} thoughts to Google Drive`);
   } catch (err) {
     console.error('Cron export failed:', err.message);
