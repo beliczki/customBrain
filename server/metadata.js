@@ -68,7 +68,23 @@ export async function checkContradiction(newText, existingText) {
       messages: [
         {
           role: 'user',
-          content: `Do these two thoughts contradict each other? The new thought may update, replace, or directly conflict with the existing one.
+          content: `Is the NEW thought a LOGICAL CONTRADICTION of the EXISTING thought — meaning both CANNOT be simultaneously true? The default is NO. Only say yes if you are confident they directly conflict.
+
+NOT a contradiction (answer false):
+- Different instances of a recurring meeting or event (e.g. "Weekly sync March 15" vs "Weekly sync March 22" — both happened, both are historical records)
+- Two snapshots of a project or situation at different times (both were true at the time they were written)
+- An update that adds information without negating previous facts
+- Different details about different people or projects that happen to share vocabulary
+- Related topics captured from different sources (e.g. an email about project X and a meeting about project X)
+- Similar phrasing but different subjects or time periods
+
+YES a contradiction (answer true):
+- Mutually exclusive factual claims about the same entity at the same time (e.g. "X lives in Berlin" vs "X lives in Budapest", both claimed as current)
+- Explicitly reversed decisions about the same thing (e.g. "we chose option A" vs "we rejected A in favor of B")
+- Explicit corrections labelled as such (e.g. "v1 was wrong, v2 is the correct version")
+- Two versions of the same document/registry/spec where one is meant to supersede the other
+
+When in doubt, answer false. Archiving a historical record has a real cost; keeping two independent entries has none.
 
 Existing thought: ${existingText}
 
