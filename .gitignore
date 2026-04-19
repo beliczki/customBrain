@@ -4,3 +4,8 @@ service-account.json
 client_secret*.json
 client/dist/
 package-lock.json
+
+# Local-only artifacts (not committed)
+static/                           # favicons, hygiene batch reports, local-only assets
+brain-hygiene-batch-*.md          # in case a report lands at repo root by accident
+

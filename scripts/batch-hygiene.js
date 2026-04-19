@@ -166,11 +166,10 @@ async function run() {
   }
 
   const date = new Date().toISOString().slice(0, 10);
-  const reportPath = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '..',
-    `brain-hygiene-batch-${date}.md`,
-  );
+  const staticDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'static');
+  // Ensure static/ exists (gitignored, for local-only artifacts)
+  try { await import('node:fs').then((fs) => fs.mkdirSync(staticDir, { recursive: true })); } catch {}
+  const reportPath = join(staticDir, `brain-hygiene-batch-${date}.md`);
   const reportLines = [
     `# Brain Hygiene Batch Report — ${date}`,
     '',
