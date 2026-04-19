@@ -80,41 +80,38 @@ function applyConventions(original, haikuSuggested, fullText) {
     notes.push('Haiku dropped "Me" — restored per user convention (self-reflection/participation)');
   }
 
-  // --- Rule 3: "not mentioned" factual-claim verification ---
-  // If Haiku's removal reason for a person is "not mentioned" but the name
-  // does appear in the text, keep the person.
+  // --- Rule 3: grep-verify EVERY person removal ---
+  // Whatever Haiku's reason, if the name appears in the text, keep the person.
+  // Cheaper to tolerate an attendee who didn't speak than to silently drop
+  // a participant Haiku hallucinated as absent.
   const textLower = (fullText || '').toLowerCase();
-  for (const removed of haikuSuggested.removed || []) {
-    if (removed.field !== 'people') continue;
-    const reasonLower = (removed.reason || '').toLowerCase();
-    const claimsNotMentioned = /not\s+mentioned|nem\s+szerepel|nincs\s+meg/.test(reasonLower);
-    if (!claimsNotMentioned) continue;
-    // Check if the name actually appears in the text
-    const nameLower = (removed.value || '').toLowerCase();
+  const proposedPeopleLower = new Set(proposed.people.map((p) => p.toLowerCase()));
+  for (const originalName of originalPeople) {
+    if (proposedPeopleLower.has(originalName.toLowerCase())) continue; // still kept, no check needed
+    if (originalName === 'Me') continue; // handled separately by Rule 2
+    const nameLower = originalName.toLowerCase();
     const parts = nameLower.split(/\s+/).filter((p) => p.length >= 3);
     const nameAppears = parts.some((p) => textLower.includes(p));
-    if (nameAppears && originalPeople.has(removed.value)) {
-      if (!proposed.people.includes(removed.value)) {
-        proposed.people.push(removed.value);
-        notes.push(
-          `"${removed.value}": Haiku claimed not-mentioned but name appears in text — kept`,
-        );
-      }
+    if (nameAppears) {
+      proposed.people.push(originalName);
+      proposedPeopleLower.add(nameLower);
+      notes.push(
+        `"${originalName}": Haiku removed but name appears in text — kept (grep-verified)`,
+      );
     }
   }
 
   // --- Rule 4: Topic language preservation ---
-  // If a Hungarian original was replaced with an English equivalent, revert.
-  const originalTopicsLower = new Set(originalTopics.map((t) => t.toLowerCase()));
+  // If a Hungarian original was replaced with an English translation,
+  // revert to the original topic list wholesale. The user can prune
+  // manually if they want — auto-pruning + translating compounds errors.
   const huTopicsInOriginal = originalTopics.filter((t) => /[őűáéíóúüö]/i.test(t));
-  // Heuristic: if many original topics were HU and proposal has few/no HU,
-  // Haiku likely flipped language. Restore the intersection.
-  const proposedTopicsLower = new Set(proposed.topics.map((t) => t.toLowerCase()));
   if (huTopicsInOriginal.length >= 3 && proposed.topics.length > 0) {
     const proposedHuCount = proposed.topics.filter((t) => /[őűáéíóúüö]/i.test(t)).length;
     if (proposedHuCount < huTopicsInOriginal.length / 2) {
+      proposed.topics = [...originalTopics];
       notes.push(
-        `Topics appear to have been translated to English (${proposedHuCount}/${proposed.topics.length} HU vs ${huTopicsInOriginal.length}/${originalTopics.length} originally) — flagged for manual review`,
+        `Topics flipped to English (${proposedHuCount}/${proposed.topics.length} HU vs ${huTopicsInOriginal.length}/${originalTopics.length} originally) — reverted to original topic list; tune manually if needed`,
       );
     }
   }

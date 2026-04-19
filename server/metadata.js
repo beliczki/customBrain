@@ -262,7 +262,20 @@ Respond with JSON ONLY, matching this schema exactly:
   const json = await res.json();
   const raw = json.content[0].text;
   const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
-  return JSON.parse(match[1].trim());
+  const parsed = JSON.parse(match[1].trim());
+
+  // Resolve aliases on the proposed arrays — same treatment extractMetadata
+  // gets. Prevents duplicates like "Me" + "Beliczki Róbert" surviving
+  // side-by-side after Haiku returns an un-resolved alias.
+  if (parsed.proposed) {
+    if (parsed.proposed.people) {
+      parsed.proposed.people = resolveAliases(parsed.proposed.people, vaultContext?.aliases);
+    }
+    if (parsed.proposed.projects) {
+      parsed.proposed.projects = resolveAliases(parsed.proposed.projects, vaultContext?.projectAliases);
+    }
+  }
+  return parsed;
 }
 
 export async function extractMetadata(text, vaultContext) {

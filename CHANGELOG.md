@@ -2,6 +2,16 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.5.3 — 2026-04-19
+
+Three fixes from the first batch-hygiene dry-run. All three were **caught in dry-run before any Qdrant writes** — the architecture worked as designed.
+
+- **Alias resolution on `suggestCleanedMetadata` output.** Haiku sometimes returned canonical-aliases as-is (e.g., `Beliczki Róbert` instead of `Me`). `suggestCleanedMetadata` now runs `resolveAliases` on the `proposed.people` and `proposed.projects` arrays before returning, same treatment `extractMetadata` gets. Prevents duplicates like `Me` + `Beliczki Róbert` surviving side-by-side after a pilot apply.
+- **Grep-verify EVERY person removal.** The previous heuristic only grep-checked when Haiku's reason literally said "not mentioned" / "nem szerepel". But Haiku's phrasing varied ("appears to be erroneous", "not actively mentioned", etc.) and real attendees were dropped. New rule in `scripts/batch-hygiene.js`: for every person in the original `people` array that Haiku proposes to drop, search the text — if the name appears, keep the person regardless of Haiku's reason. Cost: tolerate an attendee who didn't speak. Benefit: no silent participant drops.
+- **Revert topics wholesale on HU→EN flip.** Previously the post-processor detected the flip and logged a note but left the English topics in place. Now: if the original had ≥3 Hungarian topics and the proposal has <50% Hungarian, the full topic replacement is rejected — original topics kept verbatim. User can tune manually. Auto-translating + auto-pruning simultaneously compounded errors; stop doing both.
+
+Effect on the next dry-run: "Beliczki Róbert" should no longer appear as a new person. `Varfi Tamas` and similar grep-verifiable attendees won't drop. Topic-heavy Hungarian notes will see their topics preserved rather than re-imagined in English.
+
 ## 0.5.2 — 2026-04-19
 
 Post-pilot consolidation. Pilot (10 candidates, all applied) surfaced two systemic gaps and one clear need for batch processing. Shipping all three at once.
