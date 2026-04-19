@@ -243,7 +243,7 @@ Current pure-dense search misses exact-name queries and Hungarian agglutinative 
 
 ---
 
-## ~~P10: Brain Connection Hygiene~~ — DONE (2026-04-19, v0.5.0)
+## ~~P10: Brain Connection Hygiene~~ — DONE (2026-04-19, v0.5.0 + 0.5.2 post-pilot hardening)
 
 Interactive metadata curation — surfaces over-tagged thoughts, Haiku proposes tighter metadata, user approves, Qdrant patched in place, Obsidian graph self-corrects on next hourly export. Plus: tightened capture-time extraction prompt so new thoughts don't reintroduce the problem.
 
@@ -258,7 +258,16 @@ Interactive metadata curation — surfaces over-tagged thoughts, Haiku proposes 
 
 **Shipped scripts:** `scripts/eval-strict-prompt.js` (read-only A/B of old vs new prompt)
 
-**Pilot (pending, human-led):** walk through top 5-10 offenders from Claude Desktop, capture findings to brain with marker `BRAIN-HYGIENE-PILOT-01`.
+**Pilot (DONE 2026-04-19):** 10 candidates processed via Claude Desktop, conventions locked, audit captured to brain with marker `BRAIN-HYGIENE-PILOT-01` (id `dcd3da9b-ff1b-4439-9976-8184a8a174cd`). Findings fed into 0.5.2 patches below.
+
+**Post-pilot shipped (v0.5.2, 2026-04-19):**
+- Project aliases (`Projects/*.md` with `alias:` lines, mirrors People pattern)
+- Language preservation rule in `suggestCleanedMetadata`
+- `scripts/batch-hygiene.js` — dry-run diff report + `--apply` flag, encodes pilot conventions as deterministic post-processors
+
+**Still open for manual follow-up:**
+- Run `batch-hygiene.js` in dry-run → review → apply waves against remaining ~90 over-tagged thoughts.
+- Add `alias:` lines to `Projects/*.md` on Drive for projects with external names (Bizi, ConfAI, etc.).
 
 Cross-ref: brain thought `3e7538f2-2903-4dcd-ae76-d6734b6e4108` ("Agent önbizalom-csapda") documents the failure mode addressed here. Ironically, that thought is itself the pilot target.
 

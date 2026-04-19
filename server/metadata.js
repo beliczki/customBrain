@@ -40,6 +40,18 @@ function buildPrompt(text, localCtx, vaultCtx) {
     contextBlock += `\n\nCanonical project names in the vault (use these exact names if the thought IS about one of these projects; do NOT force a match when the thought merely mentions one in passing): ${vaultCtx.projects.join(', ')}`;
   }
 
+  if (vaultCtx?.projectAliases && Object.keys(vaultCtx.projectAliases).length) {
+    const byCanonical = {};
+    for (const [alias, canonical] of Object.entries(vaultCtx.projectAliases)) {
+      if (!byCanonical[canonical]) byCanonical[canonical] = [];
+      byCanonical[canonical].push(alias);
+    }
+    const lines = Object.entries(byCanonical).map(
+      ([canonical, alts]) => `- "${canonical}" is also known as: ${alts.join(', ')}`
+    );
+    contextBlock += `\n\nProject aliases (always use the canonical name on the left, never the alias on the right):\n${lines.join('\n')}`;
+  }
+
   return `Extract metadata from this text. Return ONLY valid JSON with these fields:
 - title: string (2-3 word short title summarizing the thought — in the same language as the text)
 - people: string[] (names of REAL people actually discussed; exclude AI assistants, chatbots, virtual characters, and people mentioned only in cc/quotes/passing)
@@ -116,14 +128,14 @@ Reply ONLY with a JSON object: {"contradicts": true/false, "reason": "one senten
   return JSON.parse(match[1].trim());
 }
 
-function resolveAliases(people, aliases) {
-  if (!aliases || !people?.length) return people;
-  const resolved = people.map((p) => {
-    const lower = p.toLowerCase();
+function resolveAliases(names, aliases) {
+  if (!aliases || !names?.length) return names;
+  const resolved = names.map((n) => {
+    const lower = n.toLowerCase();
     for (const [alias, canonical] of Object.entries(aliases)) {
       if (alias.toLowerCase() === lower) return canonical;
     }
-    return p;
+    return n;
   });
   return [...new Set(resolved)];
 }
@@ -154,6 +166,27 @@ export async function suggestCleanedMetadata(thought, vaultContext) {
     ? `\nCanonical project names in the vault: ${vaultContext.projects.join(', ')}`
     : '';
 
+  let projectAliasesHint = '';
+  if (vaultContext?.projectAliases && Object.keys(vaultContext.projectAliases).length) {
+    const byCanonical = {};
+    for (const [alias, canonical] of Object.entries(vaultContext.projectAliases)) {
+      if (!byCanonical[canonical]) byCanonical[canonical] = [];
+      byCanonical[canonical].push(alias);
+    }
+    const lines = Object.entries(byCanonical).map(
+      ([canonical, alts]) => `- "${canonical}" is also known as: ${alts.join(', ')}`
+    );
+    projectAliasesHint = `\n\nProject aliases (if the thought mentions one of the aliases, the project IS the canonical name on the left):\n${lines.join('\n')}`;
+  }
+
+  // Best-effort language detection so we can explicitly constrain Haiku.
+  // Simple heuristic: Hungarian-specific characters present → Hungarian.
+  const textForDetect = `${thought.title || ''} ${thought.text?.slice(0, 500) || ''}`;
+  const isHungarian = /[őűáéíóúüö]/i.test(textForDetect);
+  const languageRule = isHungarian
+    ? 'The thought is in Hungarian. Your proposed `title` and `topics` MUST be in Hungarian. DO NOT translate existing Hungarian topics to English. DO NOT flip the title to English.'
+    : 'Preserve the ORIGINAL language of the thought\'s title and topics. Do NOT translate.';
+
   const prompt = `You are reviewing a previously-captured thought's metadata. The thought was captured with over-broad projects/people/topics tags. Your job: propose a tighter set, removal-biased.
 
 For each currently tagged PROJECT, classify:
@@ -165,13 +198,17 @@ A thought can have AT MOST ONE primary project in 90% of cases. Multi-project th
 
 Default to REMOVING. If the thought reads like it could be about "none of these projects", remove ALL project tags — that's fine.
 
-For PEOPLE: keep only people actually discussed in or active in the thought. Remove people mentioned only in quotes, cc lists, examples, or transitively.
+For PEOPLE: keep anyone who was IN the meeting or is directly discussed in the thought. Attendance counts — someone named in a meeting-participants list is kept even if they didn't actively speak. Remove people mentioned only in quotes, cc lists, or transitively (e.g., "like what X did last year"). The "Me" tag represents the user; keep it if the thought is a self-reflection OR if the user was a meeting participant.
+
+Before claiming a person is "not mentioned", search the text for the name. If found, the person stays regardless of role.
 
 For TOPICS: keep 3-8 topics that capture what the thought is actually about. Remove generic noise and over-narrow one-offs.
 
 For TITLE: keep if it accurately summarizes in 2-4 words. Propose a tighter alternative only if clearly wrong.
 
-${vaultProjectsHint}
+LANGUAGE RULE (strict): ${languageRule}
+
+${vaultProjectsHint}${projectAliasesHint}
 
 Thought text:
 """
@@ -260,6 +297,7 @@ export async function extractMetadata(text, vaultContext) {
   const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
   const metadata = JSON.parse(match[1].trim());
   metadata.people = resolveAliases(metadata.people, vaultContext?.aliases);
+  metadata.projects = resolveAliases(metadata.projects, vaultContext?.projectAliases);
   metadata._prompt = buildPrompt(text, localCtx, vaultContext);
   return metadata;
 }

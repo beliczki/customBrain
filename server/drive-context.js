@@ -56,22 +56,13 @@ export function getYouTube() {
   return google.youtube({ version: 'v3', auth: getOAuth2Client() });
 }
 
-async function listMdFiles(drive, folderId) {
-  try {
-    const res = await drive.files.list({
-      q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
-      fields: 'files(id, name)',
-      pageSize: 100,
-      includeItemsFromAllDrives: true,
-      supportsAllDrives: true,
-    });
-    return res.data.files.map((f) => f.name.replace('.md', ''));
-  } catch {
-    return [];
-  }
-}
 
-async function listPeopleWithAliases(drive, folderId) {
+/**
+ * List *.md files in a Drive folder and parse `alias:` lines from each file.
+ * Returns canonical names (filename without .md) and an alias → canonical map.
+ * Used for both People/ and Projects/ folders.
+ */
+async function listWithAliases(drive, folderId) {
   try {
     const res = await drive.files.list({
       q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
@@ -80,11 +71,11 @@ async function listPeopleWithAliases(drive, folderId) {
       includeItemsFromAllDrives: true,
       supportsAllDrives: true,
     });
-    const people = [];
+    const names = [];
     const aliases = {};
     for (const file of res.data.files) {
       const canonical = file.name.replace('.md', '');
-      people.push(canonical);
+      names.push(canonical);
       try {
         const content = await drive.files.get(
           { fileId: file.id, alt: 'media' },
@@ -102,9 +93,9 @@ async function listPeopleWithAliases(drive, folderId) {
         // skip files that can't be read
       }
     }
-    return { people, aliases };
+    return { names, aliases };
   } catch {
-    return { people: [], aliases: {} };
+    return { names: [], aliases: {} };
   }
 }
 
@@ -119,17 +110,26 @@ export async function getVaultContext() {
     const peopleFolderId = process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID;
     const projectsFolderId = process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID;
 
-    const { people, aliases } = peopleFolderId
-      ? await listPeopleWithAliases(drive, peopleFolderId)
-      : { people: [], aliases: {} };
-    const projects = projectsFolderId ? await listMdFiles(drive, projectsFolderId) : [];
+    const peopleResult = peopleFolderId
+      ? await listWithAliases(drive, peopleFolderId)
+      : { names: [], aliases: {} };
+    const projectsResult = projectsFolderId
+      ? await listWithAliases(drive, projectsFolderId)
+      : { names: [], aliases: {} };
 
-    cachedContext = { people, projects, aliases };
+    cachedContext = {
+      people: peopleResult.names,
+      aliases: peopleResult.aliases,
+      projects: projectsResult.names,
+      projectAliases: projectsResult.aliases,
+    };
     cacheTime = Date.now();
-    console.log(`Vault context loaded: ${people.length} people, ${Object.keys(aliases).length} aliases, ${projects.length} projects`);
+    console.log(
+      `Vault context loaded: ${peopleResult.names.length} people (${Object.keys(peopleResult.aliases).length} aliases), ${projectsResult.names.length} projects (${Object.keys(projectsResult.aliases).length} aliases)`,
+    );
     return cachedContext;
   } catch (err) {
     console.error('Failed to load vault context:', err.message);
-    return { people: [], projects: [] };
+    return { people: [], projects: [], aliases: {}, projectAliases: {} };
   }
 }

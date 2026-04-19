@@ -2,6 +2,52 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.5.2 — 2026-04-19
+
+Post-pilot consolidation. Pilot (10 candidates, all applied) surfaced two systemic gaps and one clear need for batch processing. Shipping all three at once.
+
+### 0.5.1 content — Project aliases
+
+- `server/drive-context.js`: `listPeopleWithAliases` generalized to `listWithAliases(drive, folderId)`; now called for both People/ and Projects/ folders. Vault context shape adds `projectAliases` (alias → canonical map, same as existing `aliases` for people).
+- `server/metadata.js`:
+  - `buildPrompt` — injects project aliases block into the Haiku prompt, same pattern as name aliases.
+  - `resolveAliases` — generalized to work for any name/alias list.
+  - `extractMetadata` — also runs alias resolution on the `projects` array before returning.
+  - `suggestCleanedMetadata` — passes project aliases into the review prompt.
+- User workflow (on Drive): add an `alias: <external name>` line inside `Projects/<Name>.md` for any project with public/client-facing names. Example: `Projects/Bizi.md` can list `alias: B2B Asszisztens`, `alias: B2B Digitális Tudakozó`, `alias: dasszisztens.telekom.hu`. Propagates to Haiku within the 5-min vault cache.
+
+### 0.5.2 content — Language preservation + pilot-lesson hardening in `suggestCleanedMetadata`
+
+- Explicit LANGUAGE RULE in the prompt. Hungarian thoughts (detected via Hungarian-specific characters in title/text) get a hard instruction: "Your proposed title and topics MUST be in Hungarian. DO NOT translate." Fixes the HU→EN flip we hit on every pilot candidate.
+- People guidance rewritten: attendees are kept regardless of who actively spoke (matches the locked pilot convention). "Before claiming a person is not mentioned, search the text for the name. If found, the person stays regardless of role." Addresses the candidate-7 Barta Attila regression.
+- `Me` guidance: keep on self-reflections or when the user was a meeting participant. Stops the silent `Me` strip on self-authored notes.
+
+### New — `scripts/batch-hygiene.js`
+
+Scales the pilot workflow to the remaining thoughts without per-thought manual review for the common cases.
+
+- Iterates `find_overconnected` (defaults: `project_count ≥ 4` OR `hub_score ≥ 15`, configurable via `--min-projects` / `--min-hub` / `--limit`).
+- Per thought: calls `suggestCleanedMetadata`, then runs deterministic post-processors encoding the pilot conventions:
+  1. Preserve Hungarian title if original was Hungarian
+  2. Restore `Me` if user originally tagged themselves
+  3. Verify "not mentioned" person claims by grep-on-text; reject the drop if name appears in the text
+  4. Flag HU→EN topic flip for manual review (doesn't auto-restore — needs human)
+  5. Strip umbrella projects (Telekom, ERSTE, Erste, Proficio) when a product project (Bizi, ConfAI, Art AI, Messaging matrix, Országtuning RMT, CoMind) is co-tagged
+- Emits `brain-hygiene-batch-YYYY-MM-DD.md` with per-thought diffs, post-processor notes, and Haiku reasoning.
+- **Dry-run by default.** Pass `--apply` after reviewing the report to commit via `updateThought`.
+
+Usage:
+```
+node scripts/batch-hygiene.js                # dry-run all candidates ≥ threshold
+node scripts/batch-hygiene.js --limit 20     # dry-run first 20
+node scripts/batch-hygiene.js --apply        # commit after review
+```
+
+### Cross-ref
+
+- Pilot audit trail: brain thought `dcd3da9b-ff1b-4439-9976-8184a8a174cd` (marker `BRAIN-HYGIENE-PILOT-01`) — locked conventions.
+- Pilot failure-mode source: brain thought `3e7538f2-2903-4dcd-ae76-d6734b6e4108` — the original "Agent önbizalom-csapda" note that was candidate 1.
+
 ## 0.5.0 — 2026-04-19
 
 **P10: Brain Connection Hygiene** — interactive metadata curation. Problem: thoughts were over-tagged with projects they only mentioned in passing, making hubs of notes that connect to everything in Obsidian's graph. Example: `agent-önbizalom-csapda` had 8 project tags because it used them as examples of failure modes; every thought about any of those 8 projects backlinked to it.
