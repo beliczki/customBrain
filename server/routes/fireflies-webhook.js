@@ -10,6 +10,14 @@ const MAX_TRANSCRIPT_CHARS = 30000;
 const FETCH_RETRIES = 3;
 const FETCH_BACKOFF_MS = 30000;
 
+// Guard against Fireflies webhook retries arriving while the first fire is
+// still processing. Our handler takes 30-90s for transcript fetch + embed +
+// Haiku; Fireflies' retry timeout is shorter → second fire races the first,
+// `findBySourceId` returns null on both (nothing upserted yet), both capture.
+// Seen 2026-04-20 on meetingId 01KPFY7N7K9TCKBF67S5JDNTWY (80s apart).
+// Single pm2 instance so in-memory Map is fine.
+const inFlight = new Map();
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -80,12 +88,24 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'meeting_id required' });
   }
 
+  // In-flight guard. If the same meetingId is currently being processed by
+  // an earlier fire, ack the retry immediately — the first fire will finish
+  // and upsert the point.
+  if (inFlight.has(meetingId)) {
+    console.log(`Fireflies webhook: ${meetingId} already in-flight, acking retry`);
+    return res.status(200).json({ ok: true, in_flight: true });
+  }
+
   try {
     const existing = await findBySourceId('fireflies', meetingId);
     if (existing) {
       console.log(`Fireflies webhook: ${meetingId} already captured (${existing.id})`);
       return res.status(200).json({ ok: true, duplicate: true, id: existing.id });
     }
+
+    // Mark in-flight BEFORE starting any slow work. Cleanup in finally
+    // regardless of success/error so we never leak entries.
+    inFlight.set(meetingId, Date.now());
 
     const transcript = await fetchTranscriptWithRetry(meetingId);
     if (!transcript) {
@@ -104,6 +124,8 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error(`Fireflies webhook error for ${meetingId}:`, err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    inFlight.delete(meetingId);
   }
 });
 

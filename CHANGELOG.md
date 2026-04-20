@@ -2,6 +2,22 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.6.1 — 2026-04-20
+
+Race-condition fix in the Fireflies webhook path. First observed 2026-04-20: `B2B Digitális Tudakozó - heti sync` meeting captured twice (points `9a36e339-...` and `f8761469-...`, both `source_id: "01KPFY7N7K9TCKBF67S5JDNTWY"`, 80 seconds apart).
+
+**Root cause.** Our handler held the HTTP connection open for 30-90 s while fetching the transcript (up to 3× 30s retries), then embedding, then Haiku metadata. Fireflies' webhook retry timeout is shorter than that window, so it re-fired the same `meeting_id`. Both fires passed `findBySourceId` (neither had upserted yet), both ran the full pipeline, both wrote separate points.
+
+**Fix.** Module-scoped `inFlight = new Map<source_id, timestamp>` in `server/routes/fireflies-webhook.js`. When a webhook arrives:
+
+1. If the `meeting_id` is already in `inFlight` → respond `200 {in_flight: true}` immediately and drop out. Fireflies stops retrying; no duplicate work.
+2. Otherwise: call `findBySourceId` as before. If a point already exists (late retry from a truly-completed earlier fire), respond `200 duplicate`.
+3. If both checks pass, set the `inFlight` entry, do the slow work, clean up in `finally` regardless of success/error.
+
+Single pm2 instance → in-memory Map is sufficient. At scale beyond one process we'd move to a shared lock (Redis, Postgres advisory lock, etc.).
+
+One-off cleanup: deleted the `f8761469-...` duplicate point; kept `9a36e339-...` (the original, captured 80s earlier).
+
 ## 0.6.0 — 2026-04-19
 
 **P1d shipped: Semantic autolinks in Obsidian export.** Ships the third of the four TODO-STEAL-4-MEMMOLT items (`11e3aa53-...`).
