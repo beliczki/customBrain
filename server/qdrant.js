@@ -7,12 +7,12 @@ const qdrant = new QdrantClient({
 
 const COLLECTION = 'thoughts';
 
-export async function upsertPoint(vector, payload) {
-  const id = crypto.randomUUID();
+export async function upsertPoint(vector, payload, id = null) {
+  const pointId = id || crypto.randomUUID();
   await qdrant.upsert(COLLECTION, {
-    points: [{ id, vector, payload }],
+    points: [{ id: pointId, vector, payload }],
   });
-  return id;
+  return pointId;
 }
 
 export async function searchVector(vector, limit = 5) {
@@ -142,6 +142,28 @@ export async function findBySourceId(source, sourceId) {
     1,
   );
   return results[0] || null;
+}
+
+/**
+ * Like findBySourceId but returns the raw payload so callers can read fields
+ * that the scrollFiltered mapper drops (last_internal_date, refresh_count,
+ * status, …). Used by the Gmail intake cron to decide whether a thread needs
+ * a refresh.
+ */
+export async function findBySourceIdRaw(source, sourceId) {
+  const results = await qdrant.scroll(COLLECTION, {
+    limit: 1,
+    with_payload: true,
+    filter: {
+      must: [
+        { key: 'source', match: { value: source } },
+        { key: 'source_id', match: { value: sourceId } },
+      ],
+    },
+  });
+  if (!results.points || results.points.length === 0) return null;
+  const p = results.points[0];
+  return { id: p.id, ...p.payload };
 }
 
 /**

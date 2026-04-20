@@ -2,6 +2,44 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.7.0 — 2026-04-18
+
+**Gmail thread refresh + outbound auto-capture via history API.** Replaces the O(N) `label:brain -label:brain/captured` list query with an O(changes-since-last-tick) history walk. Fixes the reported bug: new messages on an already-captured thread never made it into brain because `brain/captured` excluded the thread from every subsequent tick.
+
+### Why the old design was a dead-end
+
+Old `cron/gmail-intake.js` filtered out threads already tagged `brain/captured`. Once a thread's first message was captured, later replies were invisible to the cron — even though Obsidian still needed them. At ~100 threads this was annoying; at 1000+ threads it would have been unbearable (the list grows monotonically with time).
+
+### New architecture
+
+- **Watermark file** `state/gmail-watermark.json` stores the last processed Gmail `historyId`. Added `state/` to `.gitignore`.
+- **Per-tick diff**: `gmail.users.history.list({ startHistoryId, historyTypes: ['messageAdded', 'labelAdded'] })` returns only threads that changed since the watermark. Paginates, advances watermark at end.
+- **Bootstrap fallback**: if the watermark is missing (first run) OR Gmail returns 404 (watermark older than Gmail's ~7-day history retention), fall back to a one-time `label:brain` scan and reset the watermark from `users.getProfile.historyId`.
+- **Per-thread classification** in `processThread()`:
+  - Thread has `brain` label AND existing capture exists → compare `latestInternalDate` vs stored `last_internal_date`; if newer, call `refreshCapture(existing.id, newText)` (atomic in-place replace preserving id, source, source_id, created_at).
+  - Thread has `brain` label AND no existing capture → `captureThought(...)` as before.
+  - Thread has no `brain` label → scan for outbound message (SENT label + recipient in vault's `peopleEmails`). If match: auto-apply `brain` label, capture, record `auto_labeled_via: outbound:<canonical>`. Otherwise ignore.
+- **Label meaning shift**: `brain/captured` is now just a UI marker (Gmail sidebar "yes I saw this"), NOT a filter gate. Threads stay in the candidate pool forever; the `last_internal_date` comparison decides refresh.
+
+### Infrastructure changes
+
+- `server/qdrant.js` — `upsertPoint(vector, payload, id = null)` now accepts optional id (for atomic refresh); `findBySourceIdRaw(source, sourceId)` returns the full payload (scrollFiltered mapper dropped fields we now need like `last_internal_date`, `refresh_count`).
+- `server/routes/capture.js` — `captureThought` gained `extraPayload` option (merged into Qdrant payload); new `refreshCapture(id, newText, { extraPayload })` export — embeds + re-extracts metadata + upserts to the SAME point id, preserving source/source_id/created_at and incrementing `refresh_count`. **Manual P10 curation can be lost on refresh** — add a `metadata_verified` flag later if that proves to be a problem in practice.
+- `server/drive-context.js` — `listWithAliases()` now also parses `email: <addr>[,<addr>...]` lines from People/<Name>.md files, returns `{ names, aliases, emails }`. `getVaultContext()` exposes `peopleEmails` (email → canonical name map). Used by the outbound-match check.
+
+### Migration
+
+- `scripts/backfill-gmail-thread-metadata.js` — one-off, dry-run default. Iterates all `source=gmail` points, sets `thread_id = source_id` and `last_internal_date = Date.parse(created_at)` as a conservative lower bound (the original capture time is always ≤ the newest message's internalDate at that moment, so a real new reply will still trigger a refresh). Idempotent (skips points with `thread_id` already set). Required once before the new cron runs on a pre-0.7.0 brain, otherwise every gmail thread would refresh on the first history tick that touches it.
+
+### User-side setup (post-deploy)
+
+- Add `email: foo@bar.com` lines to People/<Name>.md for anyone whose outbound replies from you should auto-capture. Comma-separated supported. No local config — Drive is the source of truth.
+
+### Known non-goals
+
+- No reaction/emoji-only filter (yet). If you send "👍" to a known brain person, that outbound event auto-labels the thread. Fine for now — the body cleaner tolerates low-signal text. Revisit if noise shows up.
+- No cross-check between multiple brain accounts / shared threads. Single-user system.
+
 ## 0.6.2 — 2026-04-20
 
 Fireflies `participants` normalization. Two observed issues in one fix:

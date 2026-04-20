@@ -58,9 +58,13 @@ export function getYouTube() {
 
 
 /**
- * List *.md files in a Drive folder and parse `alias:` lines from each file.
- * Returns canonical names (filename without .md) and an alias → canonical map.
- * Used for both People/ and Projects/ folders.
+ * List *.md files in a Drive folder and parse `alias:` and `email:` lines
+ * from each file. Returns canonical names (filename without .md), an
+ * alias → canonical map, and an email → canonical map.
+ *
+ * Used for both People/ and Projects/ folders. `email:` is only meaningful
+ * for People (drives outbound-mail auto-labeling) but parsed for both
+ * uniformly; Projects-folder emails simply go unused today.
  */
 async function listWithAliases(drive, folderId) {
   try {
@@ -73,6 +77,7 @@ async function listWithAliases(drive, folderId) {
     });
     const names = [];
     const aliases = {};
+    const emails = {};
     for (const file of res.data.files) {
       const canonical = file.name.replace('.md', '');
       names.push(canonical);
@@ -83,16 +88,26 @@ async function listWithAliases(drive, folderId) {
         );
         const text = typeof content.data === 'string' ? content.data : '';
         for (const line of text.split('\n')) {
-          const match = line.match(/^alias:\s*(.+)/i);
-          if (!match) continue;
-          // Split on commas so `alias: foo, bar, baz` expands into three entries.
-          // Also tolerant of `alias: "[[Foo]]"` wikilink syntax.
-          const values = match[1]
-            .split(',')
-            .map((v) => v.trim().replace(/^\[\[|]]$/g, ''))
-            .filter(Boolean);
-          for (const alias of values) {
-            if (alias !== canonical) aliases[alias] = canonical;
+          const aliasMatch = line.match(/^alias:\s*(.+)/i);
+          if (aliasMatch) {
+            const values = aliasMatch[1]
+              .split(',')
+              .map((v) => v.trim().replace(/^\[\[|]]$/g, ''))
+              .filter(Boolean);
+            for (const alias of values) {
+              if (alias !== canonical) aliases[alias] = canonical;
+            }
+            continue;
+          }
+          const emailMatch = line.match(/^email:\s*(.+)/i);
+          if (emailMatch) {
+            const values = emailMatch[1]
+              .split(',')
+              .map((v) => v.trim().toLowerCase())
+              .filter((v) => v.includes('@'));
+            for (const email of values) {
+              emails[email] = canonical;
+            }
           }
         }
       } catch {
@@ -107,21 +122,20 @@ async function listWithAliases(drive, folderId) {
     for (const [alias, canonical] of Object.entries(aliases)) {
       const reverse = aliases[canonical];
       if (reverse === alias) {
-        // Loop detected: alias→canonical AND canonical→alias
         const aliasIsFile = namesSet.has(alias);
         const canonicalIsFile = namesSet.has(canonical);
         let drop;
-        if (aliasIsFile && !canonicalIsFile) drop = alias;       // keep canonical as filename wins
-        else if (canonicalIsFile && !aliasIsFile) drop = canonical; // keep alias as filename wins
-        else drop = [alias, canonical].sort()[1];                 // tie → drop the later-alphabetical
+        if (aliasIsFile && !canonicalIsFile) drop = alias;
+        else if (canonicalIsFile && !aliasIsFile) drop = canonical;
+        else drop = [alias, canonical].sort()[1];
         const kept = drop === alias ? canonical : alias;
         delete aliases[drop];
         console.warn(`Alias loop broken: "${alias}" ↔ "${canonical}" — kept canonical "${kept}"`);
       }
     }
-    return { names, aliases };
+    return { names, aliases, emails };
   } catch {
-    return { names: [], aliases: {} };
+    return { names: [], aliases: {}, emails: {} };
   }
 }
 
@@ -146,16 +160,17 @@ export async function getVaultContext() {
     cachedContext = {
       people: peopleResult.names,
       aliases: peopleResult.aliases,
+      peopleEmails: peopleResult.emails,
       projects: projectsResult.names,
       projectAliases: projectsResult.aliases,
     };
     cacheTime = Date.now();
     console.log(
-      `Vault context loaded: ${peopleResult.names.length} people (${Object.keys(peopleResult.aliases).length} aliases), ${projectsResult.names.length} projects (${Object.keys(projectsResult.aliases).length} aliases)`,
+      `Vault context loaded: ${peopleResult.names.length} people (${Object.keys(peopleResult.aliases).length} aliases, ${Object.keys(peopleResult.emails).length} emails), ${projectsResult.names.length} projects (${Object.keys(projectsResult.aliases).length} aliases)`,
     );
     return cachedContext;
   } catch (err) {
     console.error('Failed to load vault context:', err.message);
-    return { people: [], projects: [], aliases: {}, projectAliases: {} };
+    return { people: [], projects: [], aliases: {}, projectAliases: {}, peopleEmails: {} };
   }
 }

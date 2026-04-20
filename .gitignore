@@ -7,5 +7,6 @@ package-lock.json
 
 # Local-only artifacts (not committed)
 static/                           # favicons, hygiene batch reports, local-only assets
+state/                            # runtime watermarks (gmail history cursor, etc.)
 brain-hygiene-batch-*.md          # in case a report lands at repo root by accident
 

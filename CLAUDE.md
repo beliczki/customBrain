@@ -127,7 +127,7 @@ Draft workflow: `manage_drafts` stores in-memory (`agent/drafts/store.js`). `app
 
 - `cron/export.js` — hourly Obsidian vault export
 - `cron/youtube-intake.js` — polls YouTube liked playlist, auto-captures new items (source='youtube', source_id=videoId). Runs every 30 min on Hetzner.
-- `cron/gmail-intake.js` — polls Gmail for `label:brain -label:brain/captured`, cleans boilerplate via `agent/tools/gmail-clean.js`, captures, adds `brain/captured` label. Runs every 10 min.
+- `cron/gmail-intake.js` — history-API driven (0.7.0+). Watermark at `state/gmail-watermark.json`. Per-tick: `users.history.list({ startHistoryId })` → affected threads → classify (brain-labeled → refresh-or-capture, outbound-to-known-person → auto-label + capture, else ignore). Bootstraps on missing/too-old watermark. Runs every 10 min.
 - `scripts/init-collection.js` — idempotent Qdrant setup (`npm run init`). Creates collection if missing, ensures payload indexes (`created_at`, `source`, `source_id`).
 - `scripts/get-drive-token.js` — OAuth2 refresh token flow (also duplicated at `server/get-drive-token.js`)
 
@@ -146,6 +146,7 @@ All three call `captureThought(text, { source, sourceId })`, which early-returns
 ### Payload conventions
 - `source`: `fireflies` | `youtube` | `gmail` | `manual` (default; UI + Chrome extension + MCP tool)
 - `source_id`: provider-specific ID or `null` for manual captures. Never reused across sources.
+- Gmail-only: `thread_id` (= source_id), `last_internal_date` (ms; latest message's Gmail internalDate). Used by the history-API cron to decide whether a thread has new content. `refresh_count` + `updated_at` track in-place refreshes via `refreshCapture()`. `auto_labeled_via: outbound:<canonical>` marks threads labeled by the outbound-capture path.
 
 ### Gmail body cleaner
 `agent/tools/gmail-clean.js` — two-stage preprocessor run before capture. Stage 1: deterministic regex strips known boilerplate (confidentiality footers, unsubscribe, signatures) in English + Hungarian. Stage 2: Haiku content extractor only if body > 1500 chars remain. Returns `__NO_CONTENT__` for pure-boilerplate messages; the cron adds a `brain/empty` label for audit instead of capturing.

@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-04-03
+## Last updated: 2026-04-18
 
 Historical build plans archived in `docs/archive/`.
 
@@ -13,7 +13,8 @@ Historical build plans archived in `docs/archive/`.
   - Agent tools: `get_fireflies_transcripts`, `get_youtube_likes`, `get_gmail_threads`, `get_calendar_events`, `get_event_context`, `get_task_context`, `manage_drafts`
 - **Chrome extension**: Manifest v3 "Save to Brain" web clipper
 - **React UI**: capture, search, recent, stats, export tabs (Vite + React 19 + Tailwind 3)
-- **Auto-intake (2026-04-18)**: zero-approval capture from Fireflies webhook (meetings), YouTube likes cron (30min), Gmail `label:brain` cron (10min). Shared `source` + `source_id` payload for idempotent dedup. Gmail body cleaner strips legal/confidentiality boilerplate (regex + Haiku).
+- **Auto-intake (2026-04-18)**: zero-approval capture from Fireflies webhook (meetings), YouTube likes cron (30min), Gmail (10min). Shared `source` + `source_id` payload for idempotent dedup. Gmail body cleaner strips legal/confidentiality boilerplate (regex + Haiku).
+- **Gmail thread refresh + outbound auto-label (0.7.0, 2026-04-18)**: history-API driven cron with watermark. New messages on a brain-labeled thread atomically refresh the existing Qdrant point (preserves id, source_id, created_at; bumps `refresh_count`). Outbound messages to a known brain-person (matched via `email:` lines in People/<Name>.md) auto-apply the `brain` label and capture. `brain/captured` is now just a UI marker — no longer a filter gate.
 - **Obsidian sync**: full vault rebuild via Google Drive (OAuth2 writes, service account reads), wikilinks in YAML frontmatter
 - **Production**: Hetzner CX22 at `brain.beliczki.hu`, pm2, nginx reverse proxy
 

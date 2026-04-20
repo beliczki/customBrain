@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { embedText } from '../embeddings.js';
 import { extractMetadata, checkContradiction } from '../metadata.js';
-import { upsertPoint, searchVector, updatePayload, findBySourceId } from '../qdrant.js';
+import { upsertPoint, searchVector, updatePayload, findBySourceId, getById } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
 
 const router = Router();
@@ -24,7 +24,7 @@ router.post('/capture', async (req, res) => {
 
 export default router;
 
-export async function captureThought(text, { conflictThreshold = 0.85, source = 'manual', sourceId = null } = {}) {
+export async function captureThought(text, { conflictThreshold = 0.85, source = 'manual', sourceId = null, extraPayload = {} } = {}) {
   if (sourceId) {
     const existing = await findBySourceId(source, sourceId);
     if (existing) {
@@ -76,8 +76,51 @@ export async function captureThought(text, { conflictThreshold = 0.85, source = 
     source_id: sourceId,
     created_at: new Date().toISOString(),
     ...(supersedes && { supersedes }),
+    ...extraPayload,
   };
 
   const id = await upsertPoint(vector, payload);
   return { ok: true, id, metadata, ...(supersedes && { supersedes, archived: supersedes }) };
+}
+
+/**
+ * Atomic in-place refresh of an existing thought. Used by the Gmail intake
+ * cron when a thread-labeled capture gains new messages: we keep the same
+ * Qdrant point id (preserves source_id dedup and any references), but
+ * replace text + vector + metadata with the latest content.
+ *
+ * Preserves: id, source, source_id, created_at. Sets: updated_at,
+ * refresh_count (incremented). Re-extracts all Haiku metadata fields from
+ * the new text — manual curation via P10 tools can be lost on refresh; add
+ * a metadata_verified flag later if that becomes an issue.
+ */
+export async function refreshCapture(id, newText, { extraPayload = {} } = {}) {
+  const existing = await getById(id);
+  if (!existing) throw new Error(`Thought ${id} not found`);
+
+  const vaultCtx = await getVaultContext();
+  const [vector, metadata] = await Promise.all([
+    embedText(newText),
+    extractMetadata(newText, vaultCtx),
+  ]);
+
+  const payload = {
+    text: newText,
+    title: metadata.title || '',
+    people: metadata.people || [],
+    topics: metadata.topics || [],
+    projects: metadata.projects || [],
+    type: metadata.type || 'note',
+    action_items: metadata.action_items || [],
+    status: existing.status || 'active',
+    source: existing.source,
+    source_id: existing.source_id,
+    created_at: existing.created_at,
+    updated_at: new Date().toISOString(),
+    refresh_count: (existing.refresh_count || 0) + 1,
+    ...extraPayload,
+  };
+
+  await upsertPoint(vector, payload, id);
+  return { ok: true, id, refreshed: true, refresh_count: payload.refresh_count };
 }
