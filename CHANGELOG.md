@@ -2,6 +2,19 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.6.2 — 2026-04-20
+
+Fireflies `participants` normalization. Two observed issues in one fix:
+
+1. **Mixed delimiters** — participants line in captured text had `,` (no space) for one segment then `, ` (with space) for another, breaking Obsidian's auto-wrap on emails.
+2. **Duplicated emails** — every participant appeared twice in the list.
+
+**Root cause.** Fireflies' GraphQL `participants` field mixes shapes: one element is sometimes a comma-joined string of all organizer+attendee emails, plus additional elements for each attendee individually. Our `.join(', ')` over that produced `"joined-string, individual1, individual2, ..."` — all emails appearing both inside the joined string AND as standalone elements.
+
+**Forward fix**: new `normalizeParticipants()` helper in `agent/tools/fireflies.js::shapeTranscript`. Handles any shape Fireflies returns — array, string, or mixed. Splits on commas/semicolons, trims, dedupes, returns clean array. All future Fireflies captures (webhook + backfill + MCP tool) get normalized emails.
+
+**Backward correction**: `scripts/fix-fireflies-participants.js`. Scans existing `source='fireflies'` captures, rewrites ONLY the `Participants:` line of each text where the issue is detected. Dry-run default; `--apply` commits via direct `updatePayload({text})`. Embeddings are NOT re-generated — cosmetic whitespace/dedup has negligible effect on cosine similarity, and re-embedding would cost far more than it saves.
+
 ## 0.6.1 — 2026-04-20
 
 Race-condition fix in the Fireflies webhook path. First observed 2026-04-20: `B2B Digitális Tudakozó - heti sync` meeting captured twice (points `9a36e339-...` and `f8761469-...`, both `source_id: "01KPFY7N7K9TCKBF67S5JDNTWY"`, 80 seconds apart).
