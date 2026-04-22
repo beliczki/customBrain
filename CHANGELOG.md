@@ -2,6 +2,12 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.8.0 — 2026-04-22
+
+**Drive export preserves thought timestamps.** `server/routes/export.js` now passes `createdTime` and `modifiedTime` on `drive.files.create` for each thought `.md` — `createdTime` = `thought.created_at`, `modifiedTime` = `thought.updated_at || thought.created_at`. Files on Drive now sort by when the thought was captured (or last refreshed for Gmail threads), not by when the export cron last ran. Obsidian's own sort is unaffected (it reads `captured_at` frontmatter), so this is a Drive-UI-only improvement. People/Projects stub files are untouched — they aggregate across thoughts, so a single capture date doesn't apply.
+
+Also: CLAUDE.md caught up with already-shipped code — added the `find_overconnected` / `suggest_metadata_fix` / `update_thought` brain-hygiene MCP trio, plus `PATCH /thoughts/:id` and `POST /fireflies-webhook` (HMAC, not Bearer) to the HTTP API table.
+
 ## 0.7.0 — 2026-04-18
 
 **Gmail thread refresh + outbound auto-capture via history API.** Replaces the O(N) `label:brain -label:brain/captured` list query with an O(changes-since-last-tick) history walk. Fixes the reported bug: new messages on an already-captured thread never made it into brain because `brain/captured` excluded the thread from every subsequent tick.

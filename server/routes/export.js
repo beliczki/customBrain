@@ -247,6 +247,8 @@ export async function rebuildVault(onLog) {
         name: filename,
         mimeType: 'text/markdown',
         parents: [folderId],
+        createdTime: t.created_at,
+        modifiedTime: t.updated_at || t.created_at,
       },
       media: {
         mimeType: 'text/markdown',
