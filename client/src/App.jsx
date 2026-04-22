@@ -5,9 +5,11 @@ import Recent from './components/Recent.jsx';
 import Stats from './components/Stats.jsx';
 import Export from './components/Export.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
+import pkg from '../package.json';
 
 const tabs = ['Capture', 'Search', 'Recent', 'Stats', 'Export'];
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'customBrain';
+const APP_VERSION = pkg.version;
 
 export default function App() {
   const [active, setActive] = useState('Capture');
@@ -65,6 +67,9 @@ export default function App() {
             <img src="/brain_darkmode.svg" alt="" className="w-8 h-8 dark:block hidden" />
             <img src="/brain.svg" alt="" className="w-8 h-8 dark:hidden" />
             <h1 className="text-2xl font-bold text-txt">{APP_NAME}</h1>
+            <span className="text-xs text-txt-sec bg-surface border border-subtle px-1.5 py-0.5 rounded font-mono">
+              v{APP_VERSION}
+            </span>
           </div>
         </div>
       </div>

@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.8.1 — 2026-04-22
+
+**Version tag in the UI header.** `client/src/App.jsx` imports the version from `client/package.json` (Vite's native JSON import) and renders `v<VERSION>` as a small secondary-grey pill next to the `customBrain` title. Visible only after login; the login screen still shows just the title. Purely cosmetic — no behaviour change, useful for spotting whether a deploy actually rolled.
+
 ## 0.8.0 — 2026-04-22
 
 **Drive export preserves thought timestamps.** `server/routes/export.js` now passes `createdTime` and `modifiedTime` on `drive.files.create` for each thought `.md` — `createdTime` = `thought.created_at`, `modifiedTime` = `thought.updated_at || thought.created_at`. Files on Drive now sort by when the thought was captured (or last refreshed for Gmail threads), not by when the export cron last ran. Obsidian's own sort is unaffected (it reads `captured_at` frontmatter), so this is a Drive-UI-only improvement. People/Projects stub files are untouched — they aggregate across thoughts, so a single capture date doesn't apply.
