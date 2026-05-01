@@ -53,7 +53,7 @@ function buildPrompt(text, localCtx, vaultCtx) {
   }
 
   return `Extract metadata from this text. Return ONLY valid JSON with these fields:
-- title: string (2-3 word short title summarizing the thought — in the same language as the text)
+- title: string (2-3 word short title summarizing the thought — in the same language as the text). If you identify a primary project (see rule below) AND it ends up in the \`projects\` array, prefix the title with the canonical project name and an em-dash, e.g. "Hello Business — KPI és biztonság" instead of "KPI és biztonság". Do NOT prefix if no primary project is in \`projects\`. Use the canonical project name exactly as listed in the vault context, not an alias.
 - people: string[] (names of REAL people actually discussed; exclude AI assistants, chatbots, virtual characters, and people mentioned only in cc/quotes/passing)
 - topics: string[] (3-8 key topics/themes that capture what the thought is actually about)
 - projects: string[] — see rule below

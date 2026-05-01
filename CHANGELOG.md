@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.10.1 — 2026-05-01
+
+**Title-prompt bővítés: primary project név prefixelése.** A Haiku metadata extract title-szabálya most explicit kéri: ha primary project van azonosítva (és az `projects` arrayben végzi a meglévő szigorú tagging rule szerint), a title prefixelődjön a canonical project névvel és egy em-dash-szel — pl. `"Hello Business — KPI és biztonság"` a `"KPI és biztonság"` helyett. Ha nincs primary project, a title változatlan marad (nincs felesleges prefix amikor nincs projekt).
+
+A változás akkor érvényesül, ha valami refresh-eli a thoughtot — új capture, Gmail thread-update, vagy a coworker-loop `update_thought_text_with_summary`-zése. A meglévő thoughtok címei nem változnak retroaktívan.
+
+`server/metadata.js:56` egyetlen sor változás. Nincs új mező, nincs új tool, nincs payload-shift.
+
 ## 0.10.0 — 2026-05-01
 
 **Skill-driven coworker loop replaces inline auto-summary.** The 0.9.0 inline preprocessor put the summary-generation hot path on the server, which meant every long capture and every Gmail thread refresh paid Anthropic API calls against the server's `ANTHROPIC_API_KEY`. Switched to a coworker-loop pattern: the server only exposes the read/write endpoints; the actual summary generation runs in a Claude Code session via a dedicated skill, which puts the inference cost on the user's subscription rather than the API key.
