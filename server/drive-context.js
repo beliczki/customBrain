@@ -66,7 +66,7 @@ export function getYouTube() {
  * for People (drives outbound-mail auto-labeling) but parsed for both
  * uniformly; Projects-folder emails simply go unused today.
  */
-async function listWithAliases(drive, folderId) {
+async function listWithAliases(drive, folderId, { withDocuments = false } = {}) {
   try {
     const res = await drive.files.list({
       q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
@@ -78,6 +78,7 @@ async function listWithAliases(drive, folderId) {
     const names = [];
     const aliases = {};
     const emails = {};
+    const documents = withDocuments ? {} : null;
     for (const file of res.data.files) {
       const canonical = file.name.replace('.md', '');
       names.push(canonical);
@@ -87,6 +88,7 @@ async function listWithAliases(drive, folderId) {
           { responseType: 'text' }
         );
         const text = typeof content.data === 'string' ? content.data : '';
+        if (withDocuments) documents[canonical] = text;
         for (const line of text.split('\n')) {
           const aliasMatch = line.match(/^alias:\s*(.+)/i);
           if (aliasMatch) {
@@ -133,7 +135,7 @@ async function listWithAliases(drive, folderId) {
         console.warn(`Alias loop broken: "${alias}" ↔ "${canonical}" — kept canonical "${kept}"`);
       }
     }
-    return { names, aliases, emails };
+    return { names, aliases, emails, ...(documents && { documents }) };
   } catch {
     return { names: [], aliases: {}, emails: {} };
   }
@@ -154,8 +156,8 @@ export async function getVaultContext() {
       ? await listWithAliases(drive, peopleFolderId)
       : { names: [], aliases: {} };
     const projectsResult = projectsFolderId
-      ? await listWithAliases(drive, projectsFolderId)
-      : { names: [], aliases: {} };
+      ? await listWithAliases(drive, projectsFolderId, { withDocuments: true })
+      : { names: [], aliases: {}, documents: {} };
 
     cachedContext = {
       people: peopleResult.names,
@@ -163,6 +165,7 @@ export async function getVaultContext() {
       peopleEmails: peopleResult.emails,
       projects: projectsResult.names,
       projectAliases: projectsResult.aliases,
+      projectDocs: projectsResult.documents || {},
     };
     cacheTime = Date.now();
     console.log(

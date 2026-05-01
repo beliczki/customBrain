@@ -2,6 +2,28 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.11.0 — 2026-05-01
+
+**Project.md teljes tartalom a Haiku metadata-promptba + strict project-whitelist.** A Haiku-prompt eddig csak a vault projekt-neveinek listáját kapta meg (pl. `"Bizi, Hello Business, ConfAI, Erste, Telekom..."`), a project.md fájlok tartalma eldobódott a `listWithAliases`-ben az `alias:`/`email:` regex match után. Két javítás:
+
+### A) Project documents in context (`server/drive-context.js`, `server/metadata.js`)
+
+- `listWithAliases` opcionális `withDocuments: true` paraméterrel a `.md` teljes tartalmát visszaadja egy `documents: { canonical: text }` mapben.
+- `getVaultContext` a Projects-mappára `withDocuments: true`-val hívja, eredménye `projectDocs` mezőként a kontextusban (a People-mappa változatlan — emberekre csak alias + email kell jelenleg).
+- `metadata.js` `buildPrompt` új context-blokkja: `## Full project documents — markdown content of each project's .md file ...` Az üres .md-ket kihagyja.
+
+A Haiku így egy meeting transcript besorolásakor látja, hogy pl. a "Hello Business" project Telekom B2B SMB digitalizációs chatbot, vagy hogy a "Bizi" ennek belső kódneve. Mind a négy mezőre (title, topics, projects, action_items) hat — gazdagabb context = pontosabb tagging.
+
+Token-becslés: ~27 projekt × ~2-3 KB tartalmanként = ~15-20k extra input token capture-onként, Haiku-window 200k-ban triviális. Költség capture-onként ~$0.02 — évi 200 capture esetén ~$4. A `getVaultContext` 5 perces cache-e mérsékli a Drive-API olvasásokat.
+
+### B) Strict project whitelist (`server/metadata.js`)
+
+A `projects` szabály explicit utasítja a Haiku-t hogy **soha ne találjon ki új projekt-neveket** kliens / termék / kampány / pénzügyi-év fragmentumokból. Konkrét példa beírva: `"FY26 Erste-Visa Cseperedő kampány"` invalid — a canonical projekt `"Erste"`, a többi (FY26, Visa, Cseperedő, kampány) `topics`-ba kerül. Ha nincs canonical match, az `projects` array üres marad — empty correct, invented wrong.
+
+### Hatás
+
+A változás új capture-eken és minden refresh-en (Gmail, `update_thought_text_with_summary`, manuális) érvényesül. A meglévő thoughtok project-tag-jei nem változnak retroaktívan; ha egy thought project-tag-je rosszul invent-elt nevet tartalmaz, az egy `find_overconnected` + `update_thought` brain-hygiene körrel hozható rendbe.
+
 ## 0.10.1 — 2026-05-01
 
 **Title-prompt bővítés: primary project név prefixelése.** A Haiku metadata extract title-szabálya most explicit kéri: ha primary project van azonosítva (és az `projects` arrayben végzi a meglévő szigorú tagging rule szerint), a title prefixelődjön a canonical project névvel és egy em-dash-szel — pl. `"Hello Business — KPI és biztonság"` a `"KPI és biztonság"` helyett. Ha nincs primary project, a title változatlan marad (nincs felesleges prefix amikor nincs projekt).

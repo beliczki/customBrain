@@ -52,6 +52,15 @@ function buildPrompt(text, localCtx, vaultCtx) {
     contextBlock += `\n\nProject aliases (always use the canonical name on the left, never the alias on the right):\n${lines.join('\n')}`;
   }
 
+  if (vaultCtx?.projectDocs && Object.keys(vaultCtx.projectDocs).length) {
+    const blocks = Object.entries(vaultCtx.projectDocs)
+      .map(([name, doc]) => `### ${name}\n${(doc || '').trim()}`)
+      .filter((block) => block.split('\n').length > 1); // skip projects with empty .md
+    if (blocks.length) {
+      contextBlock += `\n\nFull project documents — the markdown content of each project's .md file in the vault. Use these to understand each project's scope, client, stakeholders, and history. A thought belongs to a project ONLY if it fits the project's described scope:\n\n${blocks.join('\n\n---\n\n')}`;
+    }
+  }
+
   return `Extract metadata from this text. Return ONLY valid JSON with these fields:
 - title: string (2-3 word short title summarizing the thought — in the same language as the text). If you identify a primary project (see rule below) AND it ends up in the \`projects\` array, prefix the title with the canonical project name and an em-dash, e.g. "Hello Business — KPI és biztonság" instead of "KPI és biztonság". Do NOT prefix if no primary project is in \`projects\`. Use the canonical project name exactly as listed in the vault context, not an alias.
 - people: string[] (names of REAL people actually discussed; exclude AI assistants, chatbots, virtual characters, and people mentioned only in cc/quotes/passing)
@@ -66,6 +75,9 @@ Include ONLY projects this thought is PRIMARILY ABOUT. Do NOT include projects m
 - comparisons ("unlike in Proficio, here we...")
 - background context ("this happened during the ERSTE sprint")
 - inspiration / lineage ("this idea originally came from customBrain")
+
+STRICT WHITELIST — never invent project names:
+\`projects\` MAY ONLY contain values that are present in the canonical project list above (or one of their aliases). Never invent a new project name by combining client names, product names, campaign names, fiscal years, or any other fragments. Example of an invalid invented name: "FY26 Erste-Visa Cseperedő kampány" — this is NOT a project; the canonical project is "Erste", and the campaign / product / fiscal-year details (FY26, Visa, Cseperedő, kampány) belong in \`topics\`. If a thought is about a sub-activity (campaign, product, sprint, fiscal-year initiative) within an existing canonical project, tag the parent canonical project and put the sub-activity details in \`topics\`. If no canonical project matches, return an empty \`projects\` array — empty is correct, an invented name is wrong.
 
 Most thoughts have 0-2 projects. A thought with 3+ projects is genuinely rare — reserved for cross-team meetings, explicit registries, or direct A-vs-B comparison documents. If you're tempted to tag 4+ projects, re-read the text and ask "what ONE project is this thought actually about?". Default to FEWER tags.
 
