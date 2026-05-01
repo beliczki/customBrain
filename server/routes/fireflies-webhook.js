@@ -6,7 +6,7 @@ import { captureThought } from './capture.js';
 
 const router = Router();
 
-const MAX_TRANSCRIPT_CHARS = 30000;
+const MAX_TRANSCRIPT_CHARS = 180000;
 const FETCH_RETRIES = 3;
 const FETCH_BACKOFF_MS = 30000;
 

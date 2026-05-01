@@ -85,14 +85,20 @@ export async function captureThought(text, { conflictThreshold = 0.85, source = 
 
 /**
  * Atomic in-place refresh of an existing thought. Used by the Gmail intake
- * cron when a thread-labeled capture gains new messages: we keep the same
- * Qdrant point id (preserves source_id dedup and any references), but
- * replace text + vector + metadata with the latest content.
+ * cron when a thread-labeled capture gains new messages, and by
+ * update_thought_text_with_summary to wrap a thought with a coworker-
+ * generated summary. We keep the same Qdrant point id (preserves source_id
+ * dedup and any references), but replace text + vector + metadata.
  *
  * Preserves: id, source, source_id, created_at. Sets: updated_at,
  * refresh_count (incremented). Re-extracts all Haiku metadata fields from
- * the new text — manual curation via P10 tools can be lost on refresh; add
- * a metadata_verified flag later if that becomes an issue.
+ * the new text — manual curation via P10 tools can be lost on refresh.
+ *
+ * Note: the stale-summary detection (has_auto_summary set + summary_appended_at
+ * < updated_at) is intentional. Refresh bumps updated_at, so any thought with
+ * a summary becomes "stale" until the coworker loop re-summarizes it. We do
+ * NOT strip the existing summary from the text on refresh — leaving it in
+ * place avoids burning a subscription call on every Gmail thread refresh.
  */
 export async function refreshCapture(id, newText, { extraPayload = {} } = {}) {
   const existing = await getById(id);

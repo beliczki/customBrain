@@ -115,20 +115,7 @@ export async function getById(id) {
   });
   if (!results || results.length === 0) return null;
   const p = results[0];
-  return {
-    id: p.id,
-    text: p.payload.text,
-    title: p.payload.title,
-    people: p.payload.people,
-    topics: p.payload.topics,
-    projects: p.payload.projects,
-    type: p.payload.type,
-    action_items: p.payload.action_items,
-    status: p.payload.status,
-    source: p.payload.source,
-    source_id: p.payload.source_id,
-    created_at: p.payload.created_at,
-  };
+  return { id: p.id, ...p.payload };
 }
 
 export async function findBySourceId(source, sourceId) {
@@ -256,4 +243,27 @@ export async function scrollFiltered(filter, limit = 100) {
     action_items: p.payload.action_items,
     created_at: p.payload.created_at,
   }));
+}
+
+/**
+ * Same scroll as scrollFiltered, but returns the raw payload spread onto
+ * each row — exposes fields the projecting mapper drops (source_id,
+ * has_auto_summary, refresh_count, last_internal_date, archived_*, …).
+ * Use this from backfill scripts that need to read those fields.
+ */
+export async function scrollFilteredRaw(filter, limit = 100) {
+  const all = [];
+  let offset = undefined;
+  while (true) {
+    const batch = await qdrant.scroll(COLLECTION, {
+      limit,
+      with_payload: true,
+      filter,
+      offset,
+    });
+    all.push(...batch.points);
+    if (!batch.next_page_offset) break;
+    offset = batch.next_page_offset;
+  }
+  return all.map((p) => ({ id: p.id, ...p.payload }));
 }

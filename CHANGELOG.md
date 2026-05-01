@@ -2,6 +2,76 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.10.0 — 2026-05-01
+
+**Skill-driven coworker loop replaces inline auto-summary.** The 0.9.0 inline preprocessor put the summary-generation hot path on the server, which meant every long capture and every Gmail thread refresh paid Anthropic API calls against the server's `ANTHROPIC_API_KEY`. Switched to a coworker-loop pattern: the server only exposes the read/write endpoints; the actual summary generation runs in a Claude Code session via a dedicated skill, which puts the inference cost on the user's subscription rather than the API key.
+
+### Behaviour changes
+
+- **`captureThought` and `refreshCapture` no longer summarize inline.** New long captures land in Qdrant with their raw text — embedding sees only the first ~6000 chars until the coworker loop fills in a summary. The 0.9.0 payload fields `summary_generated_at` and `original_text_length` are gone.
+- **`server/auto-summary.js` deleted.** All 0.9.0 inline-preprocessor logic removed.
+- **`scripts/backfill-summaries.js` deleted.** The skill (`/summarize-long-thoughts`) replaces it — repeatable, on-demand, subscription-billed.
+
+### New MCP tools
+
+Both registered in `server/mcp.js` AND `server/mcp-stdio.js` (per CLAUDE.md duplication rule). Both also exposed as HTTP routes for non-MCP callers.
+
+- **`list_thoughts_needing_summary({ limit })`** — returns thoughts where `text.length > 6000` AND (no summary yet OR `summary_appended_at < updated_at`). Sorted oldest-summary-first for fair loop progress. Returns full text per thought so the coworker doesn't need a follow-up fetch. HTTP: `GET /thoughts/needing-summary?limit=N`.
+- **`update_thought_text_with_summary({ thought_id, summary_text })`** — strips any existing summary block (regex on `^(# .+\n\n)?## Summary\n[\s\S]*?\n---\n+`), prepends a fresh block, hoists the first `# Title` line above. Sets `has_auto_summary: true`, `summary_appended_at`, `summary_source: 'coworker'`. Idempotent. HTTP: `POST /thoughts/:id/set-summary`.
+
+### Stale-detection design
+
+The summary block stays in place across `refreshCapture` calls — we do NOT strip it on every Gmail thread refresh. A summary becomes "stale" when `summary_appended_at < updated_at`; the list tool surfaces these and the coworker overwrites them on the next pass. This avoids burning a subscription call on every Gmail thread refresh (a frequently-touched thread would otherwise trigger many extra Haiku-equivalent generations per day).
+
+### What kept from 0.9.0
+
+- **`MAX_TRANSCRIPT_CHARS = 180000`** — Fireflies cap stays raised. ~3-hour meetings now capture cleanly; the coworker loop summarizes them on the next pass.
+- **`scripts/backfill-fireflies-transcripts.js`** — kept as a one-off data-migration tool (re-fetches the full transcript for thoughts truncated by the old 30k slice). No LLM in this script — pure Fireflies API + Qdrant. Run on Hetzner once, then the coworker loop catches up.
+- **`server/qdrant.js` cleanup** — `getById` now spreads the full payload (was projecting a fixed subset, dropping `has_auto_summary`, `refresh_count`); `scrollFilteredRaw(filter, limit)` for raw-payload scrolls. Both stay.
+
+### New skill
+
+`~/.claude/skills/summarize-long-thoughts/SKILL.md` (global, user-invocable as `/summarize-long-thoughts`). Workflow: list → for each (in-session inference using the prompt template lifted 1:1 from the deleted `auto-summary.js`) → set → repeat until empty. Designed to be wrappable in `/loop` for periodic execution.
+
+### Deploy + first run on Hetzner
+
+1. `git pull` on the server.
+2. `pm2 stop all && fuser -k 3000/tcp` (per `feedback_hetzner_restart.md`).
+3. `pm2 start all`.
+4. (Optional, once) `node scripts/backfill-fireflies-transcripts.js --dry-run` then live — re-fetches Fireflies transcripts truncated by the old 30k slice. Refresh now leaves text untouched of summary logic; the coworker pass next will summarize.
+5. Locally: `/summarize-long-thoughts` — runs the loop until the brain is caught up.
+
+## 0.9.0 — 2026-04-28 (superseded by 0.10.0)
+
+**Auto-summary preprocessor + Fireflies slice cap raised to 180k.** Long thoughts (Fireflies meetings, long Gmail threads, hand-pasted notes) silently lost their tail to the Gemini embedding window — `embedding-001` caps at 2048 tokens (~6000 chars HU/EN mixed), so anything beyond that was unreachable via semantic search even though it sat in the payload. The Fireflies webhook compounded this by hard-slicing the transcript at 30000 chars before storage; a ~90-minute meeting often hit that cap and lost its closing topics entirely (reported regression: a libikóka-question on a recent Hiflylabs sync was nowhere to be found in brain).
+
+### Capture-pipeline change
+
+- `server/auto-summary.js` (new) — `prepareTextForCapture(text, { priorAutoSummary })`: if `text.length > AUTO_SUMMARY_THRESHOLD` (default 6000) and the input isn't already wrapped, asks Haiku for a chronological summary (default 5000-char target, hard-capped at 5500), then prepends `## Summary\n<summary>\n\n---\n\n<original>` to the text. The first `# Heading` line, if present (Fireflies convention), is hoisted above the summary block.
+- `server/routes/capture.js` — both `captureThought` and `refreshCapture` now run text through the preprocessor before embedding + Haiku metadata extraction. Embedding therefore sees the summary first, covering the full content; metadata extract (which only reads the first 5000 chars) gets a clean, dense view. New payload fields: `has_auto_summary: true`, `summary_generated_at`, `original_text_length`. `refreshCapture` passes `priorAutoSummary` so we don't re-summarize an already-wrapped point on every Gmail thread refresh.
+- `server/qdrant.js` — `getById` now spreads the full payload (was projecting only a fixed subset, dropping `has_auto_summary`, `refresh_count`, etc.). New `scrollFilteredRaw(filter, limit)` for backfill scripts that need the full payload.
+
+### Slice cap
+
+- `server/routes/fireflies-webhook.js` — `MAX_TRANSCRIPT_CHARS`: 30000 → 180000 (~3-hour meeting). The auto-summary handles the embedding-window problem, so the cap exists only as a sanity bound against pathologically large payloads.
+
+### Backfill scripts
+
+- `scripts/backfill-fireflies-transcripts.js` (new) — re-fetches every `source: 'fireflies'` thought whose stored text length is ≥29000 (likely truncated by the old slice), calls Fireflies API for the full transcript, and `refreshCapture`s in place. Refresh runs the auto-summary preprocessor, so a successful refresh both restores the lost tail AND adds the summary prefix. `--dry-run` supported. Idempotent.
+- `scripts/backfill-summaries.js` (new) — for every existing Qdrant point with `text.length > 6000` and no `has_auto_summary`, runs the preprocessor and `refreshCapture`s. `--dry-run` supported. Idempotent. Run AFTER the Fireflies refetch so summaries reflect the full restored content.
+
+### Operational order on Hetzner
+
+1. Deploy code + bump.
+2. `node scripts/backfill-fireflies-transcripts.js --dry-run` → review delta sizes → run for real.
+3. `node scripts/backfill-summaries.js --dry-run` → review candidate list → run for real.
+4. `rebuild_obsidian_vault` (MCP) or wait for the hourly cron — Obsidian Related-thoughts links recompute from the now-better vectors.
+
+### Tunables (env vars on the server)
+
+- `AUTO_SUMMARY_THRESHOLD` — default 6000. Anything longer gets a summary prefix.
+- `AUTO_SUMMARY_TARGET` — default 5000. Soft target the prompt asks Haiku for; hard cap is 5500.
+
 ## 0.8.1 — 2026-04-22
 
 **Version tag in the UI header.** `client/src/App.jsx` imports the version from `client/package.json` (Vite's native JSON import) and renders `v<VERSION>` as a small secondary-grey pill next to the `customBrain` title. Visible only after login; the login screen still shows just the title. Purely cosmetic — no behaviour change, useful for spotting whether a deploy actually rolled.

@@ -11,6 +11,7 @@ import { getConnectionStats, getById } from './qdrant.js';
 import { findOverconnected } from './brain-hygiene.js';
 import { suggestCleanedMetadata } from './metadata.js';
 import { getVaultContext } from './drive-context.js';
+import { listThoughtsNeedingSummary, setThoughtTextWithSummary } from './routes/summary.js';
 import { registerAgentTools } from '../agent/register.js';
 
 const server = new McpServer({
@@ -125,6 +126,31 @@ server.tool(
       return { content: [{ type: 'text', text: JSON.stringify({ error: 'No updatable fields provided' }) }] };
     }
     const result = await updateThought(thought_id, delta);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  'list_thoughts_needing_summary',
+  'List long thoughts (text > 6000 chars) that need a chronological summary prepended — either none yet, or stale because the thought was refreshed after the last summary. Returns full text so the caller can summarize in-session without a follow-up fetch. Sorted oldest-summary-first for fair loop progress. Use together with update_thought_text_with_summary in a coworker loop until the list is empty.',
+  {
+    limit: z.number().optional().describe('Max thoughts to return per call (default 10). Smaller batches keep session context lean.'),
+  },
+  async ({ limit }) => {
+    const results = await listThoughtsNeedingSummary(limit ?? 10);
+    return { content: [{ type: 'text', text: JSON.stringify({ count: results.length, thoughts: results }, null, 2) }] };
+  }
+);
+
+server.tool(
+  'update_thought_text_with_summary',
+  'Prepend a chronological summary block to a thought\'s text. Strips any existing summary block first (idempotent re-runs are safe). The summary block format is "## Summary\\n<text>\\n\\n---\\n\\n<original>"; the first "# Title" line of the original text is hoisted above the summary if present. Sets has_auto_summary=true, summary_appended_at=now, summary_source="coworker". Re-embeds and re-extracts metadata via refreshCapture. Use after generating a summary in-session via the summarize-long-thoughts skill.',
+  {
+    thought_id: z.string(),
+    summary_text: z.string().describe('Chronological summary, ideally ≤ 5000 chars, hard-capped at 5500. Same language as the source.'),
+  },
+  async ({ thought_id, summary_text }) => {
+    const result = await setThoughtTextWithSummary(thought_id, summary_text);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );

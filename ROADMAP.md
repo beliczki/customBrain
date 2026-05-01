@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-04-18
+## Last updated: 2026-05-01
 
 Historical build plans archived in `docs/archive/`.
 
@@ -15,6 +15,7 @@ Historical build plans archived in `docs/archive/`.
 - **React UI**: capture, search, recent, stats, export tabs (Vite + React 19 + Tailwind 3)
 - **Auto-intake (2026-04-18)**: zero-approval capture from Fireflies webhook (meetings), YouTube likes cron (30min), Gmail (10min). Shared `source` + `source_id` payload for idempotent dedup. Gmail body cleaner strips legal/confidentiality boilerplate (regex + Haiku).
 - **Gmail thread refresh + outbound auto-label (0.7.0, 2026-04-18)**: history-API driven cron with watermark. New messages on a brain-labeled thread atomically refresh the existing Qdrant point (preserves id, source_id, created_at; bumps `refresh_count`). Outbound messages to a known brain-person (matched via `email:` lines in People/<Name>.md) auto-apply the `brain` label and capture. `brain/captured` is now just a UI marker — no longer a filter gate.
+- **Coworker-loop summary skill (0.10.0, 2026-05-01)**: long thoughts (> 6000 chars, the Gemini embedding window) get a chronological summary prepended in a `## Summary` block above a `---` divider, so semantic search reaches the full content via the summary. Generation runs in a Claude Code session (subscription-billed) via the global `/summarize-long-thoughts` skill, calling two MCP tools — `list_thoughts_needing_summary` and `update_thought_text_with_summary`. Stale-detection by `summary_appended_at < updated_at` so frequent Gmail-thread refreshes don't burn calls. Fireflies slice cap raised 30k → 180k. One backfill script remains: `scripts/backfill-fireflies-transcripts.js` (no-LLM, re-fetches truncated transcripts). Replaces the 0.9.0 inline preprocessor.
 - **Obsidian sync**: full vault rebuild via Google Drive (OAuth2 writes, service account reads), wikilinks in YAML frontmatter
 - **Production**: Hetzner CX22 at `brain.beliczki.hu`, pm2, nginx reverse proxy
 
@@ -238,6 +239,35 @@ Current pure-dense search misses exact-name queries and Hungarian agglutinative 
 
 - Full spec in brain thought `11e3aa53-f685-4c29-8d13-c1b8fcdd5e2f` (Task 4).
 - **Defer until brain has 200+ thoughts and a real recall problem shows up** — current 41-thought brain doesn't produce enough A/B signal to validate the improvement.
+
+---
+
+## P11: Incremental export — fast & reliable vault rebuild
+
+**Why this exists**: `cron/export.js` rebuilds the entire vault every hour — deletes all .md, re-uploads all .md. At ~1000 thoughts the run is 200s+; linear in N, will hit 1000s soon. Quick win shipped 2026-04-22 (parallelized upload batch of 10, mirroring the delete batch — see export.js step 4) drops it ~5–10×, but that's still a full rebuild and re-uploads bytes that didn't change. The proper fix is incremental: only re-export thoughts whose content or related-section changed, only delete files whose source thought is gone.
+
+**Recommended shape** (manifest-based, NOT per-file frontmatter hashes):
+- Maintain `_manifest.json` in the customBrain Drive folder: `{ thought_id: { hash, filename } }`. One Drive read + one Drive write per run, instead of N file reads.
+- `hash = sha256(text + canonical(metadata) + sorted(neighbor_id:title pairs))`. Neighbor titles must be in the hash because each .md embeds neighbor titles in `## Related thoughts` (line 111 of export.js) — if neighbor B's title changes, A's file is stale even though A's own content didn't.
+- Per run: load manifest, load thoughts+vectors from Qdrant, compute new hashes, diff:
+  - new in Qdrant, not in manifest → create
+  - in both, hash differs → overwrite (`drive.files.update` by id, not delete+create — preserves Drive file id, link history)
+  - in manifest, gone from Qdrant → delete
+  - in both, hash same → skip (the win)
+- Rewrite manifest at end.
+
+**Known gotchas to design around** before coding:
+1. **Title-edit renames the file**. `thoughtFilename()` derives from title. If a title is edited, manifest entry needs delete-old + create-new; Obsidian wikilinks in user-owned notes outside customBrain/ will rot. Decide: accept rot, or stabilize filenames on `thought_id` (breaks readable filenames).
+2. **Manifest drift**. If someone deletes files in Drive directly, manifest says "exists, hash matches" → file is missing forever. Cheap fix: every Nth run (or `?force=true`), do a full reconcile (list Drive, intersect with manifest, repair).
+3. **Atomicity**. Manifest write must happen AFTER all Drive ops succeed, otherwise next run double-creates. Write to `_manifest.json.tmp` then rename.
+4. **Neighbor recompute cost**. Even when own-content didn't change, neighbor sets can shift (new thoughts compete for top-3 slots). Either: recompute neighbors for everything every run (cheap — in-memory cosine on already-loaded vectors, ~O(N²) ≈ 1–3s at N=1000) and include in hash; or skip neighbor-only churn (accept eventual consistency).
+5. **Concurrent runs**. Hourly cron + manual `/export` from UI could overlap. Add a lockfile (`_manifest.lock` with timestamp + pid) or refuse to start if recent run is in progress.
+
+**Files to touch**: `server/routes/export.js` (the bulk), `cron/export.js` (no change expected — calls `rebuildVault`).
+
+**Verification on Hetzner**: (a) run after change with empty manifest → expect full rebuild matching pre-change file set, (b) run again immediately → expect "0 created, 0 updated, 0 deleted" in <5s, (c) edit one thought via PATCH → run → expect exactly 1 update, (d) delete one thought → run → expect exactly 1 delete, (e) directly delete one .md in Drive UI → trigger reconcile path → expect 1 re-create.
+
+Defer until after the parallelization win (0.8.2) is verified in production. Estimate ~4hrs of careful work; the gotchas above are real, not theoretical.
 
 ---
 

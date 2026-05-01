@@ -8,6 +8,7 @@ import searchRouter from './routes/search.js';
 import recentRouter from './routes/recent.js';
 import statsRouter from './routes/stats.js';
 import exportRouter from './routes/export.js';
+import summaryRouter from './routes/summary.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import { handleMcpHttp } from './mcp.js';
 
@@ -61,6 +62,7 @@ app.use(searchRouter);
 app.use(recentRouter);
 app.use(statsRouter);
 app.use(exportRouter);
+app.use(summaryRouter);
 
 // MCP endpoint (Streamable HTTP only)
 app.all('/mcp/http', handleMcpHttp);
