@@ -15,6 +15,11 @@ export async function upsertPoint(vector, payload, id = null) {
   return pointId;
 }
 
+/**
+ * Raw vector search across BOTH thought-points and chunk-points.
+ * Callers that want thought-only results should pass a chunk-excluding filter
+ * OR (preferred) call searchThoughts in routes/search.js which does the rollup.
+ */
 export async function searchVector(vector, limit = 5) {
   const results = await qdrant.query(COLLECTION, {
     query: vector,
@@ -23,8 +28,13 @@ export async function searchVector(vector, limit = 5) {
   });
   return results.points.map((p) => ({
     id: p.id,
+    score: p.score,
+    kind: p.payload.kind || 'thought',
+    // thought fields
     text: p.payload.text,
     title: p.payload.title,
+    created_at: p.payload.created_at,
+    effective_date: p.payload.effective_date,
     metadata: {
       people: p.payload.people,
       topics: p.payload.topics,
@@ -32,16 +42,41 @@ export async function searchVector(vector, limit = 5) {
       type: p.payload.type,
       action_items: p.payload.action_items,
     },
-    created_at: p.payload.created_at,
-    score: p.score,
+    // chunk fields (present only when kind === 'chunk')
+    parent_id: p.payload.parent_id,
+    chunk_kind: p.payload.chunk_kind,
+    chunk_label: p.payload.chunk_label,
+    chunk_text: p.payload.chunk_text,
+    parent_title: p.payload.parent_title,
+    parent_source: p.payload.parent_source,
   }));
 }
 
+/**
+ * Batch-fetch points by ids. Returns array of { id, ...payload }.
+ */
+export async function getByIds(ids) {
+  if (!ids?.length) return [];
+  const results = await qdrant.retrieve(COLLECTION, {
+    ids,
+    with_payload: true,
+  });
+  return (results || []).map((p) => ({ id: p.id, ...p.payload }));
+}
+
+// Common filter to exclude v2 chunk points from any "list of thoughts" query.
+// Chunks are a search-augmenting layer; the THOUGHT is the canonical unit.
+const NOT_CHUNK = { must_not: [{ key: 'kind', match: { value: 'chunk' } }] };
+
 export async function scrollRecent(limit = 10) {
+  // Order by effective_date — the date the CONTENT happened, not when it was
+  // captured. A 7-month-old email captured today should NOT jump to the top
+  // of Recent just because the cron labeled it now.
   const results = await qdrant.scroll(COLLECTION, {
     limit,
     with_payload: true,
-    order_by: { key: 'created_at', direction: 'desc' },
+    order_by: { key: 'effective_date', direction: 'desc' },
+    filter: NOT_CHUNK,
   });
   return results.points.map((p) => ({
     id: p.id,
@@ -55,6 +90,7 @@ export async function scrollRecent(limit = 10) {
       action_items: p.payload.action_items,
     },
     created_at: p.payload.created_at,
+    effective_date: p.payload.effective_date,
   }));
 }
 
@@ -66,6 +102,7 @@ export async function getAllPayloads() {
       limit: 100,
       with_payload: true,
       offset,
+      filter: NOT_CHUNK,
     });
     all.push(...batch.points);
     if (!batch.next_page_offset) break;
@@ -88,6 +125,7 @@ export async function getAllWithVectors() {
       with_payload: true,
       with_vector: true,
       offset,
+      filter: NOT_CHUNK,
     });
     all.push(...batch.points);
     if (!batch.next_page_offset) break;
@@ -171,6 +209,7 @@ export async function getConnectionStats() {
       limit: 200,
       with_payload: true,
       offset,
+      filter: NOT_CHUNK,
     });
     all.push(...batch.points);
     if (!batch.next_page_offset) break;

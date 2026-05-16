@@ -121,10 +121,17 @@ async function processThread(gmail, threadId, { brainLabelId, capturedLabelId, e
 
   let hasBrain = threadHasLabel(thread, brainLabelId);
   let outboundMatched = null;
+  const latestDate = threadLatestInternalDate(thread);
 
   if (!hasBrain) {
     outboundMatched = detectOutboundToKnownPerson(thread, peopleEmails);
     if (!outboundMatched) return { status: 'ignored' };
+
+    const OUTBOUND_RECENCY_DAYS = 14;
+    const ageDays = (Date.now() - latestDate) / 86400000;
+    if (ageDays > OUTBOUND_RECENCY_DAYS) {
+      return { status: 'ignored_stale_outbound', age_days: Math.floor(ageDays), matched: outboundMatched };
+    }
 
     await gmail.users.threads.modify({
       userId: 'me',
@@ -134,7 +141,6 @@ async function processThread(gmail, threadId, { brainLabelId, capturedLabelId, e
     hasBrain = true;
   }
 
-  const latestDate = threadLatestInternalDate(thread);
   const existing = await findBySourceIdRaw('gmail', threadId);
 
   if (existing && existing.last_internal_date && Number(existing.last_internal_date) >= latestDate) {

@@ -3,6 +3,7 @@ import { embedText } from '../embeddings.js';
 import { extractMetadata, checkContradiction } from '../metadata.js';
 import { upsertPoint, searchVector, updatePayload, findBySourceId, getById } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
+import { computeEffectiveDate } from '../effective-date.js';
 
 const router = Router();
 
@@ -40,8 +41,10 @@ export async function captureThought(text, { conflictThreshold = 0.85, source = 
   ]);
 
   // Check near-duplicates for contradictions (top 3, not just top 1)
+  // Over-fetch and exclude chunks — only THOUGHT-points can be archived /
+  // superseded; a chunk archive is meaningless.
   let supersedes = null;
-  const nearMatches = await searchVector(vector, 3);
+  const nearMatches = (await searchVector(vector, 10)).filter((m) => m.kind !== 'chunk').slice(0, 3);
   const candidates = nearMatches.filter((m) => m.score > conflictThreshold);
   console.log(`Conflict check: ${candidates.length} candidates above ${conflictThreshold} (scores: ${nearMatches.map((m) => m.score.toFixed(3)).join(', ')})`);
   for (const existing of candidates) {
@@ -78,6 +81,11 @@ export async function captureThought(text, { conflictThreshold = 0.85, source = 
     ...(supersedes && { supersedes }),
     ...extraPayload,
   };
+  // effective_date = when the CONTENT happened (email date, meeting date),
+  // not when the brain captured it. Used by search time-decay and Recent
+  // ordering. Computed AFTER extraPayload spread so source-specific fields
+  // (last_internal_date, meeting_date, published_at) are visible.
+  payload.effective_date = computeEffectiveDate(payload);
 
   const id = await upsertPoint(vector, payload);
   return { ok: true, id, metadata, ...(supersedes && { supersedes, archived: supersedes }) };
@@ -126,6 +134,7 @@ export async function refreshCapture(id, newText, { extraPayload = {} } = {}) {
     refresh_count: (existing.refresh_count || 0) + 1,
     ...extraPayload,
   };
+  payload.effective_date = computeEffectiveDate(payload);
 
   await upsertPoint(vector, payload, id);
   return { ok: true, id, refreshed: true, refresh_count: payload.refresh_count };

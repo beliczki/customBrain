@@ -85,7 +85,16 @@ export default function ThoughtView({ thought, onDelete }) {
       </div>
 
       {thought.created_at && (
-        <p className="text-xs text-txt-ter mt-3">{new Date(thought.created_at).toLocaleString()}</p>
+        <p className="text-xs text-txt-ter mt-3">
+          {thought.effective_date && thought.effective_date.slice(0, 10) !== thought.created_at.slice(0, 10) ? (
+            <>
+              <span title="when the content happened">{new Date(thought.effective_date).toLocaleString()}</span>
+              <span className="ml-2 text-[10px] uppercase tracking-wider">captured {new Date(thought.created_at).toLocaleDateString()}</span>
+            </>
+          ) : (
+            new Date(thought.effective_date || thought.created_at).toLocaleString()
+          )}
+        </p>
       )}
     </div>
   );

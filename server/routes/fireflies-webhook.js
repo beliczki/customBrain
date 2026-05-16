@@ -117,6 +117,10 @@ router.post('/', async (req, res) => {
     const result = await captureThought(text, {
       source: 'fireflies',
       sourceId: meetingId,
+      extraPayload: {
+        ...(transcript.date && { meeting_date: transcript.date }),
+        ...(transcript.duration_minutes && { meeting_duration_min: transcript.duration_minutes }),
+      },
     });
 
     console.log(`Fireflies webhook: captured ${meetingId} as ${result.id}`);

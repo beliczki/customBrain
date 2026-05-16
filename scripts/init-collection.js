@@ -32,8 +32,13 @@ async function init() {
   }
 
   await ensureIndex('created_at', 'datetime');
+  await ensureIndex('effective_date', 'datetime');
   await ensureIndex('source', 'keyword');
   await ensureIndex('source_id', 'keyword');
+  // 0.19.0 chunked-vector layer
+  await ensureIndex('kind', 'keyword');
+  await ensureIndex('pipeline_version', 'keyword');
+  await ensureIndex('parent_id', 'keyword');
 }
 
 init().catch((err) => {

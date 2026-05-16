@@ -148,15 +148,37 @@ async function listWithAliases(drive, folderId, { withDocuments = false } = {}) 
     const aliases = {};
     const emails = {};
     const documents = withDocuments ? {} : null;
-    for (const file of res.data.files) {
+
+    // Fetch all file contents in parallel batches. Sequential 144 Drive
+    // `files.get` calls took 60s+ in production; concurrency=10 brings it
+    // to ~5-8s and keeps Drive happy below its per-user throttle.
+    const PARALLEL = 10;
+    const fileEntries = res.data.files;
+    const fetched = new Array(fileEntries.length);
+    for (let i = 0; i < fileEntries.length; i += PARALLEL) {
+      const batch = fileEntries.slice(i, i + PARALLEL);
+      const results = await Promise.all(batch.map(async (file) => {
+        try {
+          const content = await drive.files.get(
+            { fileId: file.id, alt: 'media' },
+            { responseType: 'text' }
+          );
+          return { file, text: typeof content.data === 'string' ? content.data : '' };
+        } catch (err) {
+          console.error(`drive-context: failed to fetch ${file.name}: ${err.message}`);
+          return { file, text: '', error: err };
+        }
+      }));
+      for (let j = 0; j < results.length; j++) {
+        fetched[i + j] = results[j];
+      }
+    }
+
+    for (const { file, text, error } of fetched) {
       const canonical = file.name.replace('.md', '');
       names.push(canonical);
+      if (error) continue;
       try {
-        const content = await drive.files.get(
-          { fileId: file.id, alt: 'media' },
-          { responseType: 'text' }
-        );
-        const text = typeof content.data === 'string' ? content.data : '';
         if (withDocuments) documents[canonical] = text;
 
         // Primary: YAML frontmatter (Obsidian Properties native format)

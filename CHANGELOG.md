@@ -2,6 +2,42 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.19.0 — 2026-05-17
+
+**P14 first wave — chunked multi-vector search + `effective_date` time-decay + Gmail outbound recency cap.** Multiple search-quality wins from the 2026-05-16 evening session, in two coupled efforts.
+
+### A) Chunked multi-vector search (top 20 thoughts as prototype)
+
+- **`server/reprocess-v2.js`** — one Sonnet 4.6 mega-prompt per thought returns `{ metadata, summary, summary_chunks[], content_chunks[] }`. Uses Anthropic tool-use API (`submit_reprocessed_thought` schema) for guaranteed-valid JSON. Includes verbatim-only people filter (rejects hallucinated names not in text) + Cyrillic-leak guard.
+- **Multi-vector storage** in same `thoughts` collection: thought-point keeps its id (vector replaced with `embedText(summary)`); chunk-points get new UUIDs with `kind: 'chunk'`, `parent_id`, `chunk_kind: 'summary'|'content'`, `chunk_label`, `chunk_text`, `pipeline_version: 'v2'`.
+- **Search rollup** in `server/routes/search.js`: over-fetches 30 raw hits, groups by parent thought id (chunk → parent, thought → self), keeps best score per group, surfaces `matched_chunk_label`. UI shows the chunk label inline ("↳ találat: <label>").
+- **Chunks filtered out** of `scrollRecent`, `getAllPayloads`, `getAllWithVectors`, `getConnectionStats`, capture-time conflict check, and Stats. The thought is the canonical unit everywhere except search.
+- **`scripts/reprocess-v2-prototype.js`** — batch script with `--force` flag to include v2 thoughts (default skips). Top 20 reprocess: 108 chunks created, $3.16 total Sonnet cost, ~15 min total.
+- **Measured wins**: original P14 pain query "ERSTE Adform SZA frissítés 150e" — top result was previously a generic Beerste/Otthonstart hit at ~0.7; now position #2 is a precise chunk match ("Micro Számla, Cseperedő és Diverzum specifikus"). Queries like `Diákszámla remarketing PMax`, `Hintrix OTP üzenetmátrix`, `Otthonstart 150e jóváírás` return exact chunk hits with descriptive labels.
+
+### B) `effective_date` field — content date, not capture date
+
+- **`server/effective-date.js`** — `computeEffectiveDate(payload)`: priority `last_internal_date` (Gmail) → `meeting_date` (Fireflies) → `published_at` (YouTube) → `created_at` fallback. Returns ISO string always.
+- **Set at every capture path** — `captureThought` + `refreshCapture` compute and store `effective_date` after extraPayload merge. `fireflies-webhook` now passes `meeting_date` + `meeting_duration_min`; `youtube-intake` passes `published_at`; gmail intake already passed `last_internal_date`.
+- **Search time-decay** (`server/routes/search.js`) uses `effective_date` instead of `created_at`. A 7-month-old Gmail thread captured today no longer gets unfair recency boost.
+- **Recent ordering** (`scrollRecent`) — `order_by: effective_date desc`. The Szintetikus-style noise capture (Oct 2025 thread surfaced today via outbound auto-label) no longer jumps to #1.
+- **UI labels** (Search + ThoughtView) — when content date and capture date differ, show both: primary timestamp = content date, small "captured YYYY-MM-DD" annotation alongside.
+- **Backfill**: `scripts/backfill-effective-date.js` (idempotent) walks all 238 thoughts and sets `effective_date` from the best available source field.
+
+### Gmail outbound recency cap
+
+- `cron/gmail-intake.js::processThread` — added a 14-day recency gate on the outbound-auto-label path. A thread with a historic SENT-to-known-person no longer gets re-captured when an unrelated Gmail event (mass archive, label cleanup) touches it. Status: `ignored_stale_outbound`.
+- **Root cause traced from a real incident**: the "Szintetikus és valódi panel kutatás" Oct 2025 email was auto-captured on 2026-05-16 because the user did an Inbox cleanup → 39 history events → cron found a 7-month-old SENT-to-Miklos-Kun → captured. Stale capture deleted; recency gate prevents recurrence.
+
+### Qdrant payload indexes added
+
+`scripts/init-collection.js` — new keyword indexes for `kind`, `pipeline_version`, `parent_id` (chunk-filter joins), and datetime index for `effective_date` (Recent ordering, time-decay).
+
+### Known limitations / next
+
+- v2 chunking covers only the top 20 most recent thoughts. The Varfi-SZA email itself (~2 days old, not in top 20) is still v1 and shows up un-chunked in SZA queries. Run `node scripts/reprocess-v2-prototype.js N` to extend coverage; cost ~$0.15/thought.
+- Sonnet 4.6 occasional returns `summary_chunks=0` or `content_chunks=0` on short single-topic thoughts (4 of 18 in batch). Treated as acceptable — chunking is opportunistic, not mandatory.
+
 ## 0.18.0 — 2026-05-16
 
 **P6 Brain Health Check shipped — on-demand audit, listing-only, no auto-mutation.** Replaces the original cron-based maintenance plan from the 2026-05-16 roadmap review. Triggered from three surfaces (MCP tool / HTTP route / Stats tab UI section), all calling the same `runHealthCheck()` core.

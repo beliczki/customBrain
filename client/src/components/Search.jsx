@@ -42,6 +42,12 @@ export default function Search() {
           <div key={r.id} className="py-6 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
             <div className="mb-3">
               {r.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide text-txt">{r.title}</h3>}
+              {r.matched_chunk_label && (
+                <p className="chunk-match-label text-xs text-txt-ter italic mb-2">
+                  ↳ találat: <span className="not-italic font-medium text-txt-sec">{r.matched_chunk_label}</span>
+                  {r.matched_chunk_kind && <span className="ml-1 text-[10px] uppercase tracking-wider">({r.matched_chunk_kind})</span>}
+                </p>
+              )}
               <div className="text-sm text-txt-sec prose-sm"><ReactMarkdown>{r.text}</ReactMarkdown></div>
             </div>
 
@@ -98,7 +104,14 @@ export default function Search() {
               )}
             </div>
 
-            <p className="text-xs text-txt-ter mt-3">Score: {r.score?.toFixed(3)}{r.cosine_score ? ` (cosine: ${r.cosine_score.toFixed(3)})` : ''} · {new Date(r.created_at).toLocaleString()}</p>
+            <p className="text-xs text-txt-ter mt-3">
+              Score: {r.score?.toFixed(3)}{r.cosine_score ? ` (cosine: ${r.cosine_score.toFixed(3)})` : ''}
+              {r.effective_date && r.effective_date.slice(0, 10) !== r.created_at?.slice(0, 10) ? (
+                <> · <span title="when the content happened">{new Date(r.effective_date).toLocaleString()}</span> <span className="text-[10px] uppercase tracking-wider">captured {new Date(r.created_at).toLocaleDateString()}</span></>
+              ) : (
+                <> · {new Date(r.effective_date || r.created_at).toLocaleString()}</>
+              )}
+            </p>
           </div>
         ))}
       </div>

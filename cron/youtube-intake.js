@@ -63,6 +63,9 @@ async function run() {
       const result = await captureThought(text, {
         source: 'youtube',
         sourceId: item.video_id,
+        extraPayload: {
+          ...(item.published_at && { published_at: item.published_at }),
+        },
       });
       if (result.duplicate) {
         skipped++;
