@@ -2,6 +2,53 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.13.0 — 2026-05-16
+
+**Obsidian-native YAML frontmatter for People + Project metadata.** The custom `alias: X` / `email: X` body-line convention is replaced by standard Obsidian Properties — `aliases:` array and `email:` scalar / `emails:` array — written into the `---…---` frontmatter block at the top of each `.md`. Obsidian's Properties UI now manages them natively (the user can add/remove aliases via the panel instead of editing raw text).
+
+### Parser change — `server/drive-context.js`
+
+- New `parseFrontmatter()` handles the subset of YAML Obsidian Properties actually emits: scalar `key: value`, multi-line `key:` + `  - item`, inline `key: [a, b]`.
+- `listWithAliases` reads frontmatter first (primary), then falls back to legacy `alias:`/`email:` body lines (so files that haven't been migrated still resolve).
+- Wikilink wrappers (`[[…]]`) are kept on raw frontmatter values — only stripped where aliases are *consumed*. That preserves link-shaped fields like `projects: [[Telekom]]` on the project doc side.
+
+### Migration — `scripts/migrate-to-frontmatter.js`
+
+78 .md files rewritten (~70 People + ~7 Projects). **Surgical** rewrite: only the `aliases:` / `email:` / `emails:` blocks inside the frontmatter (and the matching legacy body lines) are touched. Every other frontmatter key — including non-standard ones the parser doesn't even understand (`Product Groups: SZK, HK, …`) and placeholder empty `tags:` keys — is preserved byte-for-byte. Idempotent on re-run; files already in pure-frontmatter form are no-ops.
+
+### Hatás
+
+A `getVaultContext` 100 people / 130 aliases / 42 emails-t tölt be a migráció után (verified live). A capture-pipeline `metadata.js::resolveAliases` változatlanul működik a kibővített alias-map-pel. Obsidian Properties UI most natívan tudja kezelni az aliasokat (lásd ArtAI.md és Me.md).
+
+## 0.12.0 — 2026-05-16
+
+**Alias-aware `writeStubs` + Western-order People canonicals + sub-product fold.** Two-part fix for the recurring duplicate-People-stub regression and the FÉLRETESZEK/BEFCAST garbage-projects issue.
+
+### Root-cause patch — `server/routes/export.js::writeStubs`
+
+A `getVaultContext()` call now precedes the People/Projects sync. Each candidate name is resolved through `aliases` / `projectAliases` (case-insensitive) before the existing-file check — if the resolved form already exists as a canonical filename, the stub is skipped instead of created.
+
+For **projects** the behavior is stricter: `skipAutoCreate: true` is passed, so unknown project names are never auto-created — they emit a `⚠ unknown project:` log line instead. Projects are now strictly user-curated; Haiku can no longer slip a new "project" into the canonical whitelist by mislabelling one capture.
+
+Without this patch the export turned every accent variant Haiku produced (e.g. `Hollósi István`) into a brand-new canonical alongside the existing one (`Istvan Hollosi`), permanently breaking the alias map — both names became filenames and the loop-breaker in `drive-context.js` only handles A↔B circulars.
+
+### People canonicalization — Western order
+
+Earlier consolidation passes had picked Hungarian order (`Hollosi Istvan`) as canonical. Flipped to Western order across the board: `Istvan Hollosi`, `Anna Bodiss`, `Liza Laszlo`, etc. Accented + Hungarian-order forms become aliases. 65+ canonical files renamed/merged, 117 duplicate .md deleted (`187 → 123` People files), 135 Qdrant payloads rewritten.
+
+`scripts/drive-consolidate-people.js` — local one-off; merges aliases + emails + body from each source file into the new canonical, then deletes sources. Idempotent.
+`scripts/consolidate-people.js` — extended with the same Western-order map plus project rewrite logic (`FÉLRETESZEK→ERSTE`, `BEFCAST→ERSTE`, sub-product preserved in topics).
+
+### Sub-product fold — FÉLRETESZEK, BEFCAST
+
+`Projects/FÉLRETESZEK.md` and `Projects/BEFCAST.md` deleted. These were never real projects — they're Erste sub-products that slipped past the strict-whitelist rule in a past Haiku run and got auto-canonicalised by the old `writeStubs`. ERSTE.md's project doc already enumerates the sub-products, so Haiku has the hierarchy from `projectDocs`. With the orphans gone and `skipAutoCreate` on projects, the cycle can't restart.
+
+(Qdrant data was already clean — both sub-product names only appeared in `topics`, never in `projects`. No rewrite needed.)
+
+### Hatás
+
+A `writeStubs` patch a `pm2 restart` után aktív, így a következő hourly export már nem fog duplikált People-fájlokat regenerálni. A 0.12.0 utáni Obsidian-vault rebuild igazolta: 233 thought, **0 new people, 0 new projects** stub keletkezett.
+
 ## 0.11.0 — 2026-05-01
 
 **Project.md teljes tartalom a Haiku metadata-promptba + strict project-whitelist.** A Haiku-prompt eddig csak a vault projekt-neveinek listáját kapta meg (pl. `"Bizi, Hello Business, ConfAI, Erste, Telekom..."`), a project.md fájlok tartalma eldobódott a `listWithAliases`-ben az `alias:`/`email:` regex match után. Két javítás:

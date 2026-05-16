@@ -58,9 +58,78 @@ export function getYouTube() {
 
 
 /**
- * List *.md files in a Drive folder and parse `alias:` and `email:` lines
+ * Parse Obsidian-style YAML frontmatter from a Markdown file.
+ *
+ * Returns { frontmatter, body } when a frontmatter block is present
+ * (file starts with `---\n…\n---`), otherwise null. The frontmatter
+ * parser handles the subset Obsidian Properties actually writes:
+ *   key: scalar
+ *   key:
+ *     - item1
+ *     - item2
+ *   key: [inline, array]
+ *
+ * Quote stripping handles both single and double quotes plus `[[wikilink]]`
+ * wrappers (Obsidian wraps cross-vault references that way).
+ */
+function parseFrontmatter(text) {
+  if (!text.startsWith('---\n') && !text.startsWith('---\r\n')) return null;
+  const startLen = text.startsWith('---\r\n') ? 5 : 4;
+  // Find closing `---` on its own line
+  const closing = text.slice(startLen).match(/\r?\n---\r?\n|\r?\n---\s*$/);
+  if (!closing) return null;
+  const endIdx = startLen + closing.index;
+  const yamlBlock = text.slice(startLen, endIdx);
+  const body = text.slice(endIdx + closing[0].length);
+
+  // Strip only surrounding quotes. Wikilink wrappers (`[[…]]`) are kept on
+  // raw values; callers that consume aliases strip them at use-time so other
+  // fields like `projects: [[Telekom]]` preserve their link form.
+  const stripQuotes = (v) => v.replace(/^["']|["']$/g, '');
+
+  const out = {};
+  const lines = yamlBlock.split(/\r?\n/);
+  let currentArrayKey = null;
+  for (const raw of lines) {
+    if (!raw.trim()) continue;
+    const arrayItem = raw.match(/^\s+-\s+(.+)$/);
+    if (arrayItem && currentArrayKey) {
+      out[currentArrayKey].push(stripQuotes(arrayItem[1].trim()));
+      continue;
+    }
+    const kv = raw.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)$/);
+    if (!kv) { currentArrayKey = null; continue; }
+    const [, key, valRaw] = kv;
+    const val = valRaw.trim();
+    if (val === '') {
+      out[key] = [];
+      currentArrayKey = key;
+    } else if (val.startsWith('[') && val.endsWith(']')) {
+      out[key] = val
+        .slice(1, -1)
+        .split(',')
+        .map((s) => stripQuotes(s.trim()))
+        .filter(Boolean);
+      currentArrayKey = null;
+    } else {
+      out[key] = stripQuotes(val);
+      currentArrayKey = null;
+    }
+  }
+  return { frontmatter: out, body };
+}
+
+/**
+ * List *.md files in a Drive folder and parse alias / email metadata
  * from each file. Returns canonical names (filename without .md), an
  * alias → canonical map, and an email → canonical map.
+ *
+ * Primary source: Obsidian YAML frontmatter `aliases:` and `email:` /
+ * `emails:` fields — this is how Obsidian's Properties UI manages them.
+ *
+ * Legacy fallback: per-line `alias: X` and `email: X` in the body. Kept
+ * so files predating the frontmatter migration still resolve. New writes
+ * should always use frontmatter.
  *
  * Used for both People/ and Projects/ folders. `email:` is only meaningful
  * for People (drives outbound-mail auto-labeling) but parsed for both
@@ -89,7 +158,35 @@ async function listWithAliases(drive, folderId, { withDocuments = false } = {}) 
         );
         const text = typeof content.data === 'string' ? content.data : '';
         if (withDocuments) documents[canonical] = text;
-        for (const line of text.split('\n')) {
+
+        // Primary: YAML frontmatter (Obsidian Properties native format)
+        const fm = parseFrontmatter(text);
+        const bodyForLegacy = fm ? fm.body : text;
+        const stripWikilink = (a) => String(a).trim().replace(/^\[\[(?:[^|\]]*\|)?|]]$/g, '');
+        if (fm) {
+          const fa = fm.frontmatter.aliases;
+          if (Array.isArray(fa)) {
+            for (const rawAlias of fa) {
+              const alias = stripWikilink(rawAlias);
+              if (alias && alias !== canonical) aliases[alias] = canonical;
+            }
+          }
+          const collectEmails = (val) => {
+            if (!val) return;
+            const arr = Array.isArray(val) ? val : [val];
+            for (const e of arr) {
+              const lower = String(e).trim().toLowerCase();
+              if (lower.includes('@')) emails[lower] = canonical;
+            }
+          };
+          collectEmails(fm.frontmatter.email);
+          collectEmails(fm.frontmatter.emails);
+        }
+
+        // Legacy fallback: `alias: X` / `email: X` body lines (pre-frontmatter
+        // migration files). Merges with frontmatter values rather than
+        // replacing — both can coexist during the transition.
+        for (const line of bodyForLegacy.split('\n')) {
           const aliasMatch = line.match(/^alias:\s*(.+)/i);
           if (aliasMatch) {
             const values = aliasMatch[1]
@@ -112,8 +209,8 @@ async function listWithAliases(drive, folderId, { withDocuments = false } = {}) 
             }
           }
         }
-      } catch {
-        // skip files that can't be read
+      } catch (err) {
+        console.error(`drive-context: failed to parse ${file.name}: ${err.message}`);
       }
     }
     // Detect and break circular alias loops (A→B and B→A). Keeps the direction
@@ -136,7 +233,8 @@ async function listWithAliases(drive, folderId, { withDocuments = false } = {}) 
       }
     }
     return { names, aliases, emails, ...(documents && { documents }) };
-  } catch {
+  } catch (err) {
+    console.error(`drive-context: listWithAliases failed (folder ${folderId}): ${err.message}\n${err.stack}`);
     return { names: [], aliases: {}, emails: {} };
   }
 }
@@ -173,7 +271,7 @@ export async function getVaultContext() {
     );
     return cachedContext;
   } catch (err) {
-    console.error('Failed to load vault context:', err.message);
+    console.error('Failed to load vault context:', err.message, '\n', err.stack);
     return { people: [], projects: [], aliases: {}, projectAliases: {}, peopleEmails: {} };
   }
 }

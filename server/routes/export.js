@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getAllWithVectors } from '../qdrant.js';
+import { getVaultContext } from '../drive-context.js';
 
 // P1d — semantic autolinks. Per-thought cosine-neighbor section replaces the
 // old metadata-based "Related thoughts" dump. Tune these two constants if the
@@ -229,35 +230,41 @@ export async function rebuildVault(onLog) {
   thoughts.forEach((p, i) => { p.filename = filenames[i]; });
   emit(`[${ts()}] Filenames built — neighbor search will run per-thought (cosine)`);
 
-  // Step 4: Write all thoughts as .md files with semantic Related thoughts
+  // Step 4: Write all thoughts as .md files with semantic Related thoughts.
+  // Batched-parallel uploads (mirror the delete batch above) — sequential
+  // awaits made this loop the dominant cost as N grew past a few hundred.
   emit(`[${ts()}] Writing ${thoughts.length} thought files...`);
-  const files = [];
-  for (let i = 0; i < thoughts.length; i++) {
-    const p = thoughts[i];
-    const t = p.payload;
-    const filename = filenames[i];
+  const files = new Array(thoughts.length);
+  const UPLOAD_BATCH = 10;
+  for (let i = 0; i < thoughts.length; i += UPLOAD_BATCH) {
+    const batch = thoughts.slice(i, i + UPLOAD_BATCH);
+    await Promise.all(batch.map(async (p, j) => {
+      const idx = i + j;
+      const t = p.payload;
+      const filename = filenames[idx];
 
-    const frontmatter = toFrontmatter(t);
-    const links = buildLinksSection({ id: p.id, vector: p.vector, payload: t }, filename, thoughts);
-    const dateStr = formatDate(t.created_at);
-    const content = `${frontmatter}\n\n*${dateStr}*\n\n${t.text}\n${links}\n`;
+      const frontmatter = toFrontmatter(t);
+      const links = buildLinksSection({ id: p.id, vector: p.vector, payload: t }, filename, thoughts);
+      const dateStr = formatDate(t.created_at);
+      const content = `${frontmatter}\n\n*${dateStr}*\n\n${t.text}\n${links}\n`;
 
-    await drive.files.create({
-      requestBody: {
-        name: filename,
-        mimeType: 'text/markdown',
-        parents: [folderId],
-        createdTime: t.created_at,
-        modifiedTime: t.updated_at || t.created_at,
-      },
-      media: {
-        mimeType: 'text/markdown',
-        body: content,
-      },
-    });
+      await drive.files.create({
+        requestBody: {
+          name: filename,
+          mimeType: 'text/markdown',
+          parents: [folderId],
+          createdTime: t.created_at,
+          modifiedTime: t.updated_at || t.created_at,
+        },
+        media: {
+          mimeType: 'text/markdown',
+          body: content,
+        },
+      });
 
-    files.push(filename);
-    emit(`[${ts()}]   ✓ ${filename}`);
+      files[idx] = filename;
+      emit(`[${ts()}]   ✓ ${filename}`);
+    }));
   }
 
   // Step 5: People & Projects
@@ -274,11 +281,17 @@ export async function rebuildVault(onLog) {
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   }
 
-  async function writeStubs(folderName, names, envFolderId) {
-    if (names.size === 0) return { total: 0, created: [], existing: [] };
+  // Load vault context so writeStubs can resolve non-canonical names via the
+  // alias map. Without this check the export would create a brand-new
+  // canonical .md for every accent/order variant Haiku slipped past capture
+  // — that's how Hollósi István.md kept resurfacing alongside Istvan Hollosi.md.
+  const vaultCtx = await getVaultContext();
+
+  async function writeStubs(folderName, names, envFolderId, aliases, { skipAutoCreate = false } = {}) {
+    if (names.size === 0) return { total: 0, created: [], existing: [], skipped: [] };
     if (!envFolderId) {
       emit(`[${ts()}] Skipping ${folderName}/ — no folder ID configured`);
-      return { total: names.size, created: [], existing: [...names] };
+      return { total: names.size, created: [], existing: [...names], skipped: [] };
     }
     emit(`[${ts()}] Syncing ${folderName}/ (${names.size} entries)...`);
     const subfolderId = envFolderId;
@@ -301,11 +314,23 @@ export async function rebuildVault(onLog) {
       pt = res.data.nextPageToken;
     } while (pt);
 
+    // Case-insensitive alias lookup mirroring metadata.js::resolveAliases.
+    const aliasMap = aliases || {};
+    const aliasLower = {};
+    for (const [a, c] of Object.entries(aliasMap)) aliasLower[a.toLowerCase()] = c;
+
     const created = [];
     const existing = [];
+    const skipped = [];
     for (const name of names) {
-      if (existingNames.has(name) || existingNames.has(`${name}.md`)) {
+      const resolved = aliasLower[name.toLowerCase()] || name;
+      if (existingNames.has(resolved) || existingNames.has(`${resolved}.md`)) {
         existing.push(name);
+        continue;
+      }
+      if (skipAutoCreate) {
+        emit(`[${ts()}]   ⚠ unknown ${folderName.toLowerCase()}: "${name}" — add to vault manually if real`);
+        skipped.push(name);
         continue;
       }
 
@@ -326,16 +351,30 @@ export async function rebuildVault(onLog) {
       created.push(name);
       emit(`[${ts()}]   + ${folderName}/${name}.md (new)`);
     }
-    if (created.length === 0) emit(`[${ts()}]   No new ${folderName.toLowerCase()} entries`);
-    return { total: names.size, created, existing };
+    if (created.length === 0 && skipped.length === 0) emit(`[${ts()}]   No new ${folderName.toLowerCase()} entries`);
+    return { total: names.size, created, existing, skipped };
   }
 
-  const peopleResult = await writeStubs('People', allPeople, process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID);
-  const projectsResult = await writeStubs('Projects', allProjects, process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID);
+  const peopleResult = await writeStubs(
+    'People',
+    allPeople,
+    process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID,
+    vaultCtx.aliases,
+  );
+  const projectsResult = await writeStubs(
+    'Projects',
+    allProjects,
+    process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID,
+    vaultCtx.projectAliases,
+    { skipAutoCreate: true },
+  );
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   emit(`[${elapsed}s] ── Export complete ──`);
-  emit(`  ${files.length} thoughts · ${existingFiles.length} deleted · ${peopleResult.created.length} new people · ${projectsResult.created.length} new projects`);
+  const skippedNote = projectsResult.skipped.length
+    ? ` · ${projectsResult.skipped.length} unknown projects skipped`
+    : '';
+  emit(`  ${files.length} thoughts · ${existingFiles.length} deleted · ${peopleResult.created.length} new people · ${projectsResult.created.length} new projects${skippedNote}`);
   emit(`  Types: ${Object.entries(typeCounts).map(([k, v]) => `${k}(${v})`).join(' · ')}`);
   emit(`  People: ${[...allPeople].join(', ')}`);
   emit(`  Projects: ${[...allProjects].join(', ')}`);
@@ -359,6 +398,7 @@ export async function rebuildVault(onLog) {
       all: [...allProjects],
       created: projectsResult.created,
       existing: projectsResult.existing,
+      skipped: projectsResult.skipped,
     },
   };
 }
