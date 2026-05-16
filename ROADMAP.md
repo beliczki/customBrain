@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-16 (v0.14.0)
+## Last updated: 2026-05-16 (v0.15.0)
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 

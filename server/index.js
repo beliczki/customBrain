@@ -9,6 +9,7 @@ import recentRouter from './routes/recent.js';
 import statsRouter from './routes/stats.js';
 import exportRouter from './routes/export.js';
 import summaryRouter from './routes/summary.js';
+import agendaRouter from './routes/agenda.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import { handleMcpHttp } from './mcp.js';
 
@@ -24,7 +25,8 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/mcp') || req.path.startsWith('/capture') ||
       req.path.startsWith('/search') || req.path.startsWith('/recent') ||
       req.path.startsWith('/stats') || req.path.startsWith('/export') ||
-      req.path.startsWith('/thoughts') || req.path.startsWith('/fireflies-webhook')) {
+      req.path.startsWith('/thoughts') || req.path.startsWith('/agenda') ||
+      req.path.startsWith('/fireflies-webhook')) {
     return next();
   }
   res.sendFile(join(__dirname, '..', 'client', 'dist', 'index.html'));
@@ -63,6 +65,7 @@ app.use(recentRouter);
 app.use(statsRouter);
 app.use(exportRouter);
 app.use(summaryRouter);
+app.use(agendaRouter);
 
 // MCP endpoint (Streamable HTTP only)
 app.all('/mcp/http', handleMcpHttp);

@@ -2,6 +2,55 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.15.0 — 2026-05-16
+
+**P4f Agenda — MCP + UI preview, ships top-prio of the post-USE-IT-FIRST review.** Three-layer architecture: hourly cron writes a `state/agenda-cache.json` (today + 7 days, calendar events with brain context), HTTP route + MCP tool serve the cache, UI shows it as read-only preview. Subtask breakdown is **intentionally NOT done server-side** — that's the LLM's job in a Claude Desktop / Code session via the chat. Mirrors the 0.10.0 coworker-loop philosophy: server provides data primitives, inference happens in subscription-billed sessions.
+
+### Backend cron — `cron/agenda-sync.js` + `server/agenda.js`
+
+`syncAgenda({ daysAhead = 7 })` reads Google Calendar (existing `getCalendarEvents` from `agent/tools/calendar.js`), for each event calls `searchThoughts(title + attendee names, limit=5)`, filters matches by `AGENDA_MIN_SCORE` (default 0.5, env-var-overridable), aggregates per-event `{ thoughts, people, projects, topics }`. Writes the result to `state/agenda-cache.json`. Within one run, identical search queries are de-duped (recurring weekly meetings → single embed + search per unique query).
+
+The 0.5 score threshold was added after a first test run revealed the problem the 0.6.0 P1d semantic autolinks already solved at the export side: without a threshold the search returns top-5 matches regardless of relevance, so personal events like "fekvőtámasz rutin please" (push-up routine) got "ERSTE — DCO biweekly status" matches at score 0.33-0.40 — pure linguistic similarity, zero topical relevance. With the threshold, the same 26 events drop from 26/26 falsely "enriched" to 13/13 genuinely matched.
+
+Crontab on Hetzner: `15 * * * * cd /root/customBrain && /usr/bin/node cron/agenda-sync.js >> /var/log/brain-agenda.log 2>&1` — offset from the other crons (export :00, gmail */10, youtube */30, backup 03:00) to spread Calendar + Gemini load.
+
+### HTTP routes — `server/routes/agenda.js`
+
+`GET /agenda?days=N` returns the cached agenda filtered to first N days (default: full cache). `POST /agenda/sync` triggers a fresh sync (UI "Sync now" button). Both Bearer-auth via the shared middleware. `/agenda` added to the SPA wildcard guard in `server/index.js` per the existing convention.
+
+Internal helper `getAgenda({ days, force_refresh })` is what the MCP tool calls — auto-refreshes if cache is older than 1h, otherwise serves from cache.
+
+### MCP tool — `get_agenda`
+
+Registered in BOTH `server/mcp.js` and `server/mcp-stdio.js` per the CLAUDE.md duplication mandate. Params: `days` (1-7, default 1 = today only) and `force_refresh` (default false). Returns the full enriched agenda as JSON. The tool description explicitly tells the LLM "YOU do the subtask breakdown in conversation — nothing persists server-side" so a Claude Desktop user invoking it gets the right framing.
+
+### UI — `client/src/components/Agenda.jsx` + new "Agenda" tab in `App.jsx`
+
+Read-only preview grouped by day (Today / Tomorrow / weekday names). Per-event card: time range, attendee count, matching thoughts with similarity scores, project / people / topics chips (same color tokens as Recent). "Sync now" button + "synced X min ago" status. Empty events show "no brain context above threshold" instead of empty chips — no false signal.
+
+### What this enables
+
+Open the Agenda tab in the morning, scan today's meetings + their brain context, decide where you need preparation. For deeper work — "ok now break this into subtasks I can fit into the 9:00 Erste meeting" — switch to Claude Desktop, call `get_agenda({ days: 1 })`, let the LLM propose the breakdown in chat. Nothing is persisted unless you explicitly capture a thought afterwards. Per CLAUDE.md memory `feedback_local_oneoff_scope.md`-style: the agenda is a thinking aid, not project management.
+
+### Files touched
+
+- `server/agenda.js` (new lib)
+- `server/routes/agenda.js` (new route + `getAgenda` helper)
+- `cron/agenda-sync.js` (new cron entry point)
+- `server/index.js` (router + SPA guard)
+- `server/mcp.js` + `server/mcp-stdio.js` (new `get_agenda` tool, both files per duplication rule)
+- `client/src/api.js` (new `agenda()` + `agendaSync()`)
+- `client/src/App.jsx` (new tab)
+- `client/src/components/Agenda.jsx` (new UI)
+- `.gitignore` (added `backups/`, missed in 0.14.0)
+- Hetzner crontab: new `15 * * * *` line
+
+### Deferred / not built (intentional v1 scope)
+
+- No subtask persistence (chat history holds it; if you want it brain-side, manually `capture_thought` after)
+- No Calendar block manipulation, no Google Tasks integration — "time" is just a Haiku-style estimate in the chat
+- No agent that follows the agenda autonomously — flagged in ROADMAP P4f as a future possibility, blocked on (a) breakdown perzisztencia and (b) volume of past breakdowns to learn from
+
 ## 0.14.0 — 2026-05-16
 
 **Production lockdown + first real backup pipeline.** Three independent ops changes shipped together — all P0 "before sharing" prerequisites from the 2026-05-16 roadmap review.

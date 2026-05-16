@@ -12,6 +12,7 @@ import { findOverconnected } from './brain-hygiene.js';
 import { suggestCleanedMetadata } from './metadata.js';
 import { getVaultContext } from './drive-context.js';
 import { listThoughtsNeedingSummary, setThoughtTextWithSummary } from './routes/summary.js';
+import { getAgenda } from './routes/agenda.js';
 
 export function createMcpServer() {
   const server = new McpServer({
@@ -162,6 +163,19 @@ export function createMcpServer() {
     async () => {
       const results = await exportThoughts();
       return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    'get_agenda',
+    'Get your upcoming calendar agenda with brain context per event (matching thoughts, people, projects, topics). Server delivers the data; YOU (the LLM) do the subtask breakdown in conversation — nothing persists server-side. Pass days=1 for today only, up to days=7.',
+    {
+      days: z.number().min(1).max(7).optional().describe('How many days ahead to include (default 1 = today only)'),
+      force_refresh: z.boolean().optional().describe('Force a fresh sync, ignore cached. Default false — uses cache if under 1h old, else re-syncs.'),
+    },
+    async ({ days, force_refresh }) => {
+      const result = await getAgenda({ days: days ?? 1, force_refresh: force_refresh ?? false });
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     }
   );
 

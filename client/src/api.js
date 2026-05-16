@@ -46,6 +46,21 @@ export async function stats() {
   return res.json();
 }
 
+export async function agenda(days = 7) {
+  const res = await fetch(`${BASE}/agenda?days=${days}`, { headers: authHeaders() });
+  if (res.status === 404) return null;
+  return res.json();
+}
+
+export async function agendaSync(days = 7) {
+  const res = await fetch(`${BASE}/agenda/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ days }),
+  });
+  return res.json();
+}
+
 export async function exportToObsidian({ filter_topic, filter_days } = {}, onLog) {
   const res = await fetch(`${BASE}/export`, {
     method: 'POST',
