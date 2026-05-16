@@ -496,12 +496,17 @@ P13A Settings UI nélkül nincs sharing. P13B INSTALL.md csak akkor érdekes ha 
 
 **Független a jelenleg futó P12/P13-tól.** A relevance gyengeség minden olyan funkciónál visszaüt ami `search_brain`-re épül: Agenda, Chrome extension Save-to-Brain related-thoughts, get_event_context, manage_drafts review.
 
-### Likely causes (még nem megerősítve)
+### Likely causes (live evidence 2026-05-16)
 
-1. **`gemini-embedding-001` gyenge magyar domain-szókincsen** — főleg abbreviációkon (SZA, DCO, B2B sub-product code-ok), code-mixed HU/EN szövegen, és Bizi-specifikus belső terminusokon
-2. **Recency-rank a project-tag fallback-ben** rossz proxy a relevancia helyett — egy 18 thought-os customBrain projektben a legutóbbi 3 nem feltétlenül a legrelevánsabb a "dev next steps" event-hez
-3. **No re-rank layer** — top-K embed match common a tanult corpora-n hogy alacsony precision-ű; egy Haiku re-rank (vagy cross-encoder) javítana
-4. **No domain synonym expansion** — a search nem tudja hogy "SZA" ≈ "SZAMLAK" ≈ "számlák"
+1. **`gemini-embedding-001` gyenge magyar domain-rövidítéseken** — élő bizonyíték: a `ERSTE Adform SZA frissítés 150e kaphatsz uj template új feed!` query-re a top-20 search így néz ki:
+   - Rank 1-11: csupa általános ERSTE munka (Otthonstart, Kalkulátor, Beerste, Q1 longterm, DCO, Cseperedő) 67-70% score-ral — mind csak "ERSTE-themed" találat
+   - **Rank 14 (43%): `ERSTE — Online számla és diákszámla május 1-i váltása`** ← a TÉNYLEGESEN releváns thought (SZA = Számla)
+   - **Rank 15 (40%): `ERSTE — SZA Cseperedő Q2 2026 fókusz kampány`** ← literálisan "SZA" a címben
+   - A két valódi target 0.65 threshold alatt. Az embedding model nem tudja hogy a 3-betűs "SZA" rövidítés a magyar "Számla"-ra utal — csak 3 random karakter.
+2. **Recency-rank a project-tag fallback-ben** rossz proxy a relevancia helyett — egy 18 thought-os customBrain projektben a legutóbbi 3 ("AI-first knowledge graph architektúra", "AI feldolgozási réteg", "API-kulcs aktiválás teszt") nem feltétlenül a legrelevánsabb a "dev next steps" event-hez (relevánsabb lenne: "pillanatkép", "customBrain fejlesztési feedback").
+3. **No re-rank layer** — top-K embed match low precision-ű; egy Haiku re-rank (vagy cross-encoder) javítana.
+4. **No domain synonym expansion** — a search nem tudja hogy `SZA → SZAMLAK → számlák → Online számla`.
+5. **Single-shot vs smart agent eltérés** — a Te Claude Desktop-od 0.74 score-ral hozta fel az "Online számla" thoughtot, az Agenda UI 43%-on. Magyarázat: Claude Desktop valószínűleg **átfogalmazta a query-t** (pl. csak "számla" szót használt), vagy több search-et csinált. Az Agenda jelenleg single-shot `searchThoughts(title + attendees)` — nincs query-reformulation. Ez nem server-bug, hanem hiányzó agent-réteg.
 
 ### Approach options (cost-rendezve)
 
@@ -514,6 +519,14 @@ P13A Settings UI nélkül nincs sharing. P13B INSTALL.md csak akkor érdekes ha 
 | **E**: Embedding model csere (multilingual-e5-large vagy hasonló) — Qdrant collection re-embed all | ~4-6hr | Bizonytalan |
 
 **Javaslat sorrend**: A → B → (mérünk: ha A+B elég jó, megáll). C only ha kritikusan kell, D/E csak ha minden más kifulladt.
+
+**Updated 2026-05-16 a live evidence alapján**: Option B (terminology dict) ÉS Option C (Haiku reformulation) együtt valószínűleg a legjobb. A "SZA → számla" expansion önmagában is megoldaná a fenti konkrét case-t. Hibrid: synonym expansion + Haiku adott eseten ("nézd meg az event titulust + attendee neveket + kérdezd magadtól mi a tényleges téma, generálj 2-3 reformulated query-t, mind egy search-pass-ban") a legpoweresebb. Egy ilyen reformulated-search-batch költsége marginal: $0.001/event Haikuval × 25 event × 24 óra = $0.60/nap = $18/hó. Vállalható ha a relevance fáj.
+
+### Plusz finding: timestamp confusion
+
+A "Személyi kölcsön kalkulátor bannerek" thought tartalma egy 2025-11-10-i email Varfi Tamástól, de a thought `created_at`-je **2026-05-14** (a UI modal-on ez jelenik meg). Magyarázat: a user 2026-05-14-én labelelte `brain`-re a Nov 2025-i email-t, a Gmail intake cron akkor capture-olta. A `created_at` ≠ content date; `created_at` = brain-be kerülés dátuma. Per design helyes, de **kontextus-helyetlen amikor egy régi email kerül be sokkal később** — a user mentális modellje az "amikor a beszélgetés történt" dátum.
+
+**Lehetséges fix (külön ticket vagy P14 része)**: a UI mutathat egy másodlagos dátumot is — Gmail-nél `last_internal_date` (a thread legutóbbi üzenetének dátuma), Fireflies-nál a meeting date, content-ből parse-olt date-eket. Vagy egyszerűbben: a `created_at` mellé "captured" label legyen, hogy egyértelmű legyen a UI-on hogy ez a brain-be kerülés ideje, nem a tartalom dátuma.
 
 ### Mit NEM csinálunk most
 
