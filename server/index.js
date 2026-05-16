@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { applySettingsToEnv } from './config.js';
+const settingsLoad = applySettingsToEnv();
 import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +12,7 @@ import statsRouter from './routes/stats.js';
 import exportRouter from './routes/export.js';
 import summaryRouter from './routes/summary.js';
 import agendaRouter from './routes/agenda.js';
+import settingsRouter from './routes/settings.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import { handleMcpHttp } from './mcp.js';
 
@@ -26,7 +29,7 @@ app.get('*', (req, res, next) => {
       req.path.startsWith('/search') || req.path.startsWith('/recent') ||
       req.path.startsWith('/stats') || req.path.startsWith('/export') ||
       req.path.startsWith('/thoughts') || req.path.startsWith('/agenda') ||
-      req.path.startsWith('/fireflies-webhook')) {
+      req.path.startsWith('/settings') || req.path.startsWith('/fireflies-webhook')) {
     return next();
   }
   res.sendFile(join(__dirname, '..', 'client', 'dist', 'index.html'));
@@ -66,10 +69,11 @@ app.use(statsRouter);
 app.use(exportRouter);
 app.use(summaryRouter);
 app.use(agendaRouter);
+app.use(settingsRouter);
 
 // MCP endpoint (Streamable HTTP only)
 app.all('/mcp/http', handleMcpHttp);
 
 app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Open Brain server running on 127.0.0.1:${PORT} (nginx reverse-proxies from 443)`);
+  console.log(`Open Brain server running on 127.0.0.1:${PORT} (nginx reverse-proxies from 443) [config: ${settingsLoad.applied} from ${settingsLoad.source}]`);
 });

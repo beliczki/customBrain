@@ -67,6 +67,41 @@ export async function agendaSync(days = 7) {
   return res.json();
 }
 
+export async function getSettings(reveal = false) {
+  const res = await fetch(`${BASE}/settings${reveal ? '?reveal=true' : ''}`, { headers: authHeaders() });
+  return res.json();
+}
+
+export async function saveSettings(partial) {
+  const res = await fetch(`${BASE}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(partial),
+  });
+  return res.json();
+}
+
+export async function restartServer() {
+  const res = await fetch(`${BASE}/settings/restart`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return res.json();
+}
+
+// Poll until server responds (used after restart to know when it's back).
+export async function waitForServer(timeoutMs = 30000, intervalMs = 1000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${BASE}/stats`, { headers: authHeaders() });
+      if (res.ok) return true;
+    } catch { /* still down */ }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return false;
+}
+
 export async function exportToObsidian({ filter_topic, filter_days } = {}, onLog) {
   const res = await fetch(`${BASE}/export`, {
     method: 'POST',

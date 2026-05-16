@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-16 (v0.16.0)
+## Last updated: 2026-05-16 (v0.17.0)
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 
@@ -437,7 +437,11 @@ Cél: az X.com bookmarks-od (auth-fal mögött) bekerüljön brain-be a már bev
 
 ---
 
-## P13 — Settings UI + agent-installable (új 2026-05-16)
+## P13 — Settings UI + agent-installable (új 2026-05-16, A shipped 0.17.0)
+
+**Status (2026-05-16)**: P13A Settings UI ✅ shipped (0.17.0). P13B INSTALL.md teljes step-by-step még TBD, gated egy első barát-tester-en.
+
+
 
 Cél: bárki letöltheti gitből, beállíthatja saját Hetzneren (vagy bárhol), saját API tokenekkel — single-tenant, de **plug-and-play**. Nem multi-user (továbbra is: 1 instance = 1 ember), de a setup ne kelljen 4 óra .env-szerkesztgetés.
 
@@ -623,7 +627,7 @@ Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed
 
 1. **~~P0 Ops~~** — DONE (0.14.0)
 2. **~~P4f Agenda — MCP + UI preview~~** — DONE (0.15.0 + 0.15.1 refinements + 0.16.0 clickable thoughts modal)
-3. **P13A Settings UI** (~4-6hr) — `state/settings.json` storage, config service refactor, UI tab, migration script. Lásd P13 részletes szekciót. *(Előfeltétele a P13B-nek és bármilyen sharing-nek.)*
+3. **~~P13A Settings UI~~** — DONE (0.17.0)
 4. **P6 Brain Health Check** (~2-3hr) — On-demand audit MCP + HTTP route + Stats tab panel. Lásd P6 részletes szekciót.
 5. **P13B INSTALL.md teljes step-by-step** (~3-4hr) — Hetzneren tesztelve. Kapuja: van legalább 1 önként vállalkozó barát-tester aki napi szinten használná.
 6. **P14 Agenda relevance** — visszahozható priortásban ha napi szinten fáj. Most defer.

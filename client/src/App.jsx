@@ -5,10 +5,11 @@ import Recent from './components/Recent.jsx';
 import Agenda from './components/Agenda.jsx';
 import Stats from './components/Stats.jsx';
 import Export from './components/Export.jsx';
+import Settings from './components/Settings.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import pkg from '../package.json';
 
-const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Stats', 'Export'];
+const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Stats', 'Export', 'Settings'];
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'customBrain';
 const APP_VERSION = pkg.version;
 
@@ -104,6 +105,7 @@ export default function App() {
             {active === 'Agenda' && <Agenda />}
             {active === 'Stats' && <Stats />}
             {active === 'Export' && <Export />}
+            {active === 'Settings' && <Settings />}
           </div>
         </div>
       </div>

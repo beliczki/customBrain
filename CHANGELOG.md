@@ -2,6 +2,66 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.17.0 — 2026-05-16
+
+**P13A Settings UI shipped — env vars editable from the brain UI, settings.json is now the source of truth.** The hardcoded `.env`-based setup was the friction wall for any future sharing (you couldn't tell a friend "clone this and edit a .env on a server you SSH into" and expect them to actually do it). Now: clone, run, open Settings tab, paste keys, Save & Restart. Done.
+
+### Architecture (zero-risk, no module refactor)
+
+- **`state/settings.json`** — flat `{ KEY: "value", ..., "_updated_at": "..." }`, file perms 0600. Gitignored (`state/` already excluded).
+- **`server/config-schema.js`** — hardcoded array of 18 entries: `key`, `category`, `label`, `description`, `is_secret`, `required`, `default`. Add a new env var HERE and it shows up in the UI; values keep working via process.env fallback if not in schema.
+- **`server/config.js`** — `applySettingsToEnv()` reads settings.json on boot and **overrides** the matching `process.env` keys. `saveSettings(partial)` merges + writes + 0600. `getSettingsForUI({ revealSecrets })` joins schema + values with masking.
+- **`server/index.js`** — top of file: `import 'dotenv/config'; applySettingsToEnv();`. This means existing modules continue to read `process.env.X` directly — zero refactor needed, zero risk of breaking call sites. Settings.json values win over .env at boot.
+- **Backward compat**: if `state/settings.json` is missing or corrupt, the system transparently falls back to `.env`. Pre-0.17.0 deploys keep working.
+
+### HTTP routes (`server/routes/settings.js`)
+
+- `GET /settings` — schema joined with values, secrets masked as `••••••••<last4>`. `?reveal=true` returns plaintext (used by the UI "Show" button per-field).
+- `PUT /settings` — accepts `{ KEY: value, ... }` partial, merges into settings.json. For secrets, empty string OR a value starting with `••••` is treated as "leave as is" (so the UI's masked display doesn't accidentally overwrite secrets on save). Returns count of changed keys.
+- `POST /settings/restart` — responds 200 immediately, then `process.exit(0)` after 500ms so PM2 picks up a fresh process with the new env. UI polls `/stats` to detect when the server is back up.
+
+### Migration script — `scripts/migrate-env-to-settings.js`
+
+Idempotent. Reads current `process.env` (loaded from .env via dotenv), for each schema key writes to settings.json IF NOT ALREADY PRESENT. `--dry-run` mode shows what would change. After running once, the user verifies in the UI, then optionally deletes `.env`. We do NOT auto-delete .env — keeps the safety net during transition.
+
+First migration on Hetzner: 17 keys written (AGENDA_MIN_SCORE not in .env — uses code default 0.65).
+
+### UI — `client/src/components/Settings.jsx` + new "Settings" tab
+
+- Categorized form (Core / AI Providers / Google Drive / Fireflies / Gmail / YouTube / Tunables)
+- Per-field: label + key (mono) + description + source badge (`settings.json` / `.env` / `unset`) + value input
+- Secrets: `password` input type, "Show" button fetches unmasked value (via `?reveal=true`) and reveals temporarily for that field
+- Dirty tracking: changed fields get amber-bordered inputs; unsaved count shown next to Save buttons
+- Two save modes:
+  - **Save**: write + reload form, no restart (for non-critical changes like labels or thresholds)
+  - **Save & Restart**: write → `POST /settings/restart` → poll `/stats` until server back → reload form
+- Required fields starting empty get a red `REQUIRED — not set` badge
+
+### Files
+
+- `server/config-schema.js` (new)
+- `server/config.js` (new) — `loadSettings`, `applySettingsToEnv`, `saveSettings`, `getSettingsForUI`
+- `server/routes/settings.js` (new) — GET/PUT/POST
+- `server/index.js` — import + apply at top, router + SPA guard
+- `scripts/migrate-env-to-settings.js` (new) — one-off + idempotent re-runnable
+- `client/src/api.js` — `getSettings`, `saveSettings`, `restartServer`, `waitForServer`
+- `client/src/components/Settings.jsx` (new) — categorized form + secrets + restart flow
+- `client/src/App.jsx` — Settings tab added
+
+### Why minor (0.17.0)
+
+New user-visible capability (UI tab), new HTTP routes, new boot mechanism, new source-of-truth file. Not a tweak of 0.16.x — genuinely adds a setup surface that future-shared deploys depend on.
+
+### What this gates
+
+P13B (agent-installable INSTALL.md) is now meaningful: a fresh Hetzner can be brought up via `INSTALL.md` instructions to a state where the user opens the UI Settings tab and pastes keys. No SSH-edit-env step. P13B itself still TBD — needs hand-testing on a fresh box.
+
+### What this does NOT change
+
+- Multi-user model — still single-tenant, one CAPTURE_SECRET unlocks both API and Settings tab
+- Hot reload — explicitly chose restart-based to avoid the complexity of re-importing modules with new env. Restart is ~3-5 seconds
+- Encryption at rest — settings.json is 0600 on disk, not encrypted. Same security profile as .env was
+
 ## 0.16.0 — 2026-05-16
 
 **Clickable thoughts in Agenda → modal overlay with full Recent-style thought view.** Per direct user feedback after the 0.15.1 Agenda iteration: per-event thought titles are a tease without the actual content, and toggling tabs to look up a thought breaks the agenda-review flow. Now: click any thought in an Agenda event → overlay modal opens, fetches the full thought, renders it with the same template used in Recent.
