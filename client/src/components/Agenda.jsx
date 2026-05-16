@@ -136,71 +136,54 @@ export default function Agenda() {
 
 function AgendaEventCard({ entry }) {
   const { event, brain_context: ctx } = entry;
-  const hasContext = ctx.thoughts.length > 0 || ctx.people.length > 0 || ctx.projects.length > 0;
   const attendeeCount = (event.attendees || []).length;
+  const hasThoughts = ctx.thoughts.length > 0;
+  const detected = ctx.detected_projects || [];
+  const counts = ctx.project_thought_counts || {};
 
   return (
     <div className="agenda-event py-4 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
-      <div className="flex items-start justify-between mb-2 gap-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1 text-xs text-txt-ter">
-            <span className="font-mono">{timeRange(event.start, event.end, event.is_all_day)}</span>
-            {attendeeCount > 0 && (
-              <span>· {attendeeCount} attendee{attendeeCount === 1 ? '' : 's'}</span>
-            )}
-          </div>
-          <h3 className="text-sm font-medium text-txt">{event.title || '(no title)'}</h3>
+      {/* Event header */}
+      <div className="agenda-event__head mb-2">
+        <div className="flex items-center gap-2 mb-1 text-xs text-txt-ter">
+          <span className="font-mono">{timeRange(event.start, event.end, event.is_all_day)}</span>
+          {attendeeCount > 0 && (
+            <span>· {attendeeCount} attendee{attendeeCount === 1 ? '' : 's'}</span>
+          )}
         </div>
+        <h3 className="text-sm font-medium text-txt">{event.title || '(no title)'}</h3>
       </div>
 
-      {!hasContext && (
-        <p className="text-xs text-txt-ter italic">no brain context above threshold</p>
-      )}
-
-      {ctx.thoughts.length > 0 && (
-        <div className="agenda-event__thoughts mt-3 space-y-1">
-          {ctx.thoughts.map((t) => (
-            <div key={t.id} className="flex items-baseline gap-2 text-xs">
-              <span className="text-txt-ter font-mono w-10 shrink-0">{(t.score * 100).toFixed(0)}%</span>
-              <span className="text-txt-sec">{t.title}</span>
-            </div>
+      {/* Detected project header — only when a known project name is in the title */}
+      {detected.length > 0 && (
+        <div className="agenda-event__project-header mt-2 text-xs">
+          {detected.map((proj) => (
+            <span key={proj} className="text-txt-sec">
+              <span className="text-txt-ter">Project: </span>
+              <strong className="text-purple-700 dark:text-purple-300">{proj}</strong>
+              {counts[proj] != null && (
+                <span className="text-txt-ter"> · {counts[proj]} thought{counts[proj] === 1 ? '' : 's'} tagged</span>
+              )}
+              {' '}
+            </span>
           ))}
         </div>
       )}
 
-      {(ctx.projects.length > 0 || ctx.people.length > 0 || ctx.topics.length > 0) && (
-        <div className="agenda-event__meta mt-3 space-y-1.5 text-xs">
-          {ctx.projects.length > 0 && (
-            <div className="flex items-start gap-2">
-              <span className="text-txt-ter w-16 shrink-0 pt-0.5">Projects</span>
-              <div className="flex gap-1 flex-wrap">
-                {ctx.projects.map((p) => (
-                  <span key={p} className="px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">{p}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {ctx.people.length > 0 && (
-            <div className="flex items-start gap-2">
-              <span className="text-txt-ter w-16 shrink-0 pt-0.5">People</span>
-              <div className="flex gap-1 flex-wrap">
-                {ctx.people.map((p) => (
-                  <span key={p} className="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">{p}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {ctx.topics.length > 0 && (
-            <div className="flex items-start gap-2">
-              <span className="text-txt-ter w-16 shrink-0 pt-0.5">Topics</span>
-              <div className="flex gap-1 flex-wrap">
-                {ctx.topics.map((t) => (
-                  <span key={t} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">{t}</span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Thoughts list — primary content */}
+      {hasThoughts ? (
+        <ul className="agenda-event__thoughts mt-3 space-y-1">
+          {ctx.thoughts.map((t) => (
+            <li key={t.id} className="flex items-baseline gap-2 text-xs">
+              <span className={`font-mono w-12 shrink-0 ${t.score == null ? 'text-purple-600 dark:text-purple-400' : 'text-txt-ter'}`}>
+                {t.score == null ? 'recent' : `${Math.round(t.score * 100)}%`}
+              </span>
+              <span className="text-txt-sec flex-1">{t.title}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-txt-ter italic mt-2">no matching thoughts</p>
       )}
     </div>
   );

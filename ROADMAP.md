@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-16 (v0.15.0)
+## Last updated: 2026-05-16 (v0.15.1)
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 
@@ -480,6 +480,48 @@ B) INSTALL.md teljes részletes: ~3-4hr külön session-ben Hetzneren tesztelve
 ### Sharing előfeltétele
 
 P13A Settings UI nélkül nincs sharing. P13B INSTALL.md csak akkor érdekes ha van legalább 1 önként vállalkozó barát-tester (1 hónap napi single-tenant use).
+
+---
+
+## P14 — Agenda relevance / Qdrant search quality (új 2026-05-16, founded by 0.15.0 real use)
+
+**Probléma**: a 0.15.x Agenda live tesztje után egyértelmű hogy a Qdrant semantic search gyenge releváns thoughts-felhozásban a Te tényleges brain-edre. Példák a 2026-05-16 agenda-ról:
+- **"ERSTE Adform SZA frissítés 150e..."** — a "SZA" Te számára `SZAMLAK`-ot (számlák) jelent, de a search "Beerste 3.0 kampány költségvetést" hoz fel — más, régebbi, kampány-pénzügyi kontextus, irreleváns
+- **"customBrain dev next steps..."** — a `recent` fallback `AI-first knowledge graph architektúra`, `AI feldolgozási réteg`, `API-kulcs aktiválás teszt`-et hoz, miközben a brain-ben vannak relevánsabbak: "pillanatkép", "customBrain fejlesztési feedback"
+- Általában: `0.65` cosine threshold sok valódi releváns thoughtot is kiszűr, miközben gyenge linguistic-similarity match-ek 0.7+ score-ral még mindig átmennek
+
+**Független a jelenleg futó P12/P13-tól.** A relevance gyengeség minden olyan funkciónál visszaüt ami `search_brain`-re épül: Agenda, Chrome extension Save-to-Brain related-thoughts, get_event_context, manage_drafts review.
+
+### Likely causes (még nem megerősítve)
+
+1. **`gemini-embedding-001` gyenge magyar domain-szókincsen** — főleg abbreviációkon (SZA, DCO, B2B sub-product code-ok), code-mixed HU/EN szövegen, és Bizi-specifikus belső terminusokon
+2. **Recency-rank a project-tag fallback-ben** rossz proxy a relevancia helyett — egy 18 thought-os customBrain projektben a legutóbbi 3 nem feltétlenül a legrelevánsabb a "dev next steps" event-hez
+3. **No re-rank layer** — top-K embed match common a tanult corpora-n hogy alacsony precision-ű; egy Haiku re-rank (vagy cross-encoder) javítana
+4. **No domain synonym expansion** — a search nem tudja hogy "SZA" ≈ "SZAMLAK" ≈ "számlák"
+
+### Approach options (cost-rendezve)
+
+| Option | Effort | Yield (becslés) |
+|---|---|---|
+| **A**: project-tag fallback-ben recency helyett **cosine-to-event-title within project subset** | ~30min | Magas (customBrain case fix) |
+| **B**: user-curated terminológia szótár (`config/synonyms.yaml`: SZA → "számla SZAMLAK", DCO → "..."), query expansion at search time | ~1hr | Közepes-magas |
+| **C**: Haiku re-rank — adott event-titlere és top-10 candidate-re, kérd Haikut hogy válasszon top-3-at. Költség: $0.01/event × 25 event × 24 hourly = ~$6/nap = $180/hó | ~2hr | Magas, de költséges |
+| **D**: P8 RRF hybrid (BM25 sparse + dense) — már a roadmap-en `DEFERRED`-ként, de a current evidence visszatolhatja az aktív listára | ~2 days | Bizonytalan magyar nyelven |
+| **E**: Embedding model csere (multilingual-e5-large vagy hasonló) — Qdrant collection re-embed all | ~4-6hr | Bizonytalan |
+
+**Javaslat sorrend**: A → B → (mérünk: ha A+B elég jó, megáll). C only ha kritikusan kell, D/E csak ha minden más kifulladt.
+
+### Mit NEM csinálunk most
+
+Ez P14, nem azonnali — a current execution order P12/P13 marad fókusz. P14 visszahozható prioritásban ha:
+- Agenda relevance napi szinten fájdalmas
+- Más search-épült feature (Chrome ext related-thoughts, draft review) is láthatóan rossz
+- Másik user (P13 után) hasonló relevance-panaszt jelent
+
+### Cross-ref
+
+- 0.6.0 P1d már megoldotta ezt az export `## Related thoughts` szekcióhoz (cosine threshold + top-N) — de ott a "compare against the brain itself" use-case van, nem "compare external query (event title) against brain"
+- P10 (DONE) brain-hygiene a metadata over-tagging-et oldja meg, NEM a search relevance-t
 
 ---
 

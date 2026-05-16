@@ -2,6 +2,44 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.15.1 — 2026-05-16
+
+**Agenda refinements after first live use of 0.15.0.** Three issues surfaced on the first morning agenda view:
+
+### 1. Score threshold raised 0.5 → 0.65
+
+The 0.5 default let through linguistic-similarity noise. Specifically: "UJ rutinok, ne legyél cigány, pakolj el" (a personal reminder about routines) got matched to "Bizi — UIUX final check és feedback mechanizmus" at 0.64 — zero topical overlap, pure HU lexical drift. Bumped `AGENDA_MIN_SCORE` default to 0.65 (env-var-overridable). Real meetings with attendees still surface their context (DCO biweekly status etc. score 0.76+); personal events now correctly read "no matching thoughts".
+
+### 2. Project-tag fallback
+
+When the event title contains a known vault project name (matched case-insensitive against `getVaultContext().projects` + `projectAliases`), the cache now augments the per-event thoughts with top-N most recent active project-tagged thoughts via `scrollFilteredRaw` over the `projects` payload field. This handles the case where "customBrain dev next steps Prio agenda security update" had no semantic match above threshold, but the user reasonably expects the brain to surface customBrain-tagged thoughts. New cache fields per event: `detected_projects: [canonical]` and `project_thought_counts: { canonical: N }`. Project-tag thoughts are marked `match_reason: 'project_tag'`, semantic matches `'semantic'`. Mixing the two within the 5-slot budget gives both hybrid coverage and a visible signal that the project has more material (count) to dig into beyond the listed 3.
+
+Per-project lazy cache inside one sync run avoids re-scrolling Qdrant for the same project across multiple events.
+
+### 3. UI simplified — drop people / topics / projects chip aggregation, thoughts as primary
+
+Per direct user feedback after seeing the first render: "amugy nem embereket hanem thoughokat kéne listázzon". The 0.15.0 UI showed an aggregated chip cluster per event (people from attendees + people from matched thoughts, all topics, all projects) — visually noisy and not the primary signal. 0.15.1 drops the chip aggregation entirely. Per event card now shows:
+
+- Time range + attendee count + event title (unchanged)
+- Optional `Project: <X> · N thoughts tagged` header line (when detected_projects non-empty)
+- Thoughts list: `XX%` (semantic) or `recent` (project_tag) badge + thought title
+- "no matching thoughts" italic line when ctx.thoughts is empty (replaces "no brain context above threshold")
+
+The cache still aggregates people/projects/topics — UI just doesn't render them. Removing later if no consumer materializes.
+
+### Files
+
+- `server/agenda.js` — threshold const, buildProjectMap, detectProjectsInTitle, projectTaggedThoughts, per-event fallback logic; cache shape adds `detected_projects` + `project_thought_counts` per event and `match_reason` per thought
+- `client/src/components/Agenda.jsx` — full rewrite of the per-event card
+
+### Known limitation — see P14
+
+The semantic search itself remains weak on Hungarian domain terminology + recency-sorted project fallback is a poor proxy for relevance. Documented as new ROADMAP item P14 (Agenda relevance / Qdrant search quality), independent of the current execution order. Will be addressed when relevance pain dominates other work.
+
+### Deploy note — `git stash -u` gotcha
+
+During the 0.15.0 → 0.15.1 deploy cycle we hit an unexpected interaction: `git stash push -u` followed by `git stash drop` on the Hetzner working tree wiped `state/agenda-cache.json` even though `state/` is gitignored. Likely cause: when stash includes untracked files (`-u`), it apparently doesn't respect `.gitignore` consistently for nested files inside gitignored dirs. Worked around by rerunning `cron/agenda-sync.js` after pull. For future deploys consider explicit file lists or a different deploy mechanism that doesn't touch `state/`.
+
 ## 0.15.0 — 2026-05-16
 
 **P4f Agenda — MCP + UI preview, ships top-prio of the post-USE-IT-FIRST review.** Three-layer architecture: hourly cron writes a `state/agenda-cache.json` (today + 7 days, calendar events with brain context), HTTP route + MCP tool serve the cache, UI shows it as read-only preview. Subtask breakdown is **intentionally NOT done server-side** — that's the LLM's job in a Claude Desktop / Code session via the chat. Mirrors the 0.10.0 coworker-loop philosophy: server provides data primitives, inference happens in subscription-billed sessions.

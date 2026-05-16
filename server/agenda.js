@@ -9,12 +9,16 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getCalendarEvents } from '../agent/tools/calendar.js';
 import { searchThoughts } from './routes/search.js';
+import { getVaultContext } from './drive-context.js';
+import { scrollFilteredRaw } from './qdrant.js';
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 export const AGENDA_CACHE_PATH = resolve(MODULE_DIR, '..', 'state', 'agenda-cache.json');
 
 const SEARCH_LIMIT = 5;
-const MIN_SCORE = Number(process.env.AGENDA_MIN_SCORE || 0.5);
+const MIN_SCORE = Number(process.env.AGENDA_MIN_SCORE || 0.65);
+const TOTAL_THOUGHTS_PER_EVENT = 5;
+const PROJECT_FALLBACK_RECENT = 3;
 
 function buildSearchQuery(event) {
   const attendeeNames = (event.attendees || [])
@@ -43,11 +47,56 @@ function aggregateContext(thoughts, attendees) {
       title: t.title,
       score: Math.round(t.score * 100) / 100,
       type: t.metadata?.type || null,
+      projects: t.metadata?.projects || [],
+      match_reason: 'semantic',
     })),
     people: [...people],
     projects: [...projects],
     topics: [...topics],
   };
+}
+
+function buildProjectMap(vault) {
+  // lowercase name → canonical name. Sorted by length desc later so multi-word
+  // matches win over substrings ("Hello Business" before "Bizi").
+  const map = {};
+  if (!vault) return map;
+  for (const name of vault.projects || []) {
+    map[name.toLowerCase()] = name;
+  }
+  for (const [alias, canonical] of Object.entries(vault.projectAliases || {})) {
+    map[alias.toLowerCase()] = canonical;
+  }
+  return map;
+}
+
+function detectProjectsInTitle(title, projectMap) {
+  if (!title) return [];
+  const lower = title.toLowerCase();
+  const matched = [];
+  const sorted = Object.keys(projectMap).sort((a, b) => b.length - a.length);
+  for (const lowerName of sorted) {
+    if (lower.includes(lowerName)) {
+      const canonical = projectMap[lowerName];
+      if (!matched.includes(canonical)) matched.push(canonical);
+    }
+  }
+  return matched;
+}
+
+async function projectTaggedThoughts(canonicals) {
+  if (!canonicals.length) return [];
+  // Qdrant filter — projects field is not indexed but at <1k thoughts the
+  // full-scan cost is trivial (~tens of ms).
+  const filter = {
+    must: [{ key: 'projects', match: { any: canonicals } }],
+    must_not: [{ key: 'status', match: { value: 'archived' } }],
+  };
+  const rows = await scrollFilteredRaw(filter, 200).catch((err) => {
+    console.warn(`[agenda] project filter scroll failed: ${err.message}`);
+    return [];
+  });
+  return rows;
 }
 
 export async function syncAgenda({ daysAhead = 7 } = {}) {
@@ -60,6 +109,23 @@ export async function syncAgenda({ daysAhead = 7 } = {}) {
     end: end.toISOString(),
   });
 
+  // Vault context for project-name detection in event titles. Best-effort —
+  // if Drive is unreachable, we skip project fallback (semantic search only).
+  const vault = await getVaultContext().catch((err) => {
+    console.warn(`[agenda] vault context unavailable: ${err.message}`);
+    return null;
+  });
+  const projectMap = buildProjectMap(vault);
+
+  // Per-project lazy cache to avoid re-scrolling for the same project across events.
+  const projectThoughtsCache = new Map();
+  const getProjectThoughts = async (canonical) => {
+    if (projectThoughtsCache.has(canonical)) return projectThoughtsCache.get(canonical);
+    const rows = await projectTaggedThoughts([canonical]);
+    projectThoughtsCache.set(canonical, rows);
+    return rows;
+  };
+
   // De-dupe identical search queries within one run (recurring meetings):
   // run search once per unique query, fan out the result.
   const queryCache = new Map();
@@ -69,7 +135,7 @@ export async function syncAgenda({ daysAhead = 7 } = {}) {
     if (event.is_all_day) {
       enriched.push({
         event,
-        brain_context: { thoughts: [], people: [], projects: [], topics: [] },
+        brain_context: { thoughts: [], people: [], projects: [], topics: [], detected_projects: [], project_thought_counts: {} },
       });
       continue;
     }
@@ -91,10 +157,46 @@ export async function syncAgenda({ daysAhead = 7 } = {}) {
       }
     }
 
-    enriched.push({
-      event,
-      brain_context: aggregateContext(thoughts, event.attendees),
-    });
+    const aggregated = aggregateContext(thoughts, event.attendees);
+
+    // Project fallback: if the event title references a known project,
+    // augment with the most recent project-tagged thoughts (regardless of
+    // semantic similarity to the event title). This handles the case where
+    // "customBrain dev next steps" should surface customBrain-tagged thoughts
+    // even if the linguistic match is weak.
+    const detected = detectProjectsInTitle(event.title, projectMap);
+    const projectThoughtCounts = {};
+    if (detected.length > 0) {
+      const existingIds = new Set(aggregated.thoughts.map((t) => t.id));
+      const slotsLeft = TOTAL_THOUGHTS_PER_EVENT - aggregated.thoughts.length;
+      for (const canonical of detected) {
+        const rows = await getProjectThoughts(canonical);
+        projectThoughtCounts[canonical] = rows.length;
+      }
+      if (slotsLeft > 0) {
+        const allRows = [];
+        for (const canonical of detected) {
+          allRows.push(...(await getProjectThoughts(canonical)));
+        }
+        const added = allRows
+          .filter((p) => !existingIds.has(p.id))
+          .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+          .slice(0, Math.min(slotsLeft, PROJECT_FALLBACK_RECENT))
+          .map((p) => ({
+            id: p.id,
+            title: p.title,
+            score: null,
+            type: p.type || null,
+            projects: p.projects || [],
+            match_reason: 'project_tag',
+          }));
+        aggregated.thoughts.push(...added);
+      }
+    }
+    aggregated.detected_projects = detected;
+    aggregated.project_thought_counts = projectThoughtCounts;
+
+    enriched.push({ event, brain_context: aggregated });
   }
 
   const cache = {
