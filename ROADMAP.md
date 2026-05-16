@@ -437,9 +437,9 @@ Cél: az X.com bookmarks-od (auth-fal mögött) bekerüljön brain-be a már bev
 
 ---
 
-## P13 — Settings UI + agent-installable (új 2026-05-16, A shipped 0.17.0)
+## P13 — Settings UI ✅ DONE (0.17.0)
 
-**Status (2026-05-16)**: P13A Settings UI ✅ shipped (0.17.0). P13B INSTALL.md teljes step-by-step még TBD, gated egy első barát-tester-en.
+**Status (2026-05-16)**: P13A Settings UI shipped (0.17.0). P13B (INSTALL.md teljes step-by-step) átsorolva → **P16**, deprioritized. P14 vette át a következő prio helyét (relevance fáj, evidence-based).
 
 
 
@@ -462,36 +462,16 @@ Cél: bárki letöltheti gitből, beállíthatja saját Hetzneren (vagy bárhol)
 
 **Onboarding** (első indítás): ha `state/settings.json` üres ÉS `.env` is üres → UI a Settings tab-ra redirect-el "complete setup" üzenettel. Más tab-okon error banner: "API keys missing".
 
-### B) Agent-installable — `INSTALL.md`
+### B) Agent-installable — átsorolva → P16
 
-Új gyökér-szintű fájl, **Claude Code-nak írva, nem embernek**. Skeleton most kerül be, részletes step-by-step parancsok későbbi session-ben Hetzneren tesztelve.
-
-Cél workflow:
-1. User kap egy hostot (Hetzner CX22 vagy más Ubuntu 24.04 VPS), SSH kulccsal
-2. Lokális Claude Code-nak megadja: "set up customBrain on root@<host> with this key"
-3. Claude Code követi `INSTALL.md`-t, mindenhol verify command-okkal — tudja mikor akadt el
-4. Végén: user mehet `https://<host>/`-ra, Settings tab, paste API keys
-5. Plug be Claude Desktop-ba MCP config snippet alapján
-
-### Verzió-bump
-
-A) Settings UI → 0.x.0 → 0.x+1.0 (minor: új tab, új storage, config service refactor)
-B) INSTALL.md skeleton → patch (doc-only)
-B) INSTALL.md teljes step-by-step → minor (új user-visible capability)
-
-### Becsült erőfeszítés
-
-A) Settings UI: ~4-6hr (storage 1hr + config service refactor 1-2hr + UI tab 2hr + migration script 0.5hr + onboarding flow 0.5hr)
-B) INSTALL.md skeleton: ~30min most
-B) INSTALL.md teljes részletes: ~3-4hr külön session-ben Hetzneren tesztelve
-
-### Sharing előfeltétele
-
-P13A Settings UI nélkül nincs sharing. P13B INSTALL.md csak akkor érdekes ha van legalább 1 önként vállalkozó barát-tester (1 hónap napi single-tenant use).
+A B részt 2026-05-16 estéjén különválasztottuk **P16**-ra (lásd lent), mert a P14 relevance fix sürgetőbbé vált a saját napi használatból, és a P16 amúgy is gated egy első barát-tester-en — addig csak doc-szintű skeleton kell, ami már 0.14.0-ban bekerült.
 
 ---
 
-## P14 — Agenda relevance / Qdrant search quality (új 2026-05-16, founded by 0.15.0 real use)
+## P14 — Agenda relevance / Qdrant search quality — ACTIVE NEXT (promoted 2026-05-16 estéjén)
+
+**Status 2026-05-16 estéjén**: defer → **active next**. User-feedback: "fáj". A P13B átsorolva → P16, mert a relevance napi szinten jobban hat mint az install-csomagolás (utóbbi amúgy is gated barát-testeren).
+
 
 **Probléma**: a 0.15.x Agenda live tesztje után egyértelmű hogy a Qdrant semantic search gyenge releváns thoughts-felhozásban a Te tényleges brain-edre. Példák a 2026-05-16 agenda-ról:
 - **"ERSTE Adform SZA frissítés 150e..."** — a "SZA" Te számára `SZAMLAK`-ot (számlák) jelent, de a search "Beerste 3.0 kampány költségvetést" hoz fel — más, régebbi, kampány-pénzügyi kontextus, irreleváns
@@ -596,6 +576,34 @@ Bárhonnan elindítható, doc-only-ig itt vár.
 
 ---
 
+## P16 — INSTALL.md teljes step-by-step (átsorolva volt-P13B-ből, 2026-05-16 estéjén)
+
+**Status**: defer, gated egy első barát-tester-en. Skeleton már megvan (`INSTALL.md` a repo gyökerén 0.14.0 óta), de a tényleges step-by-step parancsok hand-tesztelés-igényesek Hetzneren és csak akkor érdekes ha lesz valaki aki ténylegesen letölti és felteszi.
+
+### Cél workflow
+
+1. User kap egy hostot (Hetzner CX22 vagy más Ubuntu 24.04 VPS), SSH kulccsal
+2. Lokális Claude Code-nak megadja: "set up customBrain on root@<host> with this key"
+3. Claude Code követi `INSTALL.md`-t, mindenhol verify command-okkal — tudja mikor akadt el
+4. Végén: user mehet `https://<host>/`-ra, Settings tab, paste API keys
+5. Plug be Claude Desktop-ba MCP config snippet alapján
+
+### Becsült erőfeszítés
+
+~3-4hr külön session-ben Hetzneren tesztelve. A skeleton már megvan, az `INSTALL.md` 8 step-jét kell kitölteni Commands / Verify / Recover blokkokkal.
+
+### Sharing előfeltétele
+
+P16 nélkül egy barát-tester se tud könnyen felrakni. P16 előtt mindenképp **P15 Option A+B** (admin token + Show gomb leverése) — különben az átadott CAPTURE_SECRET egy lopott token = teljes 3rd-party access.
+
+### Mikor kerül vissza prioritásba
+
+- Megjelenik az első önként vállalkozó barát aki konkrétan akarja
+- VAGY: kész egy demó környezet és kell egy konzisztens setup-doku ahhoz
+- VAGY: a vízió ("federation") komolyabban felmerül és kell hogy 2+ instance létezzen
+
+---
+
 ## ~~P10: Brain Connection Hygiene~~ — DONE (2026-04-19, v0.5.0 + 0.5.2 post-pilot hardening)
 
 Interactive metadata curation — surfaces over-tagged thoughts, Haiku proposes tighter metadata, user approves, Qdrant patched in place, Obsidian graph self-corrects on next hourly export. Plus: tightened capture-time extraction prompt so new thoughts don't reintroduce the problem.
@@ -679,9 +687,9 @@ Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed
 2. **~~P4f Agenda — MCP + UI preview~~** — DONE (0.15.0 + 0.15.1 refinements + 0.16.0 clickable thoughts modal)
 3. **~~P13A Settings UI~~** — DONE (0.17.0)
 4. **~~P6 Brain Health Check~~** — DONE (0.18.0)
-5. **P13B INSTALL.md teljes step-by-step** (~3-4hr) — Hetzneren tesztelve. Kapuja: van legalább 1 önként vállalkozó barát-tester aki napi szinten használná.
-6. **P14 Agenda relevance** — visszahozható priortásban ha napi szinten fáj. Most defer.
-7. **P15 Security hardening** — pre-P13B kötelező pre-req (admin token + Show gomb leverése, ~1.5hr). Most defer, de **a P13B előtt mindenképp visszahozni**.
+5. **P14 Agenda relevance — ACTIVE NEXT** (promoted 2026-05-16 estéjén; "fáj") — javasolt scope: Option A (project-tag fallback re-rank cosine-szal, ~30min) + Option B (synonym dict pl. SZA→számla, ~1hr). Option C (Haiku reformulation) csak ha A+B mérése után még gyenge.
+6. **P15 Security hardening** — pre-P16 kötelező pre-req (admin token + Show gomb leverése, ~1.5hr). Defer.
+7. **P16 INSTALL.md teljes step-by-step** (~3-4hr) — átsorolva volt-P13B-ből. Gated egy első barát-tester-en.
 8. **~~P12 X.com bookmarks~~** — DEFERRED post-agenda use. Lásd P12 banner.
 9. ***Sharing / federation vízió — nem most.*** Step 1 = 1 barát napi user 1 hónapig single-tenant instance-en. Csak utána térünk vissza a federation-protocol kérdésre.
 
