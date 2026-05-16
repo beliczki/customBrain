@@ -546,6 +546,56 @@ Ez P14, nem azonnali — a current execution order P12/P13 marad fókusz. P14 vi
 
 ---
 
+## P15 — Security hardening: a több titok = több gond elv (új 2026-05-16, post-0.17.0 Settings UI)
+
+**Premissza**: minden új integráció (Anthropic, Gemini, Drive×2, Gmail, Calendar, YouTube, Fireflies — már most 7+ provider) bővíti a secrets-listát. A 0.17.0 P13A Settings UI mind ezeket egy helyre, **a CAPTURE_SECRET mögé** rendezte. **Minél több titok van a brain-ben, annál pöpecebbre kell csinálni a security-t — különben egy lopott CAPTURE_SECRET = teljes hozzáférés minden szolgáltatáshoz amit a brain használ.**
+
+Konkrétan ma (0.17.0):
+- Ha valaki megszerzi a CAPTURE_SECRET-et (böngésző localStorage, hálózati MITM HTTPS-en kívül, vállfani Chrome extension, lopott laptop), akkor:
+  - UI-on bejön → Settings tab → "Show" gomb minden secret mellett → **plaintext** Anthropic key, Google OAuth2 refresh token, Gemini key, Fireflies webhook secret, mind kiolvashatóak
+  - Anthropic key-vel a támadó az **Te számládra** generálhat tartalmat amíg észre nem veszed
+  - Google OAuth2 refresh token-nel a **teljes Drive-od + Gmail-ed + Calendar-od + YouTube-od** elérhető
+  - Capture/delete bármelyik thought, Obsidian vault átírható, Qdrant collection törölhető
+- A blast radius ma: **az összes brain-be konfigurált 3rd-party szolgáltatás**
+
+Single-tenant + Te-csak-Te scenario-ban (mai állapot) ez kezelhető (a böngésződ a Te felelősséged), de:
+
+### Mikor kerül vissza prioritásba
+
+- **P13B-re felkészülve**: amikor első barát-tester felteszi sajátja, a setup-folyamatot is dokumentálni kell hogy SSE-hidé legyen tisztában a kockázattal. Az INSTALL.md-be kerüljön egy "Security model" szekció.
+- **Bármilyen sharing/multi-user felé**: ha 2+ ember egy instance-on, a CAPTURE_SECRET = master modell tarthatatlan. Külön admin szerep kell.
+- **Új provider beépítésekor**: minden új secret új surface — kérdés: tényleg kell-e ez a provider, vagy van olcsóbb path? (példa: GitHub PAT bekötése előtt megérdemli a security-cost vs feature-value vita.)
+
+### Opciók (cost-rendezve)
+
+| Opció | Effort | Yield |
+|---|---|---|
+| **A**: Külön admin-token (env `ADMIN_TOKEN`) a Settings tab + `?reveal=true` route mögé. CAPTURE_SECRET maradna a sima API + UI olvasás | ~1hr | Magas — Settings már nem a sima master key-jel elérhető |
+| **B**: `Show` gomb teljes kivétele — secrets csak `••••••••<last4>` formátumban láthatók UI-on. Tényleges value módosításhoz új érték beírása szükséges. Ha látni akarja a régi értéket → SSH | ~30min | Magas, kis UX-cost |
+| **C**: `state/settings.json` encrypt-at-rest egy passphrase-szel (külön az admin tokentől). Bootkor passphrase-prompt nélkül a server nem indul — ki kell írni env-be vagy stdin-en kérni | ~3-4hr | Magas, de operatív komplikáció (auto-restart bonyolult) |
+| **D**: Audit log minden `/settings*` GET/PUT-ról (ki, mikor, milyen mezőt) — utólag rekonstruálható mit ért el a támadó | ~1hr | Közepes — detektálás, nem védés |
+| **E**: Rate limit a `/settings/reveal` endpoint-on (pl. max 10 reveal/óra) — lassítja a tömeges kiszedést | ~30min | Alacsony-közepes — nem véd, de időt nyer |
+| **F**: 2FA / TOTP a Settings tab elé (Google Authenticator-szerű) | ~4-6hr | Magas, jelentős UX-cost (másik device kell minden Settings nyitáshoz) |
+
+**Javaslat sorrend a sharing előtt**: A+B együtt (~1.5hr) — admin token külön + Show gomb elvétele = a sima CAPTURE_SECRET lopás már nem ad secret-hozzáférést. Plusz D (audit log) felzárkózásra. C/E/F csak ha valós támadási evidence megjelenik.
+
+### Mit NEM kell most
+
+Pre-P13B-ben (mai egyedüli felhasználó scenario) ez **flag, nem prio**. Az A+B implementáció akkor kerüljön be, amikor:
+- (a) első barát-tester készülődik
+- VAGY (b) új integráció bekerül és újabb 3rd-party kulcs jön
+- VAGY (c) eszedbe jut hogy átadod a laptopot valakinek bármilyen okból (utazás, javítás, közös munka)
+
+Bárhonnan elindítható, doc-only-ig itt vár.
+
+### Cross-ref
+
+- 0.14.0 sec lockdown: csak a hálózati support (Qdrant + Express loopback) — ez **infra-szintű** védés
+- 0.17.0 P13A: **funkcionálisan** centralizálta a secrets-listát
+- P15 most: az **authorization-modell** ami a centralizációt biztonságossá teszi
+
+---
+
 ## ~~P10: Brain Connection Hygiene~~ — DONE (2026-04-19, v0.5.0 + 0.5.2 post-pilot hardening)
 
 Interactive metadata curation — surfaces over-tagged thoughts, Haiku proposes tighter metadata, user approves, Qdrant patched in place, Obsidian graph self-corrects on next hourly export. Plus: tightened capture-time extraction prompt so new thoughts don't reintroduce the problem.
@@ -631,8 +681,9 @@ Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed
 4. **P6 Brain Health Check** (~2-3hr) — On-demand audit MCP + HTTP route + Stats tab panel. Lásd P6 részletes szekciót.
 5. **P13B INSTALL.md teljes step-by-step** (~3-4hr) — Hetzneren tesztelve. Kapuja: van legalább 1 önként vállalkozó barát-tester aki napi szinten használná.
 6. **P14 Agenda relevance** — visszahozható priortásban ha napi szinten fáj. Most defer.
-7. **~~P12 X.com bookmarks~~** — DEFERRED post-agenda use. Lásd P12 banner.
-8. ***Sharing / federation vízió — nem most.*** Step 1 = 1 barát napi user 1 hónapig single-tenant instance-en. Csak utána térünk vissza a federation-protocol kérdésre.
+7. **P15 Security hardening** — pre-P13B kötelező pre-req (admin token + Show gomb leverése, ~1.5hr). Most defer, de **a P13B előtt mindenképp visszahozni**.
+8. **~~P12 X.com bookmarks~~** — DEFERRED post-agenda use. Lásd P12 banner.
+9. ***Sharing / federation vízió — nem most.*** Step 1 = 1 barát napi user 1 hónapig single-tenant instance-en. Csak utána térünk vissza a federation-protocol kérdésre.
 
 ### Folyamatos / opcionális
 
