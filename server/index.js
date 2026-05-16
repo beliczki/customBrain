@@ -67,6 +67,6 @@ app.use(summaryRouter);
 // MCP endpoint (Streamable HTTP only)
 app.all('/mcp/http', handleMcpHttp);
 
-app.listen(PORT, () => {
-  console.log(`Open Brain server running on port ${PORT}`);
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`Open Brain server running on 127.0.0.1:${PORT} (nginx reverse-proxies from 443)`);
 });

@@ -2,6 +2,34 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.14.0 — 2026-05-16
+
+**Production lockdown + first real backup pipeline.** Three independent ops changes shipped together — all P0 "before sharing" prerequisites from the 2026-05-16 roadmap review.
+
+### Qdrant network lockdown
+
+`docker-compose.yml` — both port mappings prefixed with `127.0.0.1:` so Qdrant's HTTP (6333) and gRPC (6334) bind only to loopback. Before: `0.0.0.0:6333` and `0.0.0.0:6334` — publicly reachable for ~2 months without auth (Qdrant has no built-in auth in this deployment). After: external `Connection refused`, Express still reaches it via `localhost:6333` (the `QDRANT_URL=http://localhost:6333` env was already correct since 0.3.1).
+
+### Express server lockdown
+
+`server/index.js` — `app.listen(PORT, '127.0.0.1', ...)` so the brain API is reachable only via nginx's reverse proxy on 443 (already configured to `proxy_pass http://127.0.0.1:3000`). Before: `0.0.0.0:3000` — anyone could hit the brain plaintext on port 3000, bypassing the HTTPS cert. After: external `Connection refused`, all traffic forced through `https://brain.beliczki.hu`.
+
+### Qdrant snapshot backup (cron + Drive upload + retention)
+
+New `cron/qdrant-backup.js` — daily 03:00 UTC: triggers `POST /collections/thoughts/snapshots` → downloads via HTTP GET → saves to `/root/customBrain/backups/<snapshot>.snapshot` → uploads to Google Drive `customBrain Backups/` (auto-created sibling of the vault folder, NOT inside it — Obsidian must not see `.snapshot` files) → rotates: **local count-based** (keep last 3, immediate-recovery safety net) and **Drive age-based** (delete anything older than 14 days). Tunables (`LOCAL_KEEP`, `DRIVE_KEEP_DAYS`, `DRIVE_BACKUPS_FOLDER`) at the top of the file. Age-based on Drive because count-based would mean 365 backups/year accumulating; 14 days is enough horizon to notice + restore a regression. After successful download the Qdrant-internal snapshot is deleted via `DELETE /collections/thoughts/snapshots/<name>` so the in-container snapshots folder doesn't grow. Crontab entry on Hetzner: `0 3 * * * cd /root/customBrain && /usr/bin/node cron/qdrant-backup.js >> /var/log/brain-backup.log 2>&1`.
+
+New `scripts/restore-from-snapshot.js` — executable restore (Mode A: live restore via Qdrant Recover API, multipart upload + recovery) + Mode B documented in script comments (cold disaster recovery from Docker volume when Qdrant itself is gone). Backup that can't be restored isn't a backup; both paths needed to be in-repo before the cron was considered done.
+
+First real backup ran on deploy: 233 thoughts → 20.8 MB snapshot, uploaded to Drive `customBrain Backups/` (folder auto-created), 5.9s end-to-end.
+
+### Why these three together
+
+All three are gates for P13 (sharing customBrain). Without lockdown, anyone owns the brain data; without backups, one disk failure deletes 2 months of captures and the consolidation history (Western-order canonicals, frontmatter migration, etc.) is unrecoverable. HTTPS was already done (cert valid 89 days, ECDSA, auto-renew). Roadmap review's P0 is now fully shipped.
+
+### Deploy notes
+
+Standard mandatory pattern per `feedback_hetzner_restart.md`: `pm2 stop all && fuser -k 3000/tcp` BEFORE `pm2 start`. Note: `pm2 start all` only starts MODULES (e.g. `pm2-logrotate`), not stopped apps — use `pm2 restart all` or explicit names to bring custombrain back. Burned us once during this deploy.
+
 ## 0.13.0 — 2026-05-16
 
 **Obsidian-native YAML frontmatter for People + Project metadata.** The custom `alias: X` / `email: X` body-line convention is replaced by standard Obsidian Properties — `aliases:` array and `email:` scalar / `emails:` array — written into the `---…---` frontmatter block at the top of each `.md`. Obsidian's Properties UI now manages them natively (the user can add/remove aliases via the panel instead of editing raw text).

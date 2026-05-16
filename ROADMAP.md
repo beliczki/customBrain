@@ -1,27 +1,77 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-01
+## Last updated: 2026-05-16 (v0.14.0)
 
-Historical build plans archived in `docs/archive/`.
+Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 
 ---
 
 ## What's Built
 
-- **Core brain**: capture (with Haiku metadata extraction), semantic search (Gemini embeddings), recent, stats, delete, vault rebuild
-- **MCP server**: 12 tools over SSE + Streamable HTTP + stdio transports
+### Foundation (0.1.x — 0.2.x, pre-history)
+
+- **Core brain** (0.1.x): capture (with Haiku metadata extraction), semantic search (Gemini embeddings), recent, stats, delete, vault rebuild — Qdrant + Gemini + Haiku + Express one-backend-two-interfaces scaffold
+- **MCP server** (0.2.x): 12 tools over SSE + Streamable HTTP + stdio transports
   - Brain tools: `capture_thought`, `search_brain`, `list_recent`, `brain_stats`, `rebuild_obsidian_vault`
   - Agent tools: `get_fireflies_transcripts`, `get_youtube_likes`, `get_gmail_threads`, `get_calendar_events`, `get_event_context`, `get_task_context`, `manage_drafts`
-- **Chrome extension**: Manifest v3 "Save to Brain" web clipper
-- **React UI**: capture, search, recent, stats, export tabs (Vite + React 19 + Tailwind 3)
-- **Auto-intake (2026-04-18)**: zero-approval capture from Fireflies webhook (meetings), YouTube likes cron (30min), Gmail (10min). Shared `source` + `source_id` payload for idempotent dedup. Gmail body cleaner strips legal/confidentiality boilerplate (regex + Haiku).
-- **Gmail thread refresh + outbound auto-label (0.7.0, 2026-04-18)**: history-API driven cron with watermark. New messages on a brain-labeled thread atomically refresh the existing Qdrant point (preserves id, source_id, created_at; bumps `refresh_count`). Outbound messages to a known brain-person (matched via `email:` lines in People/<Name>.md) auto-apply the `brain` label and capture. `brain/captured` is now just a UI marker — no longer a filter gate.
-- **Coworker-loop summary skill (0.10.0, 2026-05-01)**: long thoughts (> 6000 chars, the Gemini embedding window) get a chronological summary prepended in a `## Summary` block above a `---` divider, so semantic search reaches the full content via the summary. Generation runs in a Claude Code session (subscription-billed) via the global `/summarize-long-thoughts` skill, calling two MCP tools — `list_thoughts_needing_summary` and `update_thought_text_with_summary`. Stale-detection by `summary_appended_at < updated_at` so frequent Gmail-thread refreshes don't burn calls. Fireflies slice cap raised 30k → 180k. One backfill script remains: `scripts/backfill-fireflies-transcripts.js` (no-LLM, re-fetches truncated transcripts). Replaces the 0.9.0 inline preprocessor.
-- **Obsidian sync**: full vault rebuild via Google Drive (OAuth2 writes, service account reads), wikilinks in YAML frontmatter
-- **Production**: Hetzner CX22 at `brain.beliczki.hu`, pm2, nginx reverse proxy
+- **Chrome extension** (0.2.x): Manifest v3 "Save to Brain" web clipper
+- **React UI** (0.2.x): capture, search, recent, stats, export tabs (Vite + React 19 + Tailwind 3)
+- **Obsidian sync** (0.2.x): full vault rebuild via Google Drive (OAuth2 writes, service account reads), wikilinks in YAML frontmatter
+- **Production** (0.2.x): Hetzner CX22 at `brain.beliczki.hu`, pm2, nginx reverse proxy
+- **P1a — time decay** in search scoring (0.2.x)
+- **P1b — conflict resolution at capture** (0.2.x): near-duplicate detection (cosine > 0.85) archives old thought + supersedes-links new one. True semantic contradiction detection deferred — embeddings measure topic similarity, not logical opposition.
+- **People alias resolution** (0.2.x): `alias:` lines on Drive People/*.md, Haiku-prompt injection + deterministic post-processing in `metadata.js::resolveAliases`
+
+### Shipped (0.3.0+)
+
+- **0.3.0 (2026-04-18) — Auto-intake, zero-approval**: Fireflies webhook (meetings), YouTube likes cron (30min), Gmail label cron (10min). Shared `source` + `source_id` payload for idempotent dedup. Gmail body cleaner strips legal/confidentiality boilerplate (regex + Haiku).
+- **0.3.1–0.3.2 (2026-04-18) — Deploy hardening + YouTube category filter**: cron env loading, Qdrant default URL, OAuth2 `gmail.modify` scope, Gmail thread-aware paragraph dedup, Fireflies HMAC verification. YouTube Music (categoryId=10) skipped by default; `YOUTUBE_SKIP_CATEGORIES` env override.
+- **0.4.0 (2026-04-18) — YouTube Gemini summaries**: structured markdown (Summary / Key ideas / Action items / Frameworks / Speakers) via Gemini 2.5 Flash multimodal, replaces broken captions path.
+- **0.4.1 (2026-04-19) — Data integrity rollup**: Fireflies backfill script, duration fix (minutes not seconds), `checkContradiction` prompt rewrite (defaults FALSE, requires logical contradiction not just "different content"), Chrome extension search uses content not tab title.
+- **0.5.0 (2026-04-19) — P10 Brain Connection Hygiene**: `find_overconnected` + `suggest_metadata_fix` + `update_thought` MCP trio; `PATCH /thoughts/:id` HTTP route; capture-time prompt tightened against over-tagging.
+- **0.5.2–0.5.4 (2026-04-19) — Project aliases + batch-hygiene + alias parser hardening**: `Projects/*.md` carry `alias:` lines (mirrors People); `scripts/batch-hygiene.js` (dry-run + `--apply`); comma-separated aliases, circular-loop detection, self-alias skip; grep-verify person removals; HU→EN topic flip rejection.
+- **0.6.0 (2026-04-19) — P1d Semantic autolinks in Obsidian export**: `## Related thoughts` switched from metadata-overlap to in-memory cosine top-N above `RELATED_MIN_SCORE=0.75` (max 3 per thought). Each link carries a `*(score%)*` marker. Graph edges dropped ~80%.
+- **0.6.1–0.6.2 (2026-04-20) — Fireflies fixes**: in-memory `inFlight` map kills webhook race-condition double-captures; `normalizeParticipants()` handles mixed-shape participants field and dedupes emails.
+- **0.7.0 (2026-04-18) — Gmail thread refresh + outbound auto-label**: history-API driven cron with watermark. New messages on a brain-labeled thread atomically refresh the existing Qdrant point (preserves id, source_id, created_at; bumps `refresh_count`). Outbound to a known brain-person (matched via `email:` lines) auto-applies `brain` label and captures. `brain/captured` becomes a pure UI marker.
+- **0.8.0 (2026-04-22) — Drive export preserves thought timestamps**: `createdTime`/`modifiedTime` passed on file create so Drive sort reflects capture/refresh time, not export-cron time.
+- **0.8.1 (2026-04-22) — Version pill in UI header**: imports from `client/package.json`, renders `v<VERSION>` next to "customBrain".
+- **0.10.0 (2026-05-01) — Coworker-loop summary skill**: replaces the 0.9.0 inline preprocessor. Long thoughts (>6000 chars) get a chronological `## Summary` block prepended above a `---` divider; semantic search reaches full content via the summary. Generation runs in a Claude Code session via `/summarize-long-thoughts` (subscription-billed) calling `list_thoughts_needing_summary` + `update_thought_text_with_summary`. Stale-detection by `summary_appended_at < updated_at`. Fireflies slice cap raised 30k → 180k.
+- **0.10.1 (2026-05-01) — Title prefixed with primary project**: Haiku title-rule prepends `<Project> — ` when a primary project is identified.
+- **0.11.0 (2026-05-01) — Full project.md content in Haiku prompt + strict project whitelist**: project documents passed to Haiku in full (not just names) via `withDocuments: true`. Explicit rule: never invent project names from client / product / campaign fragments — empty `projects` is correct, invented is wrong.
+- **0.12.0 (2026-05-16) — Alias-aware writeStubs + Western-order People canonicals + sub-product fold**: `writeStubs` resolves candidate names through aliases before the existing-file check (no more duplicate People stubs from accent variants); projects get `skipAutoCreate: true` (strictly user-curated). 117 duplicate People `.md` deleted, 135 Qdrant payloads rewritten to Western-order canonicals. `FÉLRETESZEK`/`BEFCAST` folded into ERSTE sub-products.
+- **0.13.0 (2026-05-16) — Obsidian-native YAML frontmatter for People/Projects**: replaces the custom `alias: X` / `email: X` body-line convention with standard Obsidian Properties (`aliases:` array, `email:`/`emails:`). Obsidian Properties UI manages them natively. Parser falls back to legacy body lines for un-migrated files. 78 files rewritten surgically by `scripts/migrate-to-frontmatter.js`.
+
+---
+
+## Roadmap review — 2026-05-16 (post-6-weeks-of-use)
+
+After 6 weeks of daily use (0.3.0 → 0.13.0) the actual capture pattern, friction points, and direction have clarified. Re-prioritized below; individual P-sections kept (with status banners) so the historical reasoning stays auditable.
+
+### Killed
+- **P1 Telegram bot / mobile capture** — mobilon like / bookmark / label workflow van, nem text capture. P12 (X bookmarks) lefedi a mobil-keletkezésű X-tartalmat; Gmail label + YouTube likes a többit.
+- **P1c People/Projects summary evolution** — felülírná user-edit .md fájlokat (kockázatos), és az értéke kétséges.
+- **P7e index.md flat catalog** — marginal érték; Obsidian Graph + Drive lista már eléri amit ez adna.
+- **P9 Thinking tools (challenge_idea, emerge_patterns, ...)** — Claude Desktop-ban `search_brain` + szabad prompt már megoldja amit ezek strukturáltan adnának; nem éri meg tool-felületet építeni fix promptra.
+
+### Deferred (nincs jelenleg signal)
+- **P2 Idea Lifecycle** — ideák task-ká vagy naptári bejegyzéssé válnak, nem brain-szintű állapotgéppel követjük.
+- **P5a hot.md** — szellemében jó, de a P4f Agenda (új) lefedi a "minden session-be warm context" use-case-t.
+- **P5 Lifecycle Prompts** — weekly review subsumed by Agenda; quick capture templates kell-e tényleg? Nem volt használati signal.
+- **P8 RRF hybrid search** — 233 thought-on nincs mérhető recall probléma.
+
+### Promoted / Reshaped (új top prio sorrendben)
+1. **P0 Ops** — HTTPS, Qdrant backup, firewall (változatlan, de minden sharing előtt kell)
+2. **P4f → Agenda (MCP + UI preview)** — TOP, lásd újraírt szekciót lent
+3. **P12 (új) — X.com bookmarks coworker loop**
+4. **P13 (új) — Settings UI + agent-installable**
+5. **P6 → Brain Health Check (UI + MCP)** — cron-mentes, on-demand audit; lásd újraírt szekciót lent
+
+Részletes execution order a dokumentum alján.
 
 ---
 
 ## USE IT FIRST — one week before building anything new
+
+**STATUS (2026-05-16): ✅ PASSED — 6+ hét napi használat 2026-04-04 → 2026-05-16. 233 thought, real signal alapján a fenti Roadmap review átszervezte a prio sorrendet.**
 
 **Status (2026-04-04)**: Infra is done. The brain is empty. 19 thoughts, ~4 are test garbage, ~5 are meta about itself. Building more features on an unused system is wasted effort.
 
@@ -100,7 +150,9 @@ Contradicting thoughts score *lower* than confirming ones — lowering threshold
 ### ~~P1b: Conflict resolution at capture~~ — DONE (2026-04-04)
 Works for near-duplicates (>0.85). True semantic contradiction detection requires different approach — see session log above.
 
-### P1c: Evolving People/Projects summaries
+### ~~P1c: Evolving People/Projects summaries~~ — KILLED 2026-05-16
+**Killed**: felülírná user-edit .md fájlokat (kockázatos), és az értéke kétséges. Lásd Roadmap review szekciót.
+
 After vault rebuild, group thoughts by person/project. Fetch existing summary .md from Drive, call Haiku to rewrite integrating new thoughts. Write updated summaries back.
 - File: `server/routes/export.js`
 - Note: People/Projects folders owned by service account — may need OAuth2 for writing
@@ -110,7 +162,9 @@ Replaced the metadata-based `Related thoughts` dump (every shared-tag thought) w
 
 ---
 
-## P2: Idea Lifecycle
+## P2: Idea Lifecycle — DEFERRED 2026-05-16
+
+**Deferred**: ideák task-ká vagy naptári bejegyzéssé válnak Robi workflow-jában, nem brain-szintű állapotgéppel követjük. Lásd Roadmap review szekciót.
 
 One field. Five states. No project management overhead.
 
@@ -127,8 +181,8 @@ One field. Five states. No project management overhead.
 
 | Channel | Effort | Notes |
 |---------|--------|-------|
-| **P4a: Telegram bot** | ~1hr | Highest value mobile capture. BotFather → webhook → POST /capture |
-| **P4c: iOS Shortcut** | ~20min | Documentation only — no server code needed. Dictate → POST /capture |
+| **~~P4a: Telegram bot~~** | KILLED 2026-05-16 | Mobilon like / bookmark / label workflow van, nem text capture. |
+| **~~P4c: iOS Shortcut~~** | KILLED 2026-05-16 | Ugyanaz mint P4a — nincs mobil text-capture igény. |
 | **~~P4d: Email forwarding~~** | DONE | Replaced by Gmail label cron (`cron/gmail-intake.js`). Label = `brain`. |
 | **~~P4e: Fireflies webhook~~** | DONE (2026-04-18) | `server/routes/fireflies-webhook.js`. Auto-capture on meeting end. |
 
@@ -138,32 +192,63 @@ Not planned: Voice agydump (Whisper API), WhatsApp bot — lower priority, can u
 
 ---
 
-## P4f: Calendar AI assistant — brain context at the point of need
+## P4f: Agenda (MCP + UI preview) — TOP PRIO, reshaped 2026-05-16
 
-**Problem**: `get_event_context` works via MCP but requires switching to Claude Desktop/Code. The value is in having context *where you already are* — Google Calendar.
+**Reshaped**: az eredeti "Chrome extension Calendar-mode" terv (lásd archív lent) helyett szerver-oldali agenda-szinkron + MCP tool + brain.beliczki.hu UI tab preview. Az LLM-mel végzett subtask-bontás a Claude Desktop / Code session-ben történik (ott perzisztál chat history-ban), a szerver csak adat-primitíveket szállít. Mintát követi: 0.10.0 coworker-loop.
 
-### Options considered
+### Architektúra (3 réteg)
 
-| Option | How | Pro | Con |
-|--------|-----|-----|-----|
-| **A. Extend existing Chrome extension** | Calendar page detection → popup shows brain + email context for current event | Builds on existing code, full control, fast | Popup only, not inline |
-| **B. Calendar content script overlay** | Content script injects brain icon next to each Calendar event card. Click/hover → mini context card inline | Most seamless UX, zero context switch | DOM scraping fragile (Google changes Calendar markup), higher effort |
-| **C. Claude Chrome extension + MCP** | Use Claude's official extension, ask it about events, it calls `get_event_context` | Zero code | Manual, not automatic, not integrated |
-| **D. Google Workspace Calendar Add-on** | Apps Script sidebar inside Calendar | Native Google integration | Publish flow complex, Apps Script limited, can't call brain API easily |
+**1. Backend cron** — `cron/agenda-sync.js`
+- Frekvencia: óránként (mint `cron/export.js`)
+- Lépések: Google Calendar olvasás (ma + 7 nap előre) → minden event-re `search_brain` (cím + attendee nevek alapján) → top-N matching thought, kapcsolódó people / projects / topics
+- Output: `state/agenda-cache.json` (per event: `{ event, brain_context: { thoughts: [...], people: [...], projects: [...], topics: [...] } }`)
+- **NEM** csinál subtask breakdown-t — az LLM dolga, és nem perzisztálódik a szerveren
 
-### Best bet: A+B hybrid (~3-4hrs)
+**2. MCP tool** — `get_agenda({ days = 1 })` (mindkét `mcp.js` ÉS `mcp-stdio.js` — duplikáció szabály!)
+- Visszaad: `state/agenda-cache.json` adott napra szűrve
+- Cache-stale ha `mtime > 1hr` → opcionálisan refresh-eli (vagy stale return + warning header)
+- HTTP route: `GET /agenda?days=N` (Bearer auth, ugyanaz mint a többi)
 
-Extend the existing `extension/` with a Calendar-aware mode:
-1. **Content script** (`extension/calendar.js`): detects `calendar.google.com`, reads event title + attendees from DOM when user opens an event
-2. **Popup mode switch**: on Calendar pages, popup shows "Event Context" instead of "Save to Brain"
-3. **Context display**: calls `brain.beliczki.hu/search` + a new lightweight `/event-context` HTTP endpoint (reuses `get_event_context` logic but over HTTP, not MCP)
-4. **Later**: inject small brain icon overlay next to event cards for inline access (B-style)
+**3. UI** — új "Agenda" tab (`client/src/components/AgendaTab.jsx`)
+- Felül: utolsó sync timestamp + "Sync now" gomb (ugyanaz mint a cron — ma + 7 nap újrahúz)
+- Lista: ma + 7 nap calendar event-ek időrendben, mindegyik kártyán:
+  - Esemény cím + idő + attendee-k
+  - "Brain context" preview szekció (3-5 bullet: matching thoughts cím + score, people, projects, topics)
+- NINCS breakdown szekció, NINCS perzisztencia — read-only ablak a cache-re
 
-Key files: `extension/manifest.json` (add `calendar.google.com` content script), `extension/calendar.js` (new), `extension/popup.js` (mode detection)
+### Subtask breakdown (LLM-side)
+
+Claude Desktop / Code session-ben:
+1. User: "mit kell ma csinálnom?"
+2. LLM hívja `get_agenda({ days: 1 })` → kontextus-gazdag event lista
+3. LLM proposálja az event-enkénti subtask bontást + idő becslést
+4. Beszélgetés chat history-ban marad — semmi vissza-perzisztencia brain-be alapból (ha user kéri: `capture_thought` külön)
+
+### "Idő" jelentése
+
+Csak becslés: ha egy event 1 óra és 8 subtask jött ki, az LLM jelzi melyik 3-4 fér bele realistically. Nincs Calendar block manipuláció, nincs Tasks integráció.
+
+### Agent learning (deferred, csak flag)
+
+Az agenda létezése **megnyitja az utat** hogy később (külön projekt, nem most) egy agent figyelje Robi subtask-bontási stílusát és imitálja. Két előfeltétel ami ma nincs: (1) a subtask breakdown valahogy perzisztáljon, (2) elég adat legyen tanulni belőle. Flag-elve, nem építjük most.
+
+### Verzió-bump
+
+0.13.0 → 0.14.0 (minor: új cron, új MCP tool, új HTTP route, új UI tab).
+
+### Becsült erőfeszítés
+
+~6-10hr (cron 1hr + MCP tool 1hr + HTTP route 0.5hr + UI tab 3-5hr + integráció és kézi teszt 1-2hr).
+
+### Archív — eredeti P4f terv (Chrome extension Calendar-mode)
+
+A Chrome extension overlay opciók (A: popup, B: inline content script, C: Claude ext + MCP, D: Workspace add-on) elvetve a szerveroldali agenda-szinkron + MCP tool javára. Indok: a server-side megoldás (a) konzisztens a 0.10.0 coworker mintával, (b) `Calendar UI` változások nem törik a brain-t, (c) Claude Desktop-ban natívan dolgozható fel.
 
 ---
 
-## P4g: Google Slides brain assistant — context-aware slide work
+## P4g: Google Slides brain assistant — context-aware slide work — DEFERRED 2026-05-16
+
+**Deferred**: az eredeti dependency (P4f Calendar Chrome extension) megszűnt — P4f átalakult szerveroldali Agenda-vá. A Slides use-case attól függ hogy a Slides editor-ben valós igény legyen (most nincs signal rá), és a megoldás minta is változhat (Apps Script add-on vs. szerveroldali snapshot). Visszahozzuk ha valódi igény jelentkezik.
 
 **Problem**: Slides work is frequent — preparing decks for meetings, clients, pitches. The brain + email context that helps with Calendar events would be equally valuable while editing slides: "what do I know about this topic?", "what did the client say about this?", "what are the next steps from the last meeting?"
 
@@ -189,7 +274,9 @@ The Calendar extension (P4f) validates the pattern first. If popup-based context
 
 ---
 
-## P5: Lifecycle Prompts
+## P5: Lifecycle Prompts — DEFERRED 2026-05-16
+
+**Deferred**: weekly review subsumed by P4f Agenda; quick capture templates / memory migration / Open Brain Spark — egyikre se volt használati signal 6 hét alatt. Visszahozható ha tényleg igény jön rá.
 
 Templates that make the system compound:
 - [ ] **Memory migration** — extract context from Claude/ChatGPT existing memory → bulk captures
@@ -197,7 +284,8 @@ Templates that make the system compound:
 - [ ] **Quick capture templates** — 5 starters: Decision, Person note, Insight, Meeting debrief, Idea
 - [ ] **Weekly review** — calls list_recent + brain_stats + lifecycle stats → clusters, surfaces unresolved actions, finds patterns. **Largely subsumed by P5a below.**
 
-### P5a: hot.md — nightly session context cache (~2hr)
+### ~~P5a: hot.md — nightly session context cache~~ — DEFERRED 2026-05-16
+**Deferred**: a P4f Agenda (új) lefedi a "minden session-be warm context" use-case-t — agenda + brain context per-event egy MCP hívással.
 Daily cron (~05:00 UTC) regenerates a ~500-word markdown at the vault root. Contents: last-7-days `list_recent` + active project summaries + top-5 people. Haiku-compressed. Every Claude Desktop / Code / Obsidian session opens warm — zero tool calls to establish context. Daily-automatic equivalent of the manual "Weekly review" above, compounding automatically with auto-intake volume.
 - New: `cron/hot-cache.js` (~60 lines). No server changes, no new MCP tool.
 - Writes via `drive-context.js` OAuth2.
@@ -206,12 +294,43 @@ Daily cron (~05:00 UTC) regenerates a ~500-word markdown at the vault root. Cont
 
 ---
 
-## P6: Maintenance Crons
+## P6: Brain Health Check (UI + MCP) — RESHAPED 2026-05-16
 
-Without this, the brain rots over time.
-- [ ] **Nightly** (3 AM): find near-duplicates (>0.92), merge via Haiku, run conflict resolution
-- [ ] **Weekly** (Sunday): re-summarize People/Projects, surface dormant ideas >30 days, prune archived >90 days
-- [ ] **Monthly** (1st): rebuild old embeddings, recompute time-decay, generate "idea metabolism" report
+**Reshaped**: az eredeti cron-alapú nightly/weekly/monthly maintenance terv (lásd archív lent) helyett **on-demand audit**. Nem akarunk éjjel csendben mutálódó vault-ot — Robi döntse el mikor cleanupol.
+
+### Funkcionalitás
+
+`brain_health_check()` — MCP tool ÉS `GET /health-check` HTTP route ÉS Stats tab alatt egy "Run health check" gomb. Mindhárom ugyanazt a `server/brain-health.js` core function-t hívja.
+
+Output (JSON + UI render):
+- **Duplicate candidates**: thoughtok cosine > 0.92 párokkal (lehet merge-elendő); per pár megmutatja a két címet + score-t
+- **Over-tagged thoughts**: `find_overconnected` eredmény (már megvan 0.5.0 óta — itt csak felületre hozzuk)
+- **Stale summaries**: `has_auto_summary && summary_appended_at < updated_at` — coworker-loop runtime-ot trigger-elhetsz
+- **Embedding-window túllépők**: `text.length > 6000 && !has_auto_summary` — coworker-loop még nem futott rajtuk
+- **Orphan People / Projects .md**: Drive-on People/Projects fájl ami semmilyen active thought-ban nincs hivatkozva
+- **Pure-boilerplate Gmail-ek**: `brain/empty` labelű thread-ek száma (audit, nem cleanup)
+- **Tag-szintű anomalies**: olyan project / person name ami csak 1-2 thought-ban szerepel és nincs canonical .md-je
+
+### Mit NEM csinál
+
+- **Nem mutat semmit auto-cleanup-ként.** Csak listáz. Te döntsd mit teszel: `update_thought`, `delete`, kézi merge, stb.
+- **Nem futtat cron-t.** Akkor fut amikor Te indítod.
+
+### Verzió-bump
+
+0.x.0 → 0.x+1.0 (minor: új MCP tool + új HTTP route + UI panel).
+
+### Becsült erőfeszítés
+
+~2-3hr (core function 1hr + MCP/HTTP wiring 0.5hr + UI panel 1hr).
+
+### Archív — eredeti cron-terv
+
+- ~~Nightly (3 AM): find near-duplicates (>0.92), merge via Haiku, run conflict resolution~~
+- ~~Weekly (Sunday): re-summarize People/Projects, surface dormant ideas >30 days, prune archived >90 days~~
+- ~~Monthly (1st): rebuild old embeddings, recompute time-decay, generate "idea metabolism" report~~
+
+Elvetve: auto-mutáció éjjel csendben túl kockázatos egy single-user személyes brain-en. On-demand audit elég.
 
 ---
 
@@ -219,13 +338,15 @@ Without this, the brain rots over time.
 
 - [ ] **P7a**: Edit thought (`PUT /thoughts/:id` + re-embed if text changed + UI edit button)
 - [ ] **P7b**: Re-process old thoughts — backfill missing titles/projects with current metadata prompt
-- [ ] **P7e**: `index.md` — flat one-line catalog of every thought at vault root (`- [[title]] — <first summary sentence>`, sorted by created_at DESC, Hungarian-aware word-boundary truncation). ~30 lines in `server/routes/export.js`, no new Qdrant fields. Full spec: brain thought `11e3aa53-...` (Task 2).
+- [x] ~~**P7e**: `index.md` — flat one-line catalog~~ — **KILLED 2026-05-16**. Marginal érték: Obsidian Graph + Drive lista már eléri.
 - [ ] **P7c**: Bulk import from Obsidian (`scripts/import-vault.js`)
 - [ ] **P7d**: UI polish — auto-resize textarea, filter/sort on Recent (by type, project, person, date), stats charts
 
 ---
 
-## P8: Search Quality — RRF hybrid (vector + BM25) (~2 days, NOT a weekend)
+## P8: Search Quality — RRF hybrid (vector + BM25) — DEFERRED 2026-05-16
+
+**Deferred**: 233 thought-on nincs mérhető recall probléma. Visszahozható ha valódi recall-failure-t észlelsz.
 
 Current pure-dense search misses exact-name queries and Hungarian agglutinative inflections ("megbeszélhetjük" vs "megbeszéltük" may not score as high as they should despite being nearly identical in meaning). Qdrant 1.10+ supports named sparse vectors and server-side Reciprocal Rank Fusion via the Query API.
 
@@ -271,6 +392,97 @@ Defer until after the parallelization win (0.8.2) is verified in production. Est
 
 ---
 
+## P12 — X.com bookmarks coworker loop (új 2026-05-16)
+
+Cél: az X.com bookmarks-od (auth-fal mögött) bekerüljön brain-be a már bevált coworker-loop mintán (0.10.0 `/summarize-long-thoughts` mintájára).
+
+### Architektúra
+
+**Új skill**: `~/.claude/skills/process-x-bookmarks/SKILL.md` (globális, user-invokálható: `/process-x-bookmarks`)
+- Claude Code session **computer-use módban** → már bejelentkezett böngésződ → navigál `https://x.com/i/bookmarks`-ra
+- Scrape: bookmark lista (tweet ID + URL + content snippet vagy linkelt article URL)
+- Per bookmark: `findBySourceId('x', tweet_id)` → ha nincs, `captureThought(text, { source: 'x', sourceId: tweet_id, extraPayload: { tweet_url } })`
+- Loop amíg el nem fogy az új bookmark vagy infinite scroll vége
+
+**V1 capture content**:
+- Ha a bookmark tweet (csak text): tweet body + szerző + dátum
+- Ha a bookmark linkre mutat (article): WebFetch a linket → article text → capture
+- **Nem hoz létre új People stub-ot tweet szerzőkből** — külön szabály a metadata extraction prompt-ban (mint a 0.11.0 strict project whitelist)
+
+**Payload konvenció**:
+- `source = 'x'`
+- `source_id = <tweet_id>` (rövid, idempotens — `findBySourceId` ezzel keres)
+- `tweet_url = <full URL>` extraPayload mezőben (informatív, ránézésre érted mi az)
+
+**Idempotencia**: `findBySourceId` dedup early-return mint a többi auto-intake (Fireflies / YouTube / Gmail).
+
+### Mit NEM csinál v1
+
+- Nincs thread-mélyítés (parent tweet, reply chain) — később ha kell
+- Nincs kép / videó analízis (Gemini multimodal X URL-en lehet menne, de nem most)
+- Nincs auto-remove a bookmarks-ról (Te bookmarkold tovább kézzel)
+- Nincs új People stub tweet szerzőkből
+
+### Verzió-bump
+
+0.x.0 → 0.x+1.0 (minor: új capture path, új source type, új skill).
+
+### Becsült erőfeszítés
+
+~3-5hr (skill prompt + DOM scrape kódja + capture wiring + tesztelés a Te X account-odon). Computer-use stabilitás kockázat: X gyakran változtat a DOM-on, lehet hogy iterálni kell a selector-okon az első hetekben.
+
+---
+
+## P13 — Settings UI + agent-installable (új 2026-05-16)
+
+Cél: bárki letöltheti gitből, beállíthatja saját Hetzneren (vagy bárhol), saját API tokenekkel — single-tenant, de **plug-and-play**. Nem multi-user (továbbra is: 1 instance = 1 ember), de a setup ne kelljen 4 óra .env-szerkesztgetés.
+
+### A) Settings UI
+
+**Storage**: `state/settings.json` (file-system permission 0600). Nincs SQLite — overkill ehhez. JSON formátum: `[{ key, value, is_secret, updated_at }, ...]`.
+
+**UI** — új "Settings" tab (`client/src/components/SettingsTab.jsx`):
+- Mezők kategóriák szerint csoportosítva: Google Drive (service account JSON path + OAuth2 client/secret/refresh), Fireflies (API key + webhook secret), Anthropic, Google API (Gemini), Gmail OAuth, YouTube, CAPTURE_SECRET, Qdrant URL
+- `is_secret: true` mezők: input `password` típusú, megjelenítés maszkolva (`••••••••<utolsó 4>`), "Show" gomb temporary reveal
+- "Save & Restart" gomb → írja `state/settings.json`-be → `process.exit(0)`-zal kilép → PM2 auto-restart felveszi az új értékeket
+
+**Auth**: ugyanaz a CAPTURE_SECRET (single-user assumption — aki a Bearer-rel bejön, az tudja állítani is).
+
+**Config service**: `server/config.js` — minden modul ezen keresztül olvas tokent (`config.get('ANTHROPIC_API_KEY')`). Olvasási sorrend: `settings.json` → `process.env` fallback → undefined. A fallback miatt a régi `.env`-es deploy-ok átmenetileg nem törnek el.
+
+**Migráció** (egyszeri, MOST): `scripts/migrate-env-to-settings.js` — Hetzner-en futtatva beolvassa a `.env`-et, beírja a `state/settings.json`-be. A script végén jelez: "OK to delete .env, all values migrated. Verify in UI before deletion." Te ellenőrzöd UI-on, törlöd a `.env`-et.
+
+**Onboarding** (első indítás): ha `state/settings.json` üres ÉS `.env` is üres → UI a Settings tab-ra redirect-el "complete setup" üzenettel. Más tab-okon error banner: "API keys missing".
+
+### B) Agent-installable — `INSTALL.md`
+
+Új gyökér-szintű fájl, **Claude Code-nak írva, nem embernek**. Skeleton most kerül be, részletes step-by-step parancsok későbbi session-ben Hetzneren tesztelve.
+
+Cél workflow:
+1. User kap egy hostot (Hetzner CX22 vagy más Ubuntu 24.04 VPS), SSH kulccsal
+2. Lokális Claude Code-nak megadja: "set up customBrain on root@<host> with this key"
+3. Claude Code követi `INSTALL.md`-t, mindenhol verify command-okkal — tudja mikor akadt el
+4. Végén: user mehet `https://<host>/`-ra, Settings tab, paste API keys
+5. Plug be Claude Desktop-ba MCP config snippet alapján
+
+### Verzió-bump
+
+A) Settings UI → 0.x.0 → 0.x+1.0 (minor: új tab, új storage, config service refactor)
+B) INSTALL.md skeleton → patch (doc-only)
+B) INSTALL.md teljes step-by-step → minor (új user-visible capability)
+
+### Becsült erőfeszítés
+
+A) Settings UI: ~4-6hr (storage 1hr + config service refactor 1-2hr + UI tab 2hr + migration script 0.5hr + onboarding flow 0.5hr)
+B) INSTALL.md skeleton: ~30min most
+B) INSTALL.md teljes részletes: ~3-4hr külön session-ben Hetzneren tesztelve
+
+### Sharing előfeltétele
+
+P13A Settings UI nélkül nincs sharing. P13B INSTALL.md csak akkor érdekes ha van legalább 1 önként vállalkozó barát-tester (1 hónap napi single-tenant use).
+
+---
+
 ## ~~P10: Brain Connection Hygiene~~ — DONE (2026-04-19, v0.5.0 + 0.5.2 post-pilot hardening)
 
 Interactive metadata curation — surfaces over-tagged thoughts, Haiku proposes tighter metadata, user approves, Qdrant patched in place, Obsidian graph self-corrects on next hourly export. Plus: tightened capture-time extraction prompt so new thoughts don't reintroduce the problem.
@@ -303,7 +515,9 @@ Plan file: `~/.claude/plans/at-this-point-every-purring-stonebraker.md`.
 
 ---
 
-## P9: Thinking Tools — outbound brain intelligence
+## ~~P9: Thinking Tools — outbound brain intelligence~~ — KILLED 2026-05-16
+
+**Killed**: Claude Desktop-ban `search_brain` + szabad prompt már megoldja amit ezek strukturáltan adnának (challenge / patterns / bridges). Nem éri meg tool-felületet építeni egy fix promptra. A bi-temporal helpers (`get_supersedes_chain`, `get_belief_history`) — ha valaha kell — pici külön ticket lehet.
 
 Based on Eugeniu Ghelbur's `obsidian-second-brain` skill (see brain thought `d29c3eb8-4976-4452-a31d-997c81868af0` for the full Karpathy-vs-Eugeniu analysis). The insight: today the brain is passive (you query, it returns). Thinking tools flip it — the brain provokes, aggregates, bridges. Passive lookup → active sparring partner.
 
@@ -346,21 +560,21 @@ When manual "dolgozd fel a tegnapit" becomes tedious:
 
 ## Recommended Execution Order
 
-0. **USE IT FIRST** — 1 week of daily auto-intake after 2026-04-18. Gather real signal about which gap hurts most before building. Revisit this ordering with fresh data.
-1. **Ops** — HTTPS (certbot), firewall lock Qdrant 6333, pm2 startup, Qdrant backup
-2. **P5a** (~2hr) — `hot.md` nightly cache. Compounds per session forever — highest-leverage of the MemMolt-four.
-3. **P7e** (~30min) — `index.md` flat catalog. Tiny drop-in during any export-touching session.
-4. **P1c + P1d** (~3hr) — People/Projects summary evolution + semantic autolinks. Share export code path.
-5. **P2a+b** (~2hr) — idea lifecycle schema + endpoint + MCP tool
-6. **P4a** (~1hr) — Telegram bot, first mobile capture
-7. **P2c** (~1hr) — lifecycle in Obsidian frontmatter + index files
-8. **P5** — Open Brain Spark, quick capture templates, memory migration (Weekly review subsumed by P5a)
-9. **P4c** (~20min) — iOS Shortcut docs
-10. **P6** (~2hr) — maintenance crons (nightly dedup, weekly summary refresh, monthly metabolism)
-11. **P8** (~2 days) — RRF hybrid search. Only once brain has >200 thoughts and a real recall problem is measurable.
-12. ~~**P10** — Brain Connection Hygiene.~~ DONE 2026-04-19 (v0.5.0).
-13. **P9** (~6hr) — Thinking Tools. Gated on ≥200 thoughts AND P2 shipped. `graduate_idea` couples to P2c.
-14. **P7** — ongoing UI/data quality
+Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed / deferred itemek a top "Roadmap review" szekcióban indokolva — nem ismétlem itt.
+
+1. **P0 Ops** (~3hr) — Qdrant backup cron (off-server snapshot, brain pótolhatatlan adat — **NOW**), HTTPS via certbot brain.beliczki.hu, firewall Qdrant 6333. Előfeltétele bármilyen sharing-nek vagy third-party setup-nak.
+2. **P4f Agenda — MCP + UI preview** (~6-10hr) — TOP. Új cron + új MCP tool + új HTTP route + új "Agenda" UI tab. Lásd P4f részletes szekciót.
+3. **P12 X.com bookmarks coworker loop** (~3-5hr) — Új skill, új capture path (`source: 'x'`). Lásd P12 részletes szekciót.
+4. **P13A Settings UI** (~4-6hr) — `state/settings.json` storage, config service refactor, UI tab, migration script. Lásd P13 részletes szekciót. *(Előfeltétele a P13B-nek és bármilyen sharing-nek.)*
+5. **P6 Brain Health Check** (~2-3hr) — On-demand audit MCP + HTTP route + Stats tab panel. Lásd P6 részletes szekciót.
+6. **P13B INSTALL.md teljes step-by-step** (~3-4hr) — Hetzneren tesztelve. Kapuja: van legalább 1 önként vállalkozó barát-tester aki napi szinten használná.
+7. ***Sharing / federation vízió — nem most.*** Step 1 = 1 barát napi user 1 hónapig single-tenant instance-en. Csak utána térünk vissza a federation-protocol kérdésre.
+
+### Folyamatos / opcionális
+
+- **Coworker-loop summary** (0.10.0, kész) — `/summarize-long-thoughts` periodikusan futtatva, figyelni hogy nem rohad
+- **P7a/b/c/d UI polish** — ad-hoc, amikor zavar
+- **P11 incremental export** — csak ha az export ideje kezd fájni (jelenleg ~10sec @ 233 thought, nem prioritás)
 
 ---
 
