@@ -19,15 +19,15 @@ There is no `server/.env` or `service-account.json` on the local Mac filesystem.
 - **`tasks/todo.md`** (global CLAUDE.md convention) — not used for customBrain; ROADMAP covers this better here.
 
 ## Versioning
-Semver (`major.minor.patch`), currently `0.17.0`. Versions sync across root `package.json`, `server/package.json`, `client/package.json`, `extension/manifest.json`. Bump all four together and log the change in `CHANGELOG.md`. `0.x.y` = pre-1.0, breaking changes allowed on minor bumps.
+Semver (`major.minor.patch`), currently `0.18.0`. Versions sync across root `package.json`, `server/package.json`, `client/package.json`, `extension/manifest.json`. Bump all four together and log the change in `CHANGELOG.md`. `0.x.y` = pre-1.0, breaking changes allowed on minor bumps.
 
 **After finishing any shipped work — a completed plan, a patch, a new cron/route/MCP tool, a dependency upgrade — remind the user to bump the version before wrapping up.** Don't bump silently. Surface a suggestion in the form:
 
-> Suggested bump: `0.17.0` → `0.13.1` (patch). Reason: <one sentence>.
+> Suggested bump: `0.18.0` → `0.13.1` (patch). Reason: <one sentence>.
 
 Heuristic for the suggestion (at `0.x.y`):
-- **patch** (`0.17.0` → `0.13.1`): bug fix, doc-only change, internal refactor with no behaviour change, env var rename with backwards-compatible fallback.
-- **minor** (`0.17.0` → `0.17.0`): new feature or capture path, new MCP tool, new HTTP route, new Qdrant payload field, payload migration, or any user-visible behaviour change. Breaking changes are allowed on minor bumps while pre-1.0.
+- **patch** (`0.18.0` → `0.13.1`): bug fix, doc-only change, internal refactor with no behaviour change, env var rename with backwards-compatible fallback.
+- **minor** (`0.18.0` → `0.18.0`): new feature or capture path, new MCP tool, new HTTP route, new Qdrant payload field, payload migration, or any user-visible behaviour change. Breaking changes are allowed on minor bumps while pre-1.0.
 - **major** (`0.x.y` → `1.0.0`): reserved for graduating to "stable daily use" — user decides, never auto-suggest.
 
 If the finished work is ambiguous (touches multiple categories), propose the higher bump and explain both options in one line — let the user decide.

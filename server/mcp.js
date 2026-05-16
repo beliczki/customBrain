@@ -13,6 +13,7 @@ import { suggestCleanedMetadata } from './metadata.js';
 import { getVaultContext } from './drive-context.js';
 import { listThoughtsNeedingSummary, setThoughtTextWithSummary } from './routes/summary.js';
 import { getAgenda } from './routes/agenda.js';
+import { runHealthCheck } from './brain-health.js';
 
 export function createMcpServer() {
   const server = new McpServer({
@@ -163,6 +164,16 @@ export function createMcpServer() {
     async () => {
       const results = await exportThoughts();
       return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    'brain_health_check',
+    'Run an on-demand audit of the brain. Listing-only — no mutations. Surfaces: duplicate candidates (cosine > 0.92), over-tagged thoughts, stale auto-summaries, oversized thoughts without summary, unknown projects/people in metadata, orphan People/Projects .md files on Drive. Use to decide where to manual-cleanup; nothing automated.',
+    {},
+    async () => {
+      const result = await runHealthCheck();
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     }
   );
 

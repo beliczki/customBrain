@@ -2,6 +2,54 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.18.0 — 2026-05-16
+
+**P6 Brain Health Check shipped — on-demand audit, listing-only, no auto-mutation.** Replaces the original cron-based maintenance plan from the 2026-05-16 roadmap review. Triggered from three surfaces (MCP tool / HTTP route / Stats tab UI section), all calling the same `runHealthCheck()` core.
+
+### Five checks (v1 scope)
+
+1. **Duplicate candidates** — pairwise cosine on all active vectors, threshold 0.92. First Hetzner run found **106 pairs** (e.g. "B2B Digitális Tudakozó heti sync" vs "...heti szinkron" at 0.954 — same recurring meeting captured twice; obvious cleanup target).
+2. **Over-tagged thoughts** — reuses `findOverconnected` from 0.5.0 (`hub_score ≥ 20` OR `projects ≥ 5`).
+3. **Stale auto-summaries** — `has_auto_summary && summary_appended_at < updated_at`. Result includes `hours_stale`. Use to know when the `/summarize-long-thoughts` coworker loop is overdue.
+4. **Oversized without summary** — `text.length > 6000 && !has_auto_summary`. The thoughts the embedding window is truncating; coworker loop hasn't reached them yet.
+5. **Metadata anomalies** — joins thought metadata with `getVaultContext` to find:
+   - `unknown_projects` / `unknown_people`: names tagged on thoughts but no canonical `.md` exists (Haiku invention or alias gap)
+   - `orphan_project_files` / `orphan_people_files`: canonical `.md` exists but no active thought references it (curated entries with no signal)
+
+All checks listing-only — the brain is NEVER mutated by this. Decisions stay with the user.
+
+### Skipped from v1 (potential v2)
+
+- **Pure-boilerplate Gmail count** (threads with `brain/empty` label) — needs Gmail API call per run; trivially addable later if useful.
+- **Auto-fix prompts** — could surface per-pair "merge?" or per-orphan "delete?" actions; deliberately not in v1 to keep the audit non-mutating.
+
+### New files
+
+- `server/brain-health.js` — `runHealthCheck()` core + local cosine helper (duplicated from `routes/export.js` to avoid a refactor; if a 3rd caller appears, extract to `server/vector-utils.js`)
+- `server/routes/health-check.js` — `GET /health-check`, Bearer auth via shared middleware
+- `client/src/components/HealthCheck.jsx` — collapsible per-check sections, count badges (green if 0, amber if non-zero), click-thought-id → ThoughtModal
+
+### Modified files
+
+- `server/index.js` — register router + SPA guard
+- `server/mcp.js` + `server/mcp-stdio.js` — new `brain_health_check` tool (both files per CLAUDE.md duplication rule)
+- `client/src/api.js` — `healthCheck()`
+- `client/src/components/Stats.jsx` — `<HealthCheck />` section appended
+
+### Performance note
+
+Cold-cache first run: ~70s (vault context load via Drive API ~60s + pairwise cosine on 233 vectors ~5s + serialization). Subsequent runs within 5 min: ~5-10s (vault cached). The UI shows "Running…" during the call — known UX rough edge for first daily run. Streaming progress is doable later if needed; for v1 acceptable since the tool is on-demand, not on a hot path.
+
+### First findings on Hetzner
+
+- **Duplicate candidates: 106** — high signal. Most are likely Fireflies re-captures of recurring meetings + Gmail thread refreshes that diverged slightly. Manual review + merge via `update_thought` (existing 0.5.0 tool) is the cleanup path.
+- Other categories TBD on user inspection.
+
+### Roadmap impact
+
+- ~~P6~~ → DONE (0.18.0)
+- Execution order remaining: P13B (INSTALL.md teljes step-by-step, gated on first friend-tester), then deferred items (P14, P15, P12) only if pain dominates
+
 ## 0.17.0 — 2026-05-16
 
 **P13A Settings UI shipped — env vars editable from the brain UI, settings.json is now the source of truth.** The hardcoded `.env`-based setup was the friction wall for any future sharing (you couldn't tell a friend "clone this and edit a .env on a server you SSH into" and expect them to actually do it). Now: clone, run, open Settings tab, paste keys, Save & Restart. Done.

@@ -52,6 +52,11 @@ export async function stats() {
   return res.json();
 }
 
+export async function healthCheck() {
+  const res = await fetch(`${BASE}/health-check`, { headers: authHeaders() });
+  return res.json();
+}
+
 export async function agenda(days = 7) {
   const res = await fetch(`${BASE}/agenda?days=${days}`, { headers: authHeaders() });
   if (res.status === 404) return null;

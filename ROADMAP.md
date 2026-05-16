@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-16 (v0.17.0)
+## Last updated: 2026-05-16 (v0.18.0)
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 
@@ -294,7 +294,7 @@ Daily cron (~05:00 UTC) regenerates a ~500-word markdown at the vault root. Cont
 
 ---
 
-## P6: Brain Health Check (UI + MCP) — RESHAPED 2026-05-16
+## ~~P6: Brain Health Check (UI + MCP)~~ — DONE 2026-05-16 (v0.18.0)
 
 **Reshaped**: az eredeti cron-alapú nightly/weekly/monthly maintenance terv (lásd archív lent) helyett **on-demand audit**. Nem akarunk éjjel csendben mutálódó vault-ot — Robi döntse el mikor cleanupol.
 
@@ -678,7 +678,7 @@ Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed
 1. **~~P0 Ops~~** — DONE (0.14.0)
 2. **~~P4f Agenda — MCP + UI preview~~** — DONE (0.15.0 + 0.15.1 refinements + 0.16.0 clickable thoughts modal)
 3. **~~P13A Settings UI~~** — DONE (0.17.0)
-4. **P6 Brain Health Check** (~2-3hr) — On-demand audit MCP + HTTP route + Stats tab panel. Lásd P6 részletes szekciót.
+4. **~~P6 Brain Health Check~~** — DONE (0.18.0)
 5. **P13B INSTALL.md teljes step-by-step** (~3-4hr) — Hetzneren tesztelve. Kapuja: van legalább 1 önként vállalkozó barát-tester aki napi szinten használná.
 6. **P14 Agenda relevance** — visszahozható priortásban ha napi szinten fáj. Most defer.
 7. **P15 Security hardening** — pre-P13B kötelező pre-req (admin token + Show gomb leverése, ~1.5hr). Most defer, de **a P13B előtt mindenképp visszahozni**.

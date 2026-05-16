@@ -13,6 +13,7 @@ import exportRouter from './routes/export.js';
 import summaryRouter from './routes/summary.js';
 import agendaRouter from './routes/agenda.js';
 import settingsRouter from './routes/settings.js';
+import healthCheckRouter from './routes/health-check.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import { handleMcpHttp } from './mcp.js';
 
@@ -29,7 +30,8 @@ app.get('*', (req, res, next) => {
       req.path.startsWith('/search') || req.path.startsWith('/recent') ||
       req.path.startsWith('/stats') || req.path.startsWith('/export') ||
       req.path.startsWith('/thoughts') || req.path.startsWith('/agenda') ||
-      req.path.startsWith('/settings') || req.path.startsWith('/fireflies-webhook')) {
+      req.path.startsWith('/settings') || req.path.startsWith('/health-check') ||
+      req.path.startsWith('/fireflies-webhook')) {
     return next();
   }
   res.sendFile(join(__dirname, '..', 'client', 'dist', 'index.html'));
@@ -70,6 +72,7 @@ app.use(exportRouter);
 app.use(summaryRouter);
 app.use(agendaRouter);
 app.use(settingsRouter);
+app.use(healthCheckRouter);
 
 // MCP endpoint (Streamable HTTP only)
 app.all('/mcp/http', handleMcpHttp);

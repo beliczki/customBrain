@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { stats } from '../api.js';
+import HealthCheck from './HealthCheck.jsx';
 
 export default function Stats() {
   const [data, setData] = useState(null);
@@ -40,6 +41,10 @@ export default function Stats() {
             </span>
           ))}
         </div>
+      </div>
+
+      <div className="py-6 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
+        <HealthCheck />
       </div>
     </div>
   );
