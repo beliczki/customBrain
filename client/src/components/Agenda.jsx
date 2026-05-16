@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { agenda, agendaSync } from '../api.js';
+import ThoughtModal from './ThoughtModal.jsx';
 
 function dayLabel(dateStr) {
   const d = new Date(dateStr);
@@ -46,6 +47,7 @@ export default function Agenda() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
+  const [openThoughtId, setOpenThoughtId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -126,15 +128,23 @@ export default function Agenda() {
             {group.label}
           </h2>
           {group.events.map((e) => (
-            <AgendaEventCard key={e.event.event_id || e.event.start + e.event.title} entry={e} />
+            <AgendaEventCard
+              key={e.event.event_id || e.event.start + e.event.title}
+              entry={e}
+              onThoughtClick={setOpenThoughtId}
+            />
           ))}
         </div>
       ))}
+
+      {openThoughtId && (
+        <ThoughtModal thoughtId={openThoughtId} onClose={() => setOpenThoughtId(null)} />
+      )}
     </div>
   );
 }
 
-function AgendaEventCard({ entry }) {
+function AgendaEventCard({ entry, onThoughtClick }) {
   const { event, brain_context: ctx } = entry;
   const attendeeCount = (event.attendees || []).length;
   const hasThoughts = ctx.thoughts.length > 0;
@@ -170,15 +180,21 @@ function AgendaEventCard({ entry }) {
         </div>
       )}
 
-      {/* Thoughts list — primary content */}
+      {/* Thoughts list — primary content, clickable opens modal */}
       {hasThoughts ? (
         <ul className="agenda-event__thoughts mt-3 space-y-1">
           {ctx.thoughts.map((t) => (
-            <li key={t.id} className="flex items-baseline gap-2 text-xs">
-              <span className={`font-mono w-12 shrink-0 ${t.score == null ? 'text-purple-600 dark:text-purple-400' : 'text-txt-ter'}`}>
-                {t.score == null ? 'recent' : `${Math.round(t.score * 100)}%`}
-              </span>
-              <span className="text-txt-sec flex-1">{t.title}</span>
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => onThoughtClick(t.id)}
+                className="agenda-thought-link flex items-baseline gap-2 text-xs w-full text-left py-0.5 hover:bg-[var(--border)] -mx-1 px-1 transition-colors"
+              >
+                <span className={`font-mono w-12 shrink-0 ${t.score == null ? 'text-purple-600 dark:text-purple-400' : 'text-txt-ter'}`}>
+                  {t.score == null ? 'recent' : `${Math.round(t.score * 100)}%`}
+                </span>
+                <span className="text-txt-sec flex-1 underline-offset-2 hover:underline">{t.title}</span>
+              </button>
             </li>
           ))}
         </ul>

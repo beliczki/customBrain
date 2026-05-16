@@ -20,6 +20,17 @@ router.get('/recent', async (req, res) => {
   }
 });
 
+router.get('/thoughts/:id', async (req, res) => {
+  try {
+    const thought = await getById(req.params.id);
+    if (!thought) return res.status(404).json({ error: 'Not found' });
+    res.json(thought);
+  } catch (err) {
+    console.error('Get thought error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/thoughts/:id', async (req, res) => {
   try {
     await deletePoint(req.params.id);

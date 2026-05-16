@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-16 (v0.15.1)
+## Last updated: 2026-05-16 (v0.16.0)
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 
@@ -392,7 +392,11 @@ Defer until after the parallelization win (0.8.2) is verified in production. Est
 
 ---
 
-## P12 — X.com bookmarks coworker loop (új 2026-05-16)
+## P12 — X.com bookmarks coworker loop — DEFERRED 2026-05-16 (post-0.15.x agenda use)
+
+**Deferred**: az Agenda UI első napi használata után a fókusz az Agenda-clickability + thought modal lett (0.16.0), majd a relevancia (P14). X bookmarks loop maradjon defer-en amíg nincs konkrét pain hogy "ezt a tweetet brain-ben akarom".
+
+
 
 Cél: az X.com bookmarks-od (auth-fal mögött) bekerüljön brain-be a már bevált coworker-loop mintán (0.10.0 `/summarize-long-thoughts` mintájára).
 
@@ -604,13 +608,14 @@ When manual "dolgozd fel a tegnapit" becomes tedious:
 
 Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed / deferred itemek a top "Roadmap review" szekcióban indokolva — nem ismétlem itt.
 
-1. **P0 Ops** (~3hr) — Qdrant backup cron (off-server snapshot, brain pótolhatatlan adat — **NOW**), HTTPS via certbot brain.beliczki.hu, firewall Qdrant 6333. Előfeltétele bármilyen sharing-nek vagy third-party setup-nak.
-2. **P4f Agenda — MCP + UI preview** (~6-10hr) — TOP. Új cron + új MCP tool + új HTTP route + új "Agenda" UI tab. Lásd P4f részletes szekciót.
-3. **P12 X.com bookmarks coworker loop** (~3-5hr) — Új skill, új capture path (`source: 'x'`). Lásd P12 részletes szekciót.
-4. **P13A Settings UI** (~4-6hr) — `state/settings.json` storage, config service refactor, UI tab, migration script. Lásd P13 részletes szekciót. *(Előfeltétele a P13B-nek és bármilyen sharing-nek.)*
-5. **P6 Brain Health Check** (~2-3hr) — On-demand audit MCP + HTTP route + Stats tab panel. Lásd P6 részletes szekciót.
-6. **P13B INSTALL.md teljes step-by-step** (~3-4hr) — Hetzneren tesztelve. Kapuja: van legalább 1 önként vállalkozó barát-tester aki napi szinten használná.
-7. ***Sharing / federation vízió — nem most.*** Step 1 = 1 barát napi user 1 hónapig single-tenant instance-en. Csak utána térünk vissza a federation-protocol kérdésre.
+1. **~~P0 Ops~~** — DONE (0.14.0)
+2. **~~P4f Agenda — MCP + UI preview~~** — DONE (0.15.0 + 0.15.1 refinements + 0.16.0 clickable thoughts modal)
+3. **P13A Settings UI** (~4-6hr) — `state/settings.json` storage, config service refactor, UI tab, migration script. Lásd P13 részletes szekciót. *(Előfeltétele a P13B-nek és bármilyen sharing-nek.)*
+4. **P6 Brain Health Check** (~2-3hr) — On-demand audit MCP + HTTP route + Stats tab panel. Lásd P6 részletes szekciót.
+5. **P13B INSTALL.md teljes step-by-step** (~3-4hr) — Hetzneren tesztelve. Kapuja: van legalább 1 önként vállalkozó barát-tester aki napi szinten használná.
+6. **P14 Agenda relevance** — visszahozható priortásban ha napi szinten fáj. Most defer.
+7. **~~P12 X.com bookmarks~~** — DEFERRED post-agenda use. Lásd P12 banner.
+8. ***Sharing / federation vízió — nem most.*** Step 1 = 1 barát napi user 1 hónapig single-tenant instance-en. Csak utána térünk vissza a federation-protocol kérdésre.
 
 ### Folyamatos / opcionális
 

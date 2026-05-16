@@ -2,6 +2,49 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.16.0 — 2026-05-16
+
+**Clickable thoughts in Agenda → modal overlay with full Recent-style thought view.** Per direct user feedback after the 0.15.1 Agenda iteration: per-event thought titles are a tease without the actual content, and toggling tabs to look up a thought breaks the agenda-review flow. Now: click any thought in an Agenda event → overlay modal opens, fetches the full thought, renders it with the same template used in Recent.
+
+### New HTTP route
+
+`GET /thoughts/:id` in `server/routes/recent.js` — returns the full thought (text + metadata + timestamps) by id via `getById`. Bearer auth via the shared middleware. Added to the SPA wildcard guard (covered by the existing `/thoughts` prefix). 404 on miss.
+
+### New shared component — `ThoughtView`
+
+`client/src/components/ThoughtView.jsx`. Extracted from `Recent.jsx` so the title + body + metadata chips + timestamp layout can be rendered identically wherever a thought is displayed. Accepts optional `onDelete` prop — when provided, renders the delete button (Recent's use case); when omitted, renders read-only (modal use case). Tolerates both response shapes: scrolled (`metadata.people`) and `getById` (`people` at root).
+
+### New overlay component — `ThoughtModal`
+
+`client/src/components/ThoughtModal.jsx`. Fixed-position backdrop (`bg-black/60`), centered content card (`max-w-3xl, max-h-[90vh]`), internal `overflow-y-auto` for long thoughts. Closes on ESC, on backdrop click, or via the X button. Fetches the thought via the new `getThought(id)` api helper on mount (with loading + error states). Renders via `ThoughtView` for layout consistency.
+
+### Recent refactor
+
+`Recent.jsx` simplified — list-wrapper + `ThoughtView` per item. No visible change for the Recent tab; the layout is bit-for-bit identical, just now sourced from the shared component.
+
+### Agenda integration
+
+`Agenda.jsx` per-event thought rows changed from `<li><span></span></li>` to `<li><button onClick={openModal}>...</button></li>`. Hover state added (background tint + underline on title). The card's parent holds the `openThoughtId` state and renders `<ThoughtModal>` conditionally outside the event list so only one modal exists at a time. Works for both semantic matches (`%`) and project_tag fallback (`recent`).
+
+### Files
+
+- `server/routes/recent.js` — new GET handler
+- `client/src/api.js` — new `getThought(id)`
+- `client/src/components/ThoughtView.jsx` (new)
+- `client/src/components/ThoughtModal.jsx` (new)
+- `client/src/components/Recent.jsx` — refactored to use ThoughtView
+- `client/src/components/Agenda.jsx` — clickable rows, modal state, modal mount
+
+### Why minor bump
+
+New user-visible feature (overlay), new HTTP route, new shared component. Not "fix to 0.15.x" — genuinely adds capability that future tabs (Search results, Stats drill-down) can reuse.
+
+### Defer + roadmap shuffle
+
+- **P12 X.com bookmarks** deferred — no concrete pain after agenda use; revisit when "I want this tweet in brain" actually hurts
+- Execution order updated: P0 ✅, P4f ✅, P13A next, then P6, then P13B
+- **P14 Agenda relevance** (added in 0.15.1) — still defer; revisit after a few days of agenda use to see if Qdrant search weakness compounds
+
 ## 0.15.1 — 2026-05-16
 
 **Agenda refinements after first live use of 0.15.0.** Three issues surfaced on the first morning agenda view:

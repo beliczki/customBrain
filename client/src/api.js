@@ -31,6 +31,12 @@ export async function recent(limit = 10) {
   return res.json();
 }
 
+export async function getThought(id) {
+  const res = await fetch(`${BASE}/thoughts/${id}`, { headers: authHeaders() });
+  if (res.status === 404) return null;
+  return res.json();
+}
+
 export async function deleteThought(id) {
   const res = await fetch(`${BASE}/thoughts/${id}`, {
     method: 'DELETE',
