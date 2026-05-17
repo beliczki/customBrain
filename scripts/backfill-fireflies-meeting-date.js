@@ -20,21 +20,33 @@ const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localho
 const COLLECTION = 'thoughts';
 const DRY_RUN = process.argv.includes('--dry-run');
 
+// Patterns we recognize, in order of date precision (highest first):
+//   1. ISO with time:  "2026-03-25T14:30:00.000Z"  — original Fireflies head
+//   2. Hungarian short:  "2026-05-14-én" / "2026-05-13-án"  — v2 summary head
+//   3. Date in parens:  "(2026-03-11," / "(2026-03-11 "  — coworker-loop header
+//
+// We scan the WHOLE text (not just first 10 lines) because v2-reprocessed
+// thoughts have an AI summary prepended; the original ISO date lives below
+// the `---` divider, deeper in the body.
 const ISO_RE = /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)/;
+const HU_DATE_RE = /(\d{4}-\d{2}-\d{2})-(?:én|án|i)\b/;
 const DATE_ONLY_RE = /\((\d{4}-\d{2}-\d{2})[,)\s]/;
 
 function parseMeetingDate(text) {
   if (!text) return null;
-  const head = text.split('\n').slice(0, 10).join('\n');
 
-  const iso = head.match(ISO_RE);
+  // Prefer precise ISO match anywhere in the text — survives v2 summary prepend.
+  const iso = text.match(ISO_RE);
   if (iso) return new Date(iso[1]).toISOString();
 
-  const dateOnly = head.match(DATE_ONLY_RE);
-  if (dateOnly) {
-    // Pure date — treat as start-of-day UTC (no time-of-day info available)
-    return new Date(`${dateOnly[1]}T00:00:00.000Z`).toISOString();
-  }
+  // Hungarian date suffix — the v2 summary format uses this in its first line.
+  const hu = text.match(HU_DATE_RE);
+  if (hu) return new Date(`${hu[1]}T00:00:00.000Z`).toISOString();
+
+  // Coworker-loop summary header format.
+  const paren = text.match(DATE_ONLY_RE);
+  if (paren) return new Date(`${paren[1]}T00:00:00.000Z`).toISOString();
+
   return null;
 }
 
