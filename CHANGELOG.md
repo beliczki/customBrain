@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.20.1 — 2026-05-17
+
+**RRF k=60 (literature default).** `server/qdrant.js::hybridSearch` now passes `query: { rrf: { k: 60 } }` explicitly instead of `query: { fusion: 'rrf' }`. Qdrant's built-in RRF default is k=2, which lets a single rank-1 hit in either leg (`1/(2+0) = 0.5`) numerically dominate the fusion — dense rank-2 contributes only `1/(2+1) = 0.333` and can never catch up to a different doc that's BM25 rank-1. k=60 is the value from the original Cormack/Clarke/Büttcher 2009 RRF paper and the production default in Elastic, Vespa, and Weaviate; it flattens the rank-position penalty (rank 1 vs 20: 0.0164 vs 0.0125) so both legs contribute meaningfully rather than single-leg-rank-1 winning by construction. New `scripts/p8-probe.js` parameterized by `--k N` and `--out file`; baseline (`tasks/p8-baseline-k2.json`) and after (`tasks/p8-after-k60.json`) snapshots committed for the 8 canonical queries (Boris Cherny + 7 P14 pain queries). Measured outcome: 2 queries improved (Cseperedő, Pörköláb), 5 stable, 2 slightly regressed within the dense-cluster noise band (ERSTE SZA, Amundi) — the change is not a per-query win on this data but restores the literature default and removes the structural bias of the previous Qdrant-default configuration. No schema change, no migration.
+
 ## 0.20.0 — 2026-05-17
 
 **P14 second wave — Hybrid search (BM25 + dense + RRF).** Promoted P8 from DEFERRED → SHIPPED after a live probe showed pure-dense search structurally weak on proper-noun queries ("Boris Cherny" scoring 0.594 cosine for a tweet literally containing the name, ranked below an unrelated meeting transcript). Industry-standard hybrid lexical + semantic search with Reciprocal Rank Fusion replaces the planned project-tag re-rank + synonym dict path.

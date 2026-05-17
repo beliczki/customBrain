@@ -64,6 +64,14 @@ export async function searchVector(vector, limit = 5) {
  * Hybrid search: dense (Gemini cosine) + sparse (BM25 with server-side IDF)
  * fused via Reciprocal Rank Fusion. Used by the user-facing search route.
  * Each leg over-fetches 4× so RRF has room to fuse meaningfully.
+ *
+ * RRF k=60 per Cormack/Clarke/Büttcher 2009 (literature default; also Elastic,
+ * Vespa, Weaviate). Qdrant's built-in default is k=2, which lets a single
+ * BM25 rank-1 lexical hit (1/(2+0)=0.5) numerically dominate the fusion —
+ * dense rank-2 contributes only 1/(2+1)=0.333 and can never catch up.
+ * At k=60 the rank-position penalty flattens (rank 1 vs 20: 0.0164 vs 0.0125),
+ * so both legs contribute meaningfully instead of single-leg-rank-1 winning.
+ * Probe data: tasks/p8-baseline-k2.json vs tasks/p8-after-k60.json.
  */
 export async function hybridSearch(denseVector, sparseVector, limit = 5) {
   const results = await qdrant.query(COLLECTION, {
@@ -71,7 +79,7 @@ export async function hybridSearch(denseVector, sparseVector, limit = 5) {
       { query: denseVector, using: 'dense', limit: limit * 4 },
       { query: sparseVector, using: 'bm25', limit: limit * 4 },
     ],
-    query: { fusion: 'rrf' },
+    query: { rrf: { k: 60 } },
     limit,
     with_payload: true,
   });
