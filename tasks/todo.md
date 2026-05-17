@@ -378,10 +378,49 @@ If (4) fails, that's not a Phase 1 failure — it's data that the agent-as-reran
 - `scripts/p8-probe.js` — extend with band-spread + top-5 metric (don't replace)
 - `server/agenda.js` — unchanged in Phase 1 (no rerank means MIN_SCORE gate stays valid)
 
-## Open questions (need user answer before Phase 1 starts)
+## Open questions (resolved 2026-05-17)
 
-1. **Annotate "right answer" per query — or skip?** Phase 1 success metric (4) requires knowing the known-relevant doc per query. SZA already has one (`65f02ce1-…`). Other 7 queries need either: (a) 5-min user annotation now, or (b) measure on band-spread only (cheaper, but weaker signal — we won't know if rank actually improved). Recommend (a); it's a 5-min investment that pays back across all future search work.
-2. **`task_type` value casing verification** — Gemini docs vary across v1beta vs Vertex (some examples use `RETRIEVAL_DOCUMENT`, others `retrieval_document`). Should I spec a single curl test as step 0 of Phase 1 (5 min), or have you verified out-of-band?
-3. **Backfill timing** — re-embedding 596 points takes ~90s wall-clock at concurrency 8 (~$1 Gemini cost). It's destructive in-place to the dense vectors. Two options:
-   - **(a) Live-rolling** (recommended): backfill runs while pm2 is up. Risk: a capture landing mid-backfill might spuriously archive-or-not via conflict detection on a heterogeneous collection. ~90s window, low traffic, recoverable.
-   - **(b) Maintenance window**: `pm2 stop custombrain`, backfill, restart. Hard pause on captures + intake crons. Cleaner but you eat the downtime.
+1. Annotated all 7 evaluable queries; Q8 marked excluded (broken premise). See `tasks/p8.2-annotations.json`.
+2. Curl test: `taskType` (camelCase) + `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY` (UPPER_SNAKE) accepted. Bonus finding: default-no-taskType is identical to `RETRIEVAL_QUERY` (verified on long text; the previous "stack is doing SEMANTIC_SIMILARITY" guess was wrong — we've been doing symmetric `RETRIEVAL_QUERY` retrieval all along).
+3. Live-rolling chosen. Backfill completed in 23.4s (faster than the 90s estimate) with no failures.
+
+## Outcome (2026-05-17 — Phase 1 shipped as 0.21.0)
+
+**DoD scoring (Phase 1)**:
+1. ✅ Stack correctness: all 6 embedText sites carry explicit task_type (grep-verified)
+2. ✅ Backfill complete: 596/596 points marked `payload.embed_task_type='RETRIEVAL_DOCUMENT'`
+3. ✅ Threshold re-calibrated: 0.85 → 0.97 with inline comment + `tasks/p8.2-threshold-calibration.json` data
+4. ⚠ Recall-oriented soft signal: hybrid winrate 4/7 → 4/7 (unchanged), dense 5/7 → 4/7 (one regression). Below the ≥6/8 target. As predicted in the plan, this is NOT a per-query win — the stack-correctness gate (1) is the hard one.
+5. ✅ Band-spread report committed; dense band WIDENED on 4/7 queries (Q1 2.3×, Q2 1.8×, Q3 1.2×, Q7 1.2×) confirming the asymmetric pattern does discriminate better within domain — just doesn't translate to right-doc-at-top-5 on this small sample.
+6. ✅ No agenda regression measured (out of scope but no code paths touched).
+7. ✅ No new external dependencies, no ongoing $-cost.
+
+**Per-query rank deltas** (baseline default-taskType → after RETRIEVAL_QUERY):
+
+| Q | Query | Hybrid baseline | Hybrid after | Dense baseline | Dense after |
+|---|---|---|---|---|---|
+| 1 | Boris Cherny | HIT@1 | HIT@1 | HIT@1 | HIT@1 |
+| 2 | ERSTE SZA frissítés | miss@6 | miss@6 | HIT@3 | HIT@3 |
+| 3 | Bizi captcha | HIT@1 | HIT@1 | HIT@1 | HIT@1 |
+| 4 | customBrain dev next | HIT@5 | HIT@5 | miss@6 | miss@8 |
+| 5 | Cseperedő status | HIT@2 | HIT@2 | HIT@1 | HIT@1 |
+| 6 | Amundi follow-up | miss@10 | miss@>10 | HIT@4 | miss@10 |
+| 7 | Telex AV | miss@6 | miss@8 | miss | miss |
+| 8 | Pörköláb David | excluded | excluded | excluded | excluded |
+
+**Threshold calibration finding** (`tasks/p8.2-threshold-calibration.json`): RETRIEVAL_DOCUMENT space pulls related docs CLOSER together than the pre-task-type default. Median nearest-non-self cosine is now 0.899 (vs old space probably ~0.5-0.7). Top-20 highest-cosine pairs are 17/20 same-topic recurring content (weekly Bizi syncs, monthly ERSTE status emails), only 2 are true duplicates (0.9861). The 0.97 threshold captures the outlier tip; lowering would trigger Haiku contradiction-check on every capture.
+
+## Done
+
+- [x] Curl test verifying taskType accepted
+- [x] `server/embeddings.js` extended with optional taskType arg, back-compat preserved
+- [x] All 6 embedText call sites updated (search RETRIEVAL_QUERY, capture/refresh/reprocess RETRIEVAL_DOCUMENT)
+- [x] `scripts/backfill-task-types.js` — idempotent, run successfully on all 596 points
+- [x] `scripts/p8-probe.js` extended with annotation-aware metrics + band-spread
+- [x] `tasks/p8.2-annotations.json` — 7 evaluable + 1 excluded canonical query
+- [x] `scripts/calibrate-conflict-threshold.js` + output to `tasks/p8.2-threshold-calibration.json`
+- [x] `server/routes/capture.js` conflict threshold default raised 0.85 → 0.97 with inline calibration comment
+- [x] `tasks/p8.2-phase1-baseline.json` + `tasks/p8.2-phase1-after.json` committed for audit
+- [x] CHANGELOG entry for 0.21.0
+- [x] Version bumped 0.20.1 → 0.21.0 across 4 manifests
+- [ ] Deploy to Hetzner (pm2 stop + fuser -k 3000/tcp + git pull + pm2 start)

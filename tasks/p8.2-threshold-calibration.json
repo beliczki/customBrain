@@ -1,0 +1,182 @@
+{
+  "collection": "thoughts_v2",
+  "run_at": "2026-05-17T21:21:27.666Z",
+  "note": "Per-thought nearest non-self neighbor cosine. Distribution shows what \"near-similar\" looks like in the post-Phase-1 (RETRIEVAL_DOCUMENT) embedding space. Threshold above which conflict-detection triggers should be calibrated against THIS distribution, not against an arbitrary 0.85 default from the pre-task-type era.",
+  "stats": {
+    "n": 243,
+    "max": 0.9861,
+    "p10": 0.9564,
+    "p25": 0.9386,
+    "median": 0.899,
+    "p75": 0.8638,
+    "p90": 0.8311,
+    "min": 0.751,
+    "mean": 0.8962683127572019
+  },
+  "histogram": [
+    {
+      "bucket": "≥0.75",
+      "count": 9
+    },
+    {
+      "bucket": "≥0.80",
+      "count": 34
+    },
+    {
+      "bucket": "≥0.85",
+      "count": 82
+    },
+    {
+      "bucket": "≥0.90",
+      "count": 78
+    },
+    {
+      "bucket": "≥0.95",
+      "count": 40
+    }
+  ],
+  "recommended_threshold": 0.94,
+  "recommendation_reason": "Threshold 0.94 excludes ~90% of nearest-neighbor pairs from conflict-check (top 10% trigger). User should also eyeball top_pairs below — if pairs around the threshold look semantically unrelated, raise the threshold; if many real paraphrases sit below, lower it.",
+  "top_pairs": [
+    {
+      "source_id": "6028c873-b5c6-4a22-b182-61e2c7330b42",
+      "source_title": "ERSTE Számlák — Diverzum PPC anyagok",
+      "neighbor_id": "6c671add-2f22-4a4e-9690-ff5af80bf74b",
+      "neighbor_title": "ERSTE Számlák — Diverzum PPC anyagok",
+      "cosine": 0.9861
+    },
+    {
+      "source_id": "6c671add-2f22-4a4e-9690-ff5af80bf74b",
+      "source_title": "ERSTE Számlák — Diverzum PPC anyagok",
+      "neighbor_id": "6028c873-b5c6-4a22-b182-61e2c7330b42",
+      "neighbor_title": "ERSTE Számlák — Diverzum PPC anyagok",
+      "cosine": 0.9861
+    },
+    {
+      "source_id": "3d3159b6-024e-4fb6-aa2d-957f2a26d220",
+      "source_title": "B2B Digitális Tudakozó heti sync",
+      "neighbor_id": "6b432847-181b-4f42-bc46-6ad4f0e8c28b",
+      "neighbor_title": "B2B Digitális Tudakozó - heti szinkron",
+      "cosine": 0.9713
+    },
+    {
+      "source_id": "6b432847-181b-4f42-bc46-6ad4f0e8c28b",
+      "source_title": "B2B Digitális Tudakozó - heti szinkron",
+      "neighbor_id": "3d3159b6-024e-4fb6-aa2d-957f2a26d220",
+      "neighbor_title": "B2B Digitális Tudakozó heti sync",
+      "cosine": 0.9713
+    },
+    {
+      "source_id": "a4b7784e-68dd-48ca-88c1-d13fec5206d9",
+      "source_title": "B2B Digitális Tudakozó szinkronizáció",
+      "neighbor_id": "6b432847-181b-4f42-bc46-6ad4f0e8c28b",
+      "neighbor_title": "B2B Digitális Tudakozó - heti szinkron",
+      "cosine": 0.9704
+    },
+    {
+      "source_id": "5c080649-4cab-49bb-9add-6872872c12d7",
+      "source_title": "ConfAI platform — feladatok áttekintése",
+      "neighbor_id": "e128aad5-2fb1-4fb0-905e-0ecfe8940dba",
+      "neighbor_title": "Konferencia előadások feldolgozása",
+      "cosine": 0.9689
+    },
+    {
+      "source_id": "e128aad5-2fb1-4fb0-905e-0ecfe8940dba",
+      "source_title": "Konferencia előadások feldolgozása",
+      "neighbor_id": "5c080649-4cab-49bb-9add-6872872c12d7",
+      "neighbor_title": "ConfAI platform — feladatok áttekintése",
+      "cosine": 0.9689
+    },
+    {
+      "source_id": "293e0b82-c8db-4a52-876b-55ebfc76dc2e",
+      "source_title": "Bizi heti szinkronizáció",
+      "neighbor_id": "6b432847-181b-4f42-bc46-6ad4f0e8c28b",
+      "neighbor_title": "B2B Digitális Tudakozó - heti szinkron",
+      "cosine": 0.9652
+    },
+    {
+      "source_id": "ff4a8e4a-e288-4588-8dd0-8568651c0006",
+      "source_title": "B2B Digitális Tudakozó heti sync",
+      "neighbor_id": "3d3159b6-024e-4fb6-aa2d-957f2a26d220",
+      "neighbor_title": "B2B Digitális Tudakozó heti sync",
+      "cosine": 0.9644
+    },
+    {
+      "source_id": "4b4db7e9-a8f3-4658-9a21-06d7a2f529b8",
+      "source_title": "ConfAI együttműködés egyeztetése",
+      "neighbor_id": "742f52cf-f473-420b-8787-6251d98b8a8c",
+      "neighbor_title": "ConfAI szerződés egyeztetése",
+      "cosine": 0.9634
+    },
+    {
+      "source_id": "742f52cf-f473-420b-8787-6251d98b8a8c",
+      "source_title": "ConfAI szerződés egyeztetése",
+      "neighbor_id": "4b4db7e9-a8f3-4658-9a21-06d7a2f529b8",
+      "neighbor_title": "ConfAI együttműködés egyeztetése",
+      "cosine": 0.9634
+    },
+    {
+      "source_id": "9f73a9ea-c267-4289-9e51-d525a70241dd",
+      "source_title": "Recall vs. Telekom second brain",
+      "neighbor_id": "e88733d8-9e31-4777-8dea-94449392069f",
+      "neighbor_title": "Recall tisztázás és pozícionálás",
+      "cosine": 0.9615
+    },
+    {
+      "source_id": "e88733d8-9e31-4777-8dea-94449392069f",
+      "source_title": "Recall tisztázás és pozícionálás",
+      "neighbor_id": "9f73a9ea-c267-4289-9e51-d525a70241dd",
+      "neighbor_title": "Recall vs. Telekom second brain",
+      "cosine": 0.9615
+    },
+    {
+      "source_id": "9a36e339-2698-4551-9114-e4674777993a",
+      "source_title": "Bizi heti szinkron",
+      "neighbor_id": "3d3159b6-024e-4fb6-aa2d-957f2a26d220",
+      "neighbor_title": "B2B Digitális Tudakozó heti sync",
+      "cosine": 0.9614
+    },
+    {
+      "source_id": "10ff686b-70eb-4e0d-990b-6284f4a27bd2",
+      "source_title": "Bizi — Hard gate és captcha egyeztetés",
+      "neighbor_id": "547e2525-2594-4475-a0cb-d50b372034a7",
+      "neighbor_title": "Bizi UI/UX végleges ellenőrzés",
+      "cosine": 0.961
+    },
+    {
+      "source_id": "547e2525-2594-4475-a0cb-d50b372034a7",
+      "source_title": "Bizi UI/UX végleges ellenőrzés",
+      "neighbor_id": "10ff686b-70eb-4e0d-990b-6284f4a27bd2",
+      "neighbor_title": "Bizi — Hard gate és captcha egyeztetés",
+      "cosine": 0.961
+    },
+    {
+      "source_id": "33abc40f-827e-42bc-be62-903318598030",
+      "source_title": "ERSTE Számlák — Diákszámla AON Q1 státusz",
+      "neighbor_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+      "neighbor_title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+      "cosine": 0.9586
+    },
+    {
+      "source_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+      "source_title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+      "neighbor_id": "33abc40f-827e-42bc-be62-903318598030",
+      "neighbor_title": "ERSTE Számlák — Diákszámla AON Q1 státusz",
+      "cosine": 0.9586
+    },
+    {
+      "source_id": "cf0c459c-6203-4ed4-a73d-24d92bc8cc1a",
+      "source_title": "Hétindító - Bizi termék",
+      "neighbor_id": "fe64165d-d9d8-4c3b-b7bc-5e7759617c16",
+      "neighbor_title": "Bizi szinkronizáció és tesztelés",
+      "cosine": 0.958
+    },
+    {
+      "source_id": "fe64165d-d9d8-4c3b-b7bc-5e7759617c16",
+      "source_title": "Bizi szinkronizáció és tesztelés",
+      "neighbor_id": "cf0c459c-6203-4ed4-a73d-24d92bc8cc1a",
+      "neighbor_title": "Hétindító - Bizi termék",
+      "cosine": 0.958
+    }
+  ]
+}

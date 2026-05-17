@@ -1,0 +1,2936 @@
+{
+  "k": 60,
+  "query_task_type": "RETRIEVAL_QUERY",
+  "hit_at": 5,
+  "collection": "thoughts_v2",
+  "top_per_leg": 10,
+  "hybrid_overfetch_per_leg": 40,
+  "run_at": "2026-05-17T21:21:21.992Z",
+  "query_count": 8,
+  "evaluable_count": 7,
+  "winrate": {
+    "dense": "4/7",
+    "bm25": "3/7",
+    "hybrid": "4/7"
+  },
+  "queries": [
+    {
+      "query": "Boris Cherny",
+      "annotation": {
+        "right_answer_ids": [
+          "aa813f55"
+        ],
+        "exclude_from_winrate": false,
+        "note": "Claude munka-ellenőrzés thought captures the Cherny tweet. Shipped to #1 in 0.20.0 hybrid work."
+      },
+      "sparse_token_count": 2,
+      "band_spread": {
+        "dense": 0.0453,
+        "bm25": null,
+        "hybrid": 0.0188
+      },
+      "metrics": {
+        "dense": {
+          "min_rank": 1,
+          "hit_at_N": true,
+          "matched_ranks": [
+            1
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        },
+        "bm25": {
+          "min_rank": 1,
+          "hit_at_N": true,
+          "matched_ranks": [
+            1
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        },
+        "hybrid": {
+          "min_rank": 1,
+          "hit_at_N": true,
+          "matched_ranks": [
+            1
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        }
+      },
+      "dense": [
+        {
+          "rank": 1,
+          "score": 0.6596,
+          "id": "aa813f55-a77b-4e71-8750-1794a4aef450",
+          "kind": "thought",
+          "title": "Claude munka-ellenőrzés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 2,
+          "score": 0.6198,
+          "id": "139c3f03-35b6-499f-be30-341bffc9f631",
+          "kind": "thought",
+          "title": "Contagious Radar 2026 értékelés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-03-26"
+        },
+        {
+          "rank": 3,
+          "score": 0.6196,
+          "id": "cbe7b123-ce5b-450c-8768-fe144fddbedb",
+          "kind": "thought",
+          "title": "Digitális Asszisztens státusz",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-02"
+        },
+        {
+          "rank": 4,
+          "score": 0.6191,
+          "id": "7a4af1e7-b17b-4756-9514-e6619e34d244",
+          "kind": "thought",
+          "title": "Bizi platformfeladatok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-03-16"
+        },
+        {
+          "rank": 5,
+          "score": 0.6174,
+          "id": "b594feaa-d0a4-4c78-9496-b27a07fec37a",
+          "kind": "thought",
+          "title": "Bizi ellenőrzési lista",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-27"
+        },
+        {
+          "rank": 6,
+          "score": 0.6171,
+          "id": "272596d5-5d96-4c8c-a1b9-051e10fa3c20",
+          "kind": "chunk",
+          "title": "Emad Mostaque AI-interjú összefoglalója",
+          "parent_id": "ea808e66-55ee-430e-9d8b-f57d9c4a9fbe",
+          "chunk_label": "Epizód fejezetek (timestamps)",
+          "source": "youtube",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 7,
+          "score": 0.617,
+          "id": "8ce6d67c-7963-4725-b1b9-ce124d234afe",
+          "kind": "thought",
+          "title": "Bizi fejlesztés és tesztelés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-23"
+        },
+        {
+          "rank": 8,
+          "score": 0.616,
+          "id": "4e0a9e91-ac62-4b47-a326-5e623873b260",
+          "kind": "thought",
+          "title": "Claude kódból fejlesztőcsapat",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "youtube",
+          "effective_date": "2026-04-22"
+        },
+        {
+          "rank": 9,
+          "score": 0.6158,
+          "id": "c222db16-3e80-4ebd-94e2-703cb6ce33a5",
+          "kind": "thought",
+          "title": "DCO 2 heti státusz",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-21"
+        },
+        {
+          "rank": 10,
+          "score": 0.6143,
+          "id": "92d14675-cf07-4f9e-be3d-1f448ae290a2",
+          "kind": "thought",
+          "title": "Bizi frissítés probléma",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-03"
+        }
+      ],
+      "bm25": [
+        {
+          "rank": 1,
+          "score": 17.4996,
+          "id": "aa813f55-a77b-4e71-8750-1794a4aef450",
+          "kind": "thought",
+          "title": "Claude munka-ellenőrzés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-18"
+        }
+      ],
+      "hybrid": [
+        {
+          "rank": 1,
+          "score": 0.0333,
+          "id": "aa813f55-a77b-4e71-8750-1794a4aef450",
+          "kind": "thought",
+          "title": "Claude munka-ellenőrzés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 2,
+          "score": 0.0164,
+          "id": "139c3f03-35b6-499f-be30-341bffc9f631",
+          "kind": "thought",
+          "title": "Contagious Radar 2026 értékelés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-03-26"
+        },
+        {
+          "rank": 3,
+          "score": 0.0161,
+          "id": "cbe7b123-ce5b-450c-8768-fe144fddbedb",
+          "kind": "thought",
+          "title": "Digitális Asszisztens státusz",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-02"
+        },
+        {
+          "rank": 4,
+          "score": 0.0159,
+          "id": "7a4af1e7-b17b-4756-9514-e6619e34d244",
+          "kind": "thought",
+          "title": "Bizi platformfeladatok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-03-16"
+        },
+        {
+          "rank": 5,
+          "score": 0.0156,
+          "id": "b594feaa-d0a4-4c78-9496-b27a07fec37a",
+          "kind": "thought",
+          "title": "Bizi ellenőrzési lista",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-27"
+        },
+        {
+          "rank": 6,
+          "score": 0.0154,
+          "id": "272596d5-5d96-4c8c-a1b9-051e10fa3c20",
+          "kind": "chunk",
+          "title": "Emad Mostaque AI-interjú összefoglalója",
+          "parent_id": "ea808e66-55ee-430e-9d8b-f57d9c4a9fbe",
+          "chunk_label": "Epizód fejezetek (timestamps)",
+          "source": "youtube",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 7,
+          "score": 0.0152,
+          "id": "8ce6d67c-7963-4725-b1b9-ce124d234afe",
+          "kind": "thought",
+          "title": "Bizi fejlesztés és tesztelés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-23"
+        },
+        {
+          "rank": 8,
+          "score": 0.0149,
+          "id": "4e0a9e91-ac62-4b47-a326-5e623873b260",
+          "kind": "thought",
+          "title": "Claude kódból fejlesztőcsapat",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "youtube",
+          "effective_date": "2026-04-22"
+        },
+        {
+          "rank": 9,
+          "score": 0.0147,
+          "id": "c222db16-3e80-4ebd-94e2-703cb6ce33a5",
+          "kind": "thought",
+          "title": "DCO 2 heti státusz",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-21"
+        },
+        {
+          "rank": 10,
+          "score": 0.0145,
+          "id": "92d14675-cf07-4f9e-be3d-1f448ae290a2",
+          "kind": "thought",
+          "title": "Bizi frissítés probléma",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-03"
+        }
+      ]
+    },
+    {
+      "query": "ERSTE Adform SZA frissítés 150e kaphatsz uj template új feed",
+      "annotation": {
+        "right_answer_ids": [
+          "65f02ce1"
+        ],
+        "exclude_from_winrate": false,
+        "note": "május 1-jei ajánlatváltás — about the SZA product changes driving the campaign update."
+      },
+      "sparse_token_count": 10,
+      "band_spread": {
+        "dense": 0.0261,
+        "bm25": 3.7589,
+        "hybrid": 0.009
+      },
+      "metrics": {
+        "dense": {
+          "min_rank": 3,
+          "hit_at_N": true,
+          "matched_ranks": [
+            3
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        },
+        "bm25": {
+          "min_rank": null,
+          "hit_at_N": false,
+          "matched_ranks": [],
+          "count_in_topN": 0,
+          "set_size": 1
+        },
+        "hybrid": {
+          "min_rank": 6,
+          "hit_at_N": false,
+          "matched_ranks": [
+            6
+          ],
+          "count_in_topN": 0,
+          "set_size": 1
+        }
+      },
+      "dense": [
+        {
+          "rank": 1,
+          "score": 0.7857,
+          "id": "e6b87af0-4043-43a6-8ca0-a86aa0110906",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "chunk_label": "DCO és kreatív frissítések",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 2,
+          "score": 0.7771,
+          "id": "8f1b0900-7ad8-44c6-955a-dba49514a971",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — május 1-jei ajánlatváltás",
+          "parent_id": "65f02ce1-5597-4566-b20a-9a347c2372f4",
+          "chunk_label": "Új 150k mérföldkő-ajánlat részletei",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 3,
+          "score": 0.7695,
+          "id": "65f02ce1-5597-4566-b20a-9a347c2372f4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — május 1-jei ajánlatváltás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-15"
+        },
+        {
+          "rank": 4,
+          "score": 0.7681,
+          "id": "70194fb3-2adb-4294-a4cb-06cc243921ea",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "chunk_label": "DCO és kreatív frissítések",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 5,
+          "score": 0.766,
+          "id": "c7ec4168-da56-49c2-a2a2-221424a4c45f",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+          "parent_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+          "chunk_label": "Micro Számla, Cseperedő és Diverzum specifikus",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 0.7651,
+          "id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "kind": "thought",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-13"
+        },
+        {
+          "rank": 7,
+          "score": 0.7639,
+          "id": "71a36ac3-1e9f-44a9-a50e-535d5c787769",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "chunk_label": "Kampány- és line item setup",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 8,
+          "score": 0.7614,
+          "id": "6d0b0815-962a-4090-9605-b2b8be8af728",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Cseperedő Visa kampány médiatervezés",
+          "parent_id": "d26b7204-378d-43cc-9789-0f815fda1005",
+          "chunk_label": "Kreatív specifikációk és copy",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 9,
+          "score": 0.7607,
+          "id": "715807c2-87cb-4cca-99fe-b3f29279eb12",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+          "parent_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+          "chunk_label": "Diákszámla AON kampány",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 10,
+          "score": 0.7596,
+          "id": "83a89d60-fc4e-4235-890a-c2e264b060b3",
+          "kind": "chunk",
+          "title": "ERSTE Market — Future Q2 longterm kreatívok",
+          "parent_id": "27a8e877-7f66-409f-9024-e298338bba2e",
+          "chunk_label": "Kampányok és anyagok állapota",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        }
+      ],
+      "bm25": [
+        {
+          "rank": 1,
+          "score": 17.3878,
+          "id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "kind": "thought",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-13"
+        },
+        {
+          "rank": 2,
+          "score": 15.8034,
+          "id": "62e1b51b-2ed5-40ff-b31a-5ab37b0155f4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — 2026-os repülőrajt anyagok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-01-22"
+        },
+        {
+          "rank": 3,
+          "score": 15.557,
+          "id": "441c915a-863f-491e-8756-d9caa2da7a14",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Adform PMMID-k és DCO inkompatibilitás",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 4,
+          "score": 15.1658,
+          "id": "fecf9562-bc84-4ca6-a489-30d7c4905dd7",
+          "kind": "chunk",
+          "title": "ERSTE — DCO AI prod statusz",
+          "parent_id": "79c4784a-b502-4dd0-a9b9-09c7526e8d20",
+          "chunk_label": "Email fejléc és lezárt tételek",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 5,
+          "score": 14.3521,
+          "id": "71a36ac3-1e9f-44a9-a50e-535d5c787769",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "chunk_label": "Kampány- és line item setup",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 14.2998,
+          "id": "06b5a347-02ef-4b14-8d7f-34231bc93f70",
+          "kind": "chunk",
+          "title": "ERSTE — SZK/HK kreatív refresh megbeszélés",
+          "parent_id": "18b6daf6-aab5-496b-9491-d587a3986517",
+          "chunk_label": "Meeting fejléc és kontextus",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 7,
+          "score": 14.1504,
+          "id": "4b2a6ef9-f08d-4a79-85a2-e09683005c73",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "chunk_label": "Kampánynevek és általános setup",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 8,
+          "score": 14.0026,
+          "id": "79c4784a-b502-4dd0-a9b9-09c7526e8d20",
+          "kind": "thought",
+          "title": "ERSTE — DCO AI prod statusz",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2025-12-09"
+        },
+        {
+          "rank": 9,
+          "score": 13.7308,
+          "id": "18b6daf6-aab5-496b-9491-d587a3986517",
+          "kind": "thought",
+          "title": "ERSTE — SZK/HK kreatív refresh megbeszélés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2025-12-02"
+        },
+        {
+          "rank": 10,
+          "score": 13.6289,
+          "id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "kind": "thought",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2025-11-26"
+        }
+      ],
+      "hybrid": [
+        {
+          "rank": 1,
+          "score": 0.0321,
+          "id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "kind": "thought",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-13"
+        },
+        {
+          "rank": 2,
+          "score": 0.0308,
+          "id": "71a36ac3-1e9f-44a9-a50e-535d5c787769",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "chunk_label": "Kampány- és line item setup",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 3,
+          "score": 0.0291,
+          "id": "441c915a-863f-491e-8756-d9caa2da7a14",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Adform PMMID-k és DCO inkompatibilitás",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 4,
+          "score": 0.0289,
+          "id": "4b2a6ef9-f08d-4a79-85a2-e09683005c73",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "chunk_label": "Kampánynevek és általános setup",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 5,
+          "score": 0.0271,
+          "id": "c7ec4168-da56-49c2-a2a2-221424a4c45f",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+          "parent_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+          "chunk_label": "Micro Számla, Cseperedő és Diverzum specifikus",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 0.0271,
+          "id": "65f02ce1-5597-4566-b20a-9a347c2372f4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — május 1-jei ajánlatváltás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-15"
+        },
+        {
+          "rank": 7,
+          "score": 0.0269,
+          "id": "62e1b51b-2ed5-40ff-b31a-5ab37b0155f4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — 2026-os repülőrajt anyagok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-01-22"
+        },
+        {
+          "rank": 8,
+          "score": 0.0245,
+          "id": "13977adc-e1ef-4388-9d11-cb03fe1a564c",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Adform PMMID-k és DCO inkompatibilitás",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 9,
+          "score": 0.0243,
+          "id": "c95d5020-74db-4d21-9778-959f85fb088f",
+          "kind": "thought",
+          "title": "ERSTE — 2026 Q1 Longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-06"
+        },
+        {
+          "rank": 10,
+          "score": 0.0231,
+          "id": "dea41997-b7e3-42f9-8578-0c05d0efac2e",
+          "kind": "thought",
+          "title": "ERSTE Vállakozók — Teya POS kampány leadás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-15"
+        }
+      ]
+    },
+    {
+      "query": "Bizi captcha hard gate egyeztetés",
+      "annotation": {
+        "right_answer_ids": [
+          "10ff686b"
+        ],
+        "exclude_from_winrate": false,
+        "note": "Bizi — Hard gate és captcha egyeztetés — title-exact match."
+      },
+      "sparse_token_count": 5,
+      "band_spread": {
+        "dense": 0.0386,
+        "bm25": 11.102,
+        "hybrid": 0.0108
+      },
+      "metrics": {
+        "dense": {
+          "min_rank": 1,
+          "hit_at_N": true,
+          "matched_ranks": [
+            1
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        },
+        "bm25": {
+          "min_rank": 2,
+          "hit_at_N": true,
+          "matched_ranks": [
+            2
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        },
+        "hybrid": {
+          "min_rank": 1,
+          "hit_at_N": true,
+          "matched_ranks": [
+            1
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        }
+      },
+      "dense": [
+        {
+          "rank": 1,
+          "score": 0.772,
+          "id": "10ff686b-70eb-4e0d-990b-6284f4a27bd2",
+          "kind": "thought",
+          "title": "Bizi — Hard gate és captcha egyeztetés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-05-04"
+        },
+        {
+          "rank": 2,
+          "score": 0.7527,
+          "id": "0581427f-d3f8-4c16-8289-d9492a1deb09",
+          "kind": "thought",
+          "title": "Bizi operatív meeting",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-25"
+        },
+        {
+          "rank": 3,
+          "score": 0.7499,
+          "id": "6167899d-0a20-4251-941d-8a43cf83f633",
+          "kind": "thought",
+          "title": "Dasszisztens e-mail gate és copy",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-21"
+        },
+        {
+          "rank": 4,
+          "score": 0.7414,
+          "id": "11eb5e5c-bad8-4201-a83d-2dcdf965d1e2",
+          "kind": "thought",
+          "title": "Bizi adattisztítás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-17"
+        },
+        {
+          "rank": 5,
+          "score": 0.7409,
+          "id": "5570bfd3-b7c1-4415-b069-e1d625d2c378",
+          "kind": "thought",
+          "title": "B2B Digitális Tudakozó heti sync",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-14"
+        },
+        {
+          "rank": 6,
+          "score": 0.7399,
+          "id": "f3e26b4c-ffb0-45b2-9e0e-0d4b8ff6409c",
+          "kind": "thought",
+          "title": "Bizi AI válaszok feedback loop",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-03"
+        },
+        {
+          "rank": 7,
+          "score": 0.7382,
+          "id": "8ce6d67c-7963-4725-b1b9-ce124d234afe",
+          "kind": "thought",
+          "title": "Bizi fejlesztés és tesztelés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-23"
+        },
+        {
+          "rank": 8,
+          "score": 0.738,
+          "id": "038d62ed-5e57-4f0f-aeea-37321d0032df",
+          "kind": "chunk",
+          "title": "Bizi — automatizált tesztsor stratégia",
+          "parent_id": "428ef761-6a58-46b7-b55d-0f87426ee5b2",
+          "chunk_label": "Két tesztsor bevezetése és indoklás",
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 9,
+          "score": 0.7355,
+          "id": "b594feaa-d0a4-4c78-9496-b27a07fec37a",
+          "kind": "thought",
+          "title": "Bizi ellenőrzési lista",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-27"
+        },
+        {
+          "rank": 10,
+          "score": 0.7334,
+          "id": "746f15a2-1a3a-489e-a6c2-6ef2c206da13",
+          "kind": "thought",
+          "title": "Bizi UIUX review megbeszélés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-18"
+        }
+      ],
+      "bm25": [
+        {
+          "rank": 1,
+          "score": 15.9781,
+          "id": "c762a607-5acc-4f66-9862-0f671be1aef8",
+          "kind": "thought",
+          "title": "customBrain — Verzió 0.19.0 állapota",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 2,
+          "score": 7.767,
+          "id": "10ff686b-70eb-4e0d-990b-6284f4a27bd2",
+          "kind": "thought",
+          "title": "Bizi — Hard gate és captcha egyeztetés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-05-04"
+        },
+        {
+          "rank": 3,
+          "score": 7.644,
+          "id": "a04c7cf4-50a4-47c2-b3af-c9d7858a97bb",
+          "kind": "thought",
+          "title": "AI Snapshot esemény tervezése",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-22"
+        },
+        {
+          "rank": 4,
+          "score": 7.6391,
+          "id": "6167899d-0a20-4251-941d-8a43cf83f633",
+          "kind": "thought",
+          "title": "Dasszisztens e-mail gate és copy",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-21"
+        },
+        {
+          "rank": 5,
+          "score": 6.151,
+          "id": "fe62f731-71ae-4095-b3d9-16747ac861cd",
+          "kind": "chunk",
+          "title": "ERSTE — DCO AI prod statusz",
+          "parent_id": "79c4784a-b502-4dd0-a9b9-09c7526e8d20",
+          "chunk_label": "Nyitott kérdések és visszajelzések",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 6.1428,
+          "id": "c998f3a9-4c24-4498-81a7-62f7aa959501",
+          "kind": "thought",
+          "title": "Claude Agent SDK Workshop — Agentic Architecture",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "youtube",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 7,
+          "score": 6.0026,
+          "id": "c7d81fbb-05f5-40ed-8831-02944437d94d",
+          "kind": "chunk",
+          "title": "Cafe Communications — Automatizációs ajánlat egyeztetés",
+          "parent_id": "6ca1b5b8-ad0f-42a9-9b6d-d804d0050c9b",
+          "chunk_label": "Árazás, Figma vs. MM, következő lépés",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 8,
+          "score": 4.9397,
+          "id": "d38ce80f-8c00-4cc4-bac7-99c58df05d78",
+          "kind": "thought",
+          "title": "Ügynök memória architektúra",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-03"
+        },
+        {
+          "rank": 9,
+          "score": 4.9262,
+          "id": "0f239ac1-da2e-4501-884d-54e84c4eb20d",
+          "kind": "thought",
+          "title": "ConfAI Csermely esemény",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 10,
+          "score": 4.8761,
+          "id": "a69a9137-4cfb-4a0a-809e-3de7df76838d",
+          "kind": "thought",
+          "title": "Reasoning Models Guide",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-03"
+        }
+      ],
+      "hybrid": [
+        {
+          "rank": 1,
+          "score": 0.0331,
+          "id": "10ff686b-70eb-4e0d-990b-6284f4a27bd2",
+          "kind": "thought",
+          "title": "Bizi — Hard gate és captcha egyeztetés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-05-04"
+        },
+        {
+          "rank": 2,
+          "score": 0.032,
+          "id": "6167899d-0a20-4251-941d-8a43cf83f633",
+          "kind": "thought",
+          "title": "Dasszisztens e-mail gate és copy",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-21"
+        },
+        {
+          "rank": 3,
+          "score": 0.028,
+          "id": "340d9f70-2917-4040-87fa-88b399d677de",
+          "kind": "thought",
+          "title": "Bizi projektregiszter v2",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 4,
+          "score": 0.0274,
+          "id": "038d62ed-5e57-4f0f-aeea-37321d0032df",
+          "kind": "chunk",
+          "title": "Bizi — automatizált tesztsor stratégia",
+          "parent_id": "428ef761-6a58-46b7-b55d-0f87426ee5b2",
+          "chunk_label": "Két tesztsor bevezetése és indoklás",
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 5,
+          "score": 0.0256,
+          "id": "746f15a2-1a3a-489e-a6c2-6ef2c206da13",
+          "kind": "thought",
+          "title": "Bizi UIUX review megbeszélés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-18"
+        },
+        {
+          "rank": 6,
+          "score": 0.0252,
+          "id": "83f4f176-c51b-4c94-b89a-94f100aede22",
+          "kind": "thought",
+          "title": "Élesítés előtti felkészülés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-23"
+        },
+        {
+          "rank": 7,
+          "score": 0.0245,
+          "id": "d73a4af2-677d-480e-a744-6eb247cb6e0a",
+          "kind": "thought",
+          "title": "Bizi Demo előkészítés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-04-27"
+        },
+        {
+          "rank": 8,
+          "score": 0.0242,
+          "id": "33e8dd9d-50a6-4c48-99c8-afa1e56057c4",
+          "kind": "chunk",
+          "title": "Bizi — Sajtóesemény előkészítő sync",
+          "parent_id": "6834ba86-26f4-47e1-9bab-80cba0295752",
+          "chunk_label": "Újságírói elvárások és visszajelzési logika",
+          "source": "fireflies",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 9,
+          "score": 0.0225,
+          "id": "fcf2c717-039f-4102-8c4f-bceaedb9d786",
+          "kind": "chunk",
+          "title": "Bizi — Terhelésteszt elvek és bugok",
+          "parent_id": "680a9ecb-399d-4a81-bb4b-9ba3403284e4",
+          "chunk_label": "Terhelésteszt célja és Bizi-példa",
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 10,
+          "score": 0.0223,
+          "id": "7a4af1e7-b17b-4756-9514-e6619e34d244",
+          "kind": "thought",
+          "title": "Bizi platformfeladatok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-03-16"
+        }
+      ]
+    },
+    {
+      "query": "customBrain dev next steps",
+      "annotation": {
+        "right_answer_ids": [
+          "c762a607"
+        ],
+        "exclude_from_winrate": false,
+        "note": "customBrain — Verzió 0.19.0 állapota — current snapshot is what 'dev next steps' anchors against."
+      },
+      "sparse_token_count": 4,
+      "band_spread": {
+        "dense": 0.0549,
+        "bm25": 7.7034,
+        "hybrid": 0.0064
+      },
+      "metrics": {
+        "dense": {
+          "min_rank": 8,
+          "hit_at_N": false,
+          "matched_ranks": [
+            8
+          ],
+          "count_in_topN": 0,
+          "set_size": 1
+        },
+        "bm25": {
+          "min_rank": null,
+          "hit_at_N": false,
+          "matched_ranks": [],
+          "count_in_topN": 0,
+          "set_size": 1
+        },
+        "hybrid": {
+          "min_rank": 5,
+          "hit_at_N": true,
+          "matched_ranks": [
+            5
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        }
+      },
+      "dense": [
+        {
+          "rank": 1,
+          "score": 0.7679,
+          "id": "97ab4df4-2a54-4823-b4cd-51cbde8a7526",
+          "kind": "thought",
+          "title": "customBrain 0.3.0 pillanatkép",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 2,
+          "score": 0.7566,
+          "id": "f0e26bdb-c57a-4c9e-9a98-95868fd8bf47",
+          "kind": "thought",
+          "title": "customBrain — Agent-Driven Install",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 3,
+          "score": 0.7531,
+          "id": "c4ed7f16-ef41-47b4-809e-80e030d5528a",
+          "kind": "thought",
+          "title": "customBrain — README snapshot",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 4,
+          "score": 0.75,
+          "id": "58e4efcd-c8e6-49cb-bf8a-369d30195621",
+          "kind": "thought",
+          "title": "customBrain mérési terv",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-19"
+        },
+        {
+          "rank": 5,
+          "score": 0.7475,
+          "id": "20d7b4fd-4582-472e-aea0-0ddfae2d2a03",
+          "kind": "thought",
+          "title": "customBrain állapotfelmérés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-04"
+        },
+        {
+          "rank": 6,
+          "score": 0.747,
+          "id": "d0b0d2fe-0c62-45f7-9c3c-028d9d53cf10",
+          "kind": "thought",
+          "title": "customBrain capture use cases",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-04"
+        },
+        {
+          "rank": 7,
+          "score": 0.7431,
+          "id": "787d7788-e45f-4a73-9b06-214cfce2ddc6",
+          "kind": "thought",
+          "title": "customBrain fejlesztési feedback",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-03"
+        },
+        {
+          "rank": 8,
+          "score": 0.7343,
+          "id": "c762a607-5acc-4f66-9862-0f671be1aef8",
+          "kind": "thought",
+          "title": "customBrain — Verzió 0.19.0 állapota",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 9,
+          "score": 0.7288,
+          "id": "ff812110-4934-4337-a0e5-79b30d3d8b66",
+          "kind": "thought",
+          "title": "MemMolt és Claude-Obsidian review",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 10,
+          "score": 0.713,
+          "id": "2396bdac-bdf5-4ad4-931f-3853c903539e",
+          "kind": "chunk",
+          "title": "Messaging matrix — Hintrix rendszer összehasonlítás",
+          "parent_id": "a88acd84-4d88-4185-ade9-cf44138548d1",
+          "chunk_label": "Agent-alapú jövő és second brain hálózat",
+          "source": "fireflies",
+          "effective_date": "2026-05-16"
+        }
+      ],
+      "bm25": [
+        {
+          "rank": 1,
+          "score": 14.8741,
+          "id": "f0e26bdb-c57a-4c9e-9a98-95868fd8bf47",
+          "kind": "thought",
+          "title": "customBrain — Agent-Driven Install",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 2,
+          "score": 10.3083,
+          "id": "58e4efcd-c8e6-49cb-bf8a-369d30195621",
+          "kind": "thought",
+          "title": "customBrain mérési terv",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-19"
+        },
+        {
+          "rank": 3,
+          "score": 9.4231,
+          "id": "97ab4df4-2a54-4823-b4cd-51cbde8a7526",
+          "kind": "thought",
+          "title": "customBrain 0.3.0 pillanatkép",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 4,
+          "score": 8.6472,
+          "id": "ccfb6e6c-bb56-4f7e-8d6b-91fe93bd3aff",
+          "kind": "chunk",
+          "title": "Context Graphs AI döntéshozatalban",
+          "parent_id": "b4b0ffb9-f3a1-4a45-afa4-86ec2c93dd52",
+          "chunk_label": "Téves AI-cselekvési lista és keretrendszerek",
+          "source": "youtube",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 5,
+          "score": 8.3156,
+          "id": "b4b0ffb9-f3a1-4a45-afa4-86ec2c93dd52",
+          "kind": "thought",
+          "title": "Context Graphs AI döntéshozatalban",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "youtube",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 8.2143,
+          "id": "32b9bf1a-d3bf-4215-b6f3-abebf174d2c8",
+          "kind": "thought",
+          "title": "Bizi v1.7.2 kiadás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-20"
+        },
+        {
+          "rank": 7,
+          "score": 7.8053,
+          "id": "dcd3da9b-ff1b-4439-9976-8184a8a174cd",
+          "kind": "thought",
+          "title": "Brain-hygiene pilot",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-19"
+        },
+        {
+          "rank": 8,
+          "score": 7.7976,
+          "id": "c4ed7f16-ef41-47b4-809e-80e030d5528a",
+          "kind": "thought",
+          "title": "customBrain — README snapshot",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 9,
+          "score": 7.5563,
+          "id": "340d9f70-2917-4040-87fa-88b399d677de",
+          "kind": "thought",
+          "title": "Bizi projektregiszter v2",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 10,
+          "score": 7.1707,
+          "id": "bb35dff6-aecc-4274-8205-c709ef6f5bc4",
+          "kind": "thought",
+          "title": "InDesign Templating Skill",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-18"
+        }
+      ],
+      "hybrid": [
+        {
+          "rank": 1,
+          "score": 0.0331,
+          "id": "f0e26bdb-c57a-4c9e-9a98-95868fd8bf47",
+          "kind": "thought",
+          "title": "customBrain — Agent-Driven Install",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 2,
+          "score": 0.0328,
+          "id": "97ab4df4-2a54-4823-b4cd-51cbde8a7526",
+          "kind": "thought",
+          "title": "customBrain 0.3.0 pillanatkép",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 3,
+          "score": 0.0323,
+          "id": "58e4efcd-c8e6-49cb-bf8a-369d30195621",
+          "kind": "thought",
+          "title": "customBrain mérési terv",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-19"
+        },
+        {
+          "rank": 4,
+          "score": 0.0311,
+          "id": "c4ed7f16-ef41-47b4-809e-80e030d5528a",
+          "kind": "thought",
+          "title": "customBrain — README snapshot",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 5,
+          "score": 0.0288,
+          "id": "c762a607-5acc-4f66-9862-0f671be1aef8",
+          "kind": "thought",
+          "title": "customBrain — Verzió 0.19.0 állapota",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 6,
+          "score": 0.0287,
+          "id": "787d7788-e45f-4a73-9b06-214cfce2ddc6",
+          "kind": "thought",
+          "title": "customBrain fejlesztési feedback",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-03"
+        },
+        {
+          "rank": 7,
+          "score": 0.028,
+          "id": "d29c3eb8-4976-4452-a31d-997c81868af0",
+          "kind": "thought",
+          "title": "Karpathy vs. Eugeniu összehasonlítás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 8,
+          "score": 0.0278,
+          "id": "dcd3da9b-ff1b-4439-9976-8184a8a174cd",
+          "kind": "thought",
+          "title": "Brain-hygiene pilot",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "manual",
+          "effective_date": "2026-04-19"
+        },
+        {
+          "rank": 9,
+          "score": 0.0271,
+          "id": "20d7b4fd-4582-472e-aea0-0ddfae2d2a03",
+          "kind": "thought",
+          "title": "customBrain állapotfelmérés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-04"
+        },
+        {
+          "rank": 10,
+          "score": 0.0267,
+          "id": "d0b0d2fe-0c62-45f7-9c3c-028d9d53cf10",
+          "kind": "thought",
+          "title": "customBrain capture use cases",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-04"
+        }
+      ]
+    },
+    {
+      "query": "ERSTE Cseperedő számla status",
+      "annotation": {
+        "right_answer_ids": [
+          "da0bf6b9",
+          "4fdebc96",
+          "d26b7204",
+          "6d0b0815"
+        ],
+        "exclude_from_winrate": false,
+        "note": "All 4 docs are the same Cseperedő Visa kampány médiatervezés content (1 parent thought + 3 chunks). Any in top-N counts as hit; ideal is all 4 surfaced."
+      },
+      "sparse_token_count": 4,
+      "band_spread": {
+        "dense": 0.0372,
+        "bm25": 2.8289,
+        "hybrid": 0.0043
+      },
+      "metrics": {
+        "dense": {
+          "min_rank": 1,
+          "hit_at_N": true,
+          "matched_ranks": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "count_in_topN": 4,
+          "set_size": 4
+        },
+        "bm25": {
+          "min_rank": null,
+          "hit_at_N": false,
+          "matched_ranks": [],
+          "count_in_topN": 0,
+          "set_size": 4
+        },
+        "hybrid": {
+          "min_rank": 2,
+          "hit_at_N": true,
+          "matched_ranks": [
+            2,
+            8
+          ],
+          "count_in_topN": 1,
+          "set_size": 4
+        }
+      },
+      "dense": [
+        {
+          "rank": 1,
+          "score": 0.7643,
+          "id": "da0bf6b9-86eb-459e-ad5c-3868162394db",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Cseperedő Visa kampány médiatervezés",
+          "parent_id": "d26b7204-378d-43cc-9789-0f815fda1005",
+          "chunk_label": "Copy és kreatív jóváhagyás",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 2,
+          "score": 0.7438,
+          "id": "4fdebc96-eb92-4728-9d5e-57d04f0dcc12",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Cseperedő Visa kampány médiatervezés",
+          "parent_id": "d26b7204-378d-43cc-9789-0f815fda1005",
+          "chunk_label": "Kampány fejléc és alapparaméterek",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 3,
+          "score": 0.7412,
+          "id": "d26b7204-378d-43cc-9789-0f815fda1005",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Cseperedő Visa kampány médiatervezés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-12"
+        },
+        {
+          "rank": 4,
+          "score": 0.7405,
+          "id": "6d0b0815-962a-4090-9605-b2b8be8af728",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Cseperedő Visa kampány médiatervezés",
+          "parent_id": "d26b7204-378d-43cc-9789-0f815fda1005",
+          "chunk_label": "Kreatív specifikációk és copy",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 5,
+          "score": 0.7372,
+          "id": "c7ec4168-da56-49c2-a2a2-221424a4c45f",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+          "parent_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+          "chunk_label": "Micro Számla, Cseperedő és Diverzum specifikus",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 0.7304,
+          "id": "715807c2-87cb-4cca-99fe-b3f29279eb12",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+          "parent_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+          "chunk_label": "Diákszámla AON kampány",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 7,
+          "score": 0.7299,
+          "id": "4a8bdb47-6692-485a-b5b1-2c798f07c3ee",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — 2026-os repülőrajt anyagok",
+          "parent_id": "62e1b51b-2ed5-40ff-b31a-5ab37b0155f4",
+          "chunk_label": "Akciók és státusz",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 8,
+          "score": 0.729,
+          "id": "e92efdb2-b8f0-40fd-b50a-bd95c4139b59",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — május 1-jei ajánlatváltás",
+          "parent_id": "65f02ce1-5597-4566-b20a-9a347c2372f4",
+          "chunk_label": "Prezentációk, mappák és státusz",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 9,
+          "score": 0.7282,
+          "id": "65f02ce1-5597-4566-b20a-9a347c2372f4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — május 1-jei ajánlatváltás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-15"
+        },
+        {
+          "rank": 10,
+          "score": 0.7271,
+          "id": "91d39695-afbb-4eeb-baaa-bdff2ef7e2d4",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — 2026-os repülőrajt anyagok",
+          "parent_id": "62e1b51b-2ed5-40ff-b31a-5ab37b0155f4",
+          "chunk_label": "Diákszámla AON és Diverzum kampányok",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        }
+      ],
+      "bm25": [
+        {
+          "rank": 1,
+          "score": 11.9392,
+          "id": "5a1630e7-c014-43fb-9053-0f65c1b2b1f0",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Függőben lévő kampányok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-09"
+        },
+        {
+          "rank": 2,
+          "score": 10.6643,
+          "id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-01-21"
+        },
+        {
+          "rank": 3,
+          "score": 10.1009,
+          "id": "c95d5020-74db-4d21-9778-959f85fb088f",
+          "kind": "thought",
+          "title": "ERSTE — 2026 Q1 Longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-06"
+        },
+        {
+          "rank": 4,
+          "score": 9.993,
+          "id": "62e1b51b-2ed5-40ff-b31a-5ab37b0155f4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — 2026-os repülőrajt anyagok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-01-22"
+        },
+        {
+          "rank": 5,
+          "score": 9.3625,
+          "id": "267833d9-35b3-4d49-b7d5-ceea42515df4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Cseperedő Q2 2026 kampány",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-15"
+        },
+        {
+          "rank": 6,
+          "score": 9.3495,
+          "id": "d3e9c2b7-bec4-4649-8413-e94c5f51c084",
+          "kind": "thought",
+          "title": "Mikrovállalati szegmens láthatósága",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-04-20"
+        },
+        {
+          "rank": 7,
+          "score": 9.2653,
+          "id": "edd5f430-fe07-4ecf-ac56-c6476291575d",
+          "kind": "thought",
+          "title": "ERSTE — Anyagleadás-elnevezési rendszer",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-25"
+        },
+        {
+          "rank": 8,
+          "score": 9.1406,
+          "id": "60a5cc14-ae0a-4a66-9cf3-e704c5cf3211",
+          "kind": "thought",
+          "title": "ERSTE Q2 költségvetés és kreatívok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-04-30"
+        },
+        {
+          "rank": 9,
+          "score": 9.1293,
+          "id": "1c66fe13-9873-447d-834e-3456eb17122f",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Cseperedő Q2 2026 kampány",
+          "parent_id": "267833d9-35b3-4d49-b7d5-ceea42515df4",
+          "chunk_label": "Kampány alapinformációk és anyagtár",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 10,
+          "score": 9.1103,
+          "id": "c7ec4168-da56-49c2-a2a2-221424a4c45f",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+          "parent_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+          "chunk_label": "Micro Számla, Cseperedő és Diverzum specifikus",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        }
+      ],
+      "hybrid": [
+        {
+          "rank": 1,
+          "score": 0.0301,
+          "id": "c7ec4168-da56-49c2-a2a2-221424a4c45f",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Diákszámla Diverzum Q1",
+          "parent_id": "3ee7faf1-7c8f-45b9-94ea-80e26c26c8c0",
+          "chunk_label": "Micro Számla, Cseperedő és Diverzum specifikus",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 2,
+          "score": 0.0287,
+          "id": "4fdebc96-eb92-4728-9d5e-57d04f0dcc12",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Cseperedő Visa kampány médiatervezés",
+          "parent_id": "d26b7204-378d-43cc-9789-0f815fda1005",
+          "chunk_label": "Kampány fejléc és alapparaméterek",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 3,
+          "score": 0.0284,
+          "id": "e92efdb2-b8f0-40fd-b50a-bd95c4139b59",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — május 1-jei ajánlatváltás",
+          "parent_id": "65f02ce1-5597-4566-b20a-9a347c2372f4",
+          "chunk_label": "Prezentációk, mappák és státusz",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 4,
+          "score": 0.0284,
+          "id": "62e1b51b-2ed5-40ff-b31a-5ab37b0155f4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — 2026-os repülőrajt anyagok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-01-22"
+        },
+        {
+          "rank": 5,
+          "score": 0.0283,
+          "id": "5a1630e7-c014-43fb-9053-0f65c1b2b1f0",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Függőben lévő kampányok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-09"
+        },
+        {
+          "rank": 6,
+          "score": 0.0278,
+          "id": "33abc40f-827e-42bc-be62-903318598030",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Diákszámla AON Q1 státusz",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-01-13"
+        },
+        {
+          "rank": 7,
+          "score": 0.0269,
+          "id": "cb889120-bf59-45d5-b045-23f0c4230d46",
+          "kind": "thought",
+          "title": "ERSTE Vállakozók — 2026 Q1 longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-09"
+        },
+        {
+          "rank": 8,
+          "score": 0.0268,
+          "id": "d26b7204-378d-43cc-9789-0f815fda1005",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Cseperedő Visa kampány médiatervezés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-12"
+        },
+        {
+          "rank": 9,
+          "score": 0.0259,
+          "id": "4a8bdb47-6692-485a-b5b1-2c798f07c3ee",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — 2026-os repülőrajt anyagok",
+          "parent_id": "62e1b51b-2ed5-40ff-b31a-5ab37b0155f4",
+          "chunk_label": "Akciók és státusz",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 10,
+          "score": 0.0258,
+          "id": "6c671add-2f22-4a4e-9690-ff5af80bf74b",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Diverzum PPC anyagok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-23"
+        }
+      ]
+    },
+    {
+      "query": "Amundi follow-up",
+      "annotation": {
+        "right_answer_ids": [
+          "c2f4c2ee"
+        ],
+        "exclude_from_winrate": false,
+        "note": "Amundi kampány prezentáció."
+      },
+      "sparse_token_count": 3,
+      "band_spread": {
+        "dense": 0.0236,
+        "bm25": 4.9183,
+        "hybrid": 0.0058
+      },
+      "metrics": {
+        "dense": {
+          "min_rank": 10,
+          "hit_at_N": false,
+          "matched_ranks": [
+            10
+          ],
+          "count_in_topN": 0,
+          "set_size": 1
+        },
+        "bm25": {
+          "min_rank": null,
+          "hit_at_N": false,
+          "matched_ranks": [],
+          "count_in_topN": 0,
+          "set_size": 1
+        },
+        "hybrid": {
+          "min_rank": null,
+          "hit_at_N": false,
+          "matched_ranks": [],
+          "count_in_topN": 0,
+          "set_size": 1
+        }
+      },
+      "dense": [
+        {
+          "rank": 1,
+          "score": 0.7087,
+          "id": "b67cd165-532c-411d-8f03-c59748687892",
+          "kind": "thought",
+          "title": "Amundi ügyfélprofilok és befektetési triggerek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 2,
+          "score": 0.7043,
+          "id": "8d9dab04-b12f-480c-8349-ce0844ef1108",
+          "kind": "thought",
+          "title": "AmundiMessagingMatrix Workshop",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 3,
+          "score": 0.7004,
+          "id": "60ceb118-9816-46aa-b489-b1764cf01b73",
+          "kind": "thought",
+          "title": "Amundi A/B teszt terv",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 4,
+          "score": 0.6998,
+          "id": "23537b3c-490a-48f6-b639-d94a7d9849d7",
+          "kind": "chunk",
+          "title": "ERSTE Vállakozók — Teya POS kampány leadás",
+          "parent_id": "dea41997-b7e3-42f9-8578-0c05d0efac2e",
+          "chunk_label": "Anna Marjan és Robi koordináció",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 5,
+          "score": 0.6957,
+          "id": "1a797e2c-cae7-441f-9668-03b30d354db5",
+          "kind": "thought",
+          "title": "AmundiTargetingStratégia",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 6,
+          "score": 0.6945,
+          "id": "646e4003-998b-4e16-8e83-598f3e6a5dc3",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Függőben lévő kampányok",
+          "parent_id": "5a1630e7-c014-43fb-9053-0f65c1b2b1f0",
+          "chunk_label": "Diverzum kampány státusz",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 7,
+          "score": 0.6931,
+          "id": "21369da1-a362-435a-8617-bfb9f65947b7",
+          "kind": "chunk",
+          "title": "ERSTE — Review kreatív eredmények, javaslatok",
+          "parent_id": "2b8246cd-f63e-4910-97a8-4eef58f62d57",
+          "chunk_label": "Follow-up feladatok",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 8,
+          "score": 0.6889,
+          "id": "a6a93664-454c-475c-8e16-f618a3cdad70",
+          "kind": "thought",
+          "title": "Amundi Messaging Matrix Projekt",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 9,
+          "score": 0.6884,
+          "id": "c6c7ec60-84ee-44be-9fa8-6f7e90961dad",
+          "kind": "chunk",
+          "title": "ERSTE — Kampány eredmény review",
+          "parent_id": "055345fb-6f88-4d73-98c2-ab349f06785b",
+          "chunk_label": "Follow-up feladatok",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 10,
+          "score": 0.6851,
+          "id": "c2f4c2ee-8973-424d-8cf1-75adcd3ace23",
+          "kind": "thought",
+          "title": "Amundi kampány prezentáció",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-24"
+        }
+      ],
+      "bm25": [
+        {
+          "rank": 1,
+          "score": 12.5264,
+          "id": "1a797e2c-cae7-441f-9668-03b30d354db5",
+          "kind": "thought",
+          "title": "AmundiTargetingStratégia",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 2,
+          "score": 9.2577,
+          "id": "a6a93664-454c-475c-8e16-f618a3cdad70",
+          "kind": "thought",
+          "title": "Amundi Messaging Matrix Projekt",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 3,
+          "score": 7.9828,
+          "id": "78fc47d9-9a61-4d5e-8877-30f4d6c7dd44",
+          "kind": "chunk",
+          "title": "ERSTE — Jelzálog natív kreatív május",
+          "parent_id": "f07d2264-6d1e-4741-9be6-2c10d7e9d58b",
+          "chunk_label": "Anna natív igénylése",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 4,
+          "score": 7.9725,
+          "id": "f7850e15-262d-4e21-9b53-a066f28ba16a",
+          "kind": "chunk",
+          "title": "ERSTE — Kampány eredmény review",
+          "parent_id": "055345fb-6f88-4d73-98c2-ab349f06785b",
+          "chunk_label": "Mérési problémák és follow-up feladatok",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 5,
+          "score": 7.9316,
+          "id": "055978d1-4c7a-4300-a13a-a335d280d212",
+          "kind": "chunk",
+          "title": "ERSTE — Kampány eredmény review",
+          "parent_id": "055345fb-6f88-4d73-98c2-ab349f06785b",
+          "chunk_label": "Hitel Tinder kampány",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 7.9113,
+          "id": "23537b3c-490a-48f6-b639-d94a7d9849d7",
+          "kind": "chunk",
+          "title": "ERSTE Vállakozók — Teya POS kampány leadás",
+          "parent_id": "dea41997-b7e3-42f9-8578-0c05d0efac2e",
+          "chunk_label": "Anna Marjan és Robi koordináció",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 7,
+          "score": 7.9014,
+          "id": "ed3f4169-f143-4542-8d39-68268224fbc9",
+          "kind": "thought",
+          "title": "ERSTE személyi kölcsön verzió",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-04-20"
+        },
+        {
+          "rank": 8,
+          "score": 7.7045,
+          "id": "c6c7ec60-84ee-44be-9fa8-6f7e90961dad",
+          "kind": "chunk",
+          "title": "ERSTE — Kampány eredmény review",
+          "parent_id": "055345fb-6f88-4d73-98c2-ab349f06785b",
+          "chunk_label": "Follow-up feladatok",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 9,
+          "score": 7.6297,
+          "id": "60ceb118-9816-46aa-b489-b1764cf01b73",
+          "kind": "thought",
+          "title": "Amundi A/B teszt terv",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 10,
+          "score": 7.6081,
+          "id": "b67cd165-532c-411d-8f03-c59748687892",
+          "kind": "thought",
+          "title": "Amundi ügyfélprofilok és befektetési triggerek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        }
+      ],
+      "hybrid": [
+        {
+          "rank": 1,
+          "score": 0.0323,
+          "id": "1a797e2c-cae7-441f-9668-03b30d354db5",
+          "kind": "thought",
+          "title": "AmundiTargetingStratégia",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 2,
+          "score": 0.0313,
+          "id": "a6a93664-454c-475c-8e16-f618a3cdad70",
+          "kind": "thought",
+          "title": "Amundi Messaging Matrix Projekt",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 3,
+          "score": 0.0313,
+          "id": "23537b3c-490a-48f6-b639-d94a7d9849d7",
+          "kind": "chunk",
+          "title": "ERSTE Vállakozók — Teya POS kampány leadás",
+          "parent_id": "dea41997-b7e3-42f9-8578-0c05d0efac2e",
+          "chunk_label": "Anna Marjan és Robi koordináció",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 4,
+          "score": 0.0312,
+          "id": "b67cd165-532c-411d-8f03-c59748687892",
+          "kind": "thought",
+          "title": "Amundi ügyfélprofilok és befektetési triggerek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 5,
+          "score": 0.0308,
+          "id": "60ceb118-9816-46aa-b489-b1764cf01b73",
+          "kind": "thought",
+          "title": "Amundi A/B teszt terv",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 6,
+          "score": 0.0305,
+          "id": "8d9dab04-b12f-480c-8349-ce0844ef1108",
+          "kind": "thought",
+          "title": "AmundiMessagingMatrix Workshop",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 7,
+          "score": 0.0296,
+          "id": "c6c7ec60-84ee-44be-9fa8-6f7e90961dad",
+          "kind": "chunk",
+          "title": "ERSTE — Kampány eredmény review",
+          "parent_id": "055345fb-6f88-4d73-98c2-ab349f06785b",
+          "chunk_label": "Follow-up feladatok",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 8,
+          "score": 0.0294,
+          "id": "21369da1-a362-435a-8617-bfb9f65947b7",
+          "kind": "chunk",
+          "title": "ERSTE — Review kreatív eredmények, javaslatok",
+          "parent_id": "2b8246cd-f63e-4910-97a8-4eef58f62d57",
+          "chunk_label": "Follow-up feladatok",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 9,
+          "score": 0.028,
+          "id": "827bda53-6457-4e67-a9f0-364de7b8300f",
+          "kind": "thought",
+          "title": "Amundi CZ Kampánystratégia",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": null,
+          "effective_date": "2026-04-18"
+        },
+        {
+          "rank": 10,
+          "score": 0.0265,
+          "id": "f7850e15-262d-4e21-9b53-a066f28ba16a",
+          "kind": "chunk",
+          "title": "ERSTE — Kampány eredmény review",
+          "parent_id": "055345fb-6f88-4d73-98c2-ab349f06785b",
+          "chunk_label": "Mérési problémák és follow-up feladatok",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        }
+      ]
+    },
+    {
+      "query": "Telex adaptive AV csomag",
+      "annotation": {
+        "right_answer_ids": [
+          "cbc68f43"
+        ],
+        "exclude_from_winrate": false,
+        "note": "ERSTE — Q2 longterm prodlisták (chunk: Kreatív anyagok és Market Go)."
+      },
+      "sparse_token_count": 4,
+      "band_spread": {
+        "dense": 0.067,
+        "bm25": 8.3298,
+        "hybrid": 0.0177
+      },
+      "metrics": {
+        "dense": {
+          "min_rank": null,
+          "hit_at_N": false,
+          "matched_ranks": [],
+          "count_in_topN": 0,
+          "set_size": 1
+        },
+        "bm25": {
+          "min_rank": 4,
+          "hit_at_N": true,
+          "matched_ranks": [
+            4
+          ],
+          "count_in_topN": 1,
+          "set_size": 1
+        },
+        "hybrid": {
+          "min_rank": 8,
+          "hit_at_N": false,
+          "matched_ranks": [
+            8
+          ],
+          "count_in_topN": 0,
+          "set_size": 1
+        }
+      },
+      "dense": [
+        {
+          "rank": 1,
+          "score": 0.7643,
+          "id": "4b5ccd58-8e2a-4002-be61-94a4c3294367",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Banner méretek és Telex AV csomag",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 2,
+          "score": 0.7394,
+          "id": "0e6a7937-38da-4e39-8dfd-a1fa2c5733f6",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — május 1-jei ajánlatváltás",
+          "parent_id": "65f02ce1-5597-4566-b20a-9a347c2372f4",
+          "chunk_label": "Kulcsdátumok és határidők",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 3,
+          "score": 0.7318,
+          "id": "8a78db2e-a7a4-4443-8d49-29daaf80d328",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Banner méretek, Telex és Social",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 4,
+          "score": 0.7014,
+          "id": "47fba227-14ae-4019-bb73-48be1eef377c",
+          "kind": "thought",
+          "title": "Telekom Regionális RMT Kutatás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-17"
+        },
+        {
+          "rank": 5,
+          "score": 0.7011,
+          "id": "1f4053a3-53f2-489b-ad91-60aa2bbd76c7",
+          "kind": "thought",
+          "title": "ERSTE DCO Dynamic Setup",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-24"
+        },
+        {
+          "rank": 6,
+          "score": 0.6999,
+          "id": "5570bfd3-b7c1-4415-b069-e1d625d2c378",
+          "kind": "thought",
+          "title": "B2B Digitális Tudakozó heti sync",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-14"
+        },
+        {
+          "rank": 7,
+          "score": 0.6994,
+          "id": "cbe7b123-ce5b-450c-8768-fe144fddbedb",
+          "kind": "thought",
+          "title": "Digitális Asszisztens státusz",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-02"
+        },
+        {
+          "rank": 8,
+          "score": 0.6992,
+          "id": "9f1a2db2-2c0b-46db-afd8-5eb8b0940abc",
+          "kind": "chunk",
+          "title": "Bizi — Sajtóesemény előkészítő sync",
+          "parent_id": "6834ba86-26f4-47e1-9bab-80cba0295752",
+          "chunk_label": "Meeting-nyitó és hangpróba",
+          "source": "fireflies",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 9,
+          "score": 0.6981,
+          "id": "e6a58aa7-dfcd-4759-9c86-75f7df28aff7",
+          "kind": "thought",
+          "title": "Bizi — heti szinkronizáció és kockázatkezelés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-05-04"
+        },
+        {
+          "rank": 10,
+          "score": 0.6973,
+          "id": "547e2525-2594-4475-a0cb-d50b372034a7",
+          "kind": "thought",
+          "title": "Bizi UI/UX végleges ellenőrzés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-04-23"
+        }
+      ],
+      "bm25": [
+        {
+          "rank": 1,
+          "score": 23.4998,
+          "id": "4b5ccd58-8e2a-4002-be61-94a4c3294367",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Banner méretek és Telex AV csomag",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 2,
+          "score": 21.0154,
+          "id": "8a78db2e-a7a4-4443-8d49-29daaf80d328",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Banner méretek, Telex és Social",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 3,
+          "score": 20.3254,
+          "id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "kind": "thought",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2025-11-26"
+        },
+        {
+          "rank": 4,
+          "score": 19.8748,
+          "id": "cbc68f43-b91e-456a-923b-8d8e2699c6ed",
+          "kind": "chunk",
+          "title": "ERSTE — Q2 longterm prodlisták",
+          "parent_id": "ae1bd5d7-66c7-4961-8f09-e0c5cb5579c6",
+          "chunk_label": "Kreatív anyagok és Market Go változások",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 5,
+          "score": 19.7226,
+          "id": "5f0c3a96-4088-4d85-b42c-727758c81c69",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 Q1 Longterm tervek",
+          "parent_id": "c95d5020-74db-4d21-9778-959f85fb088f",
+          "chunk_label": "Q1 kampánytervek csatornánként",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 19.6367,
+          "id": "f1cb9217-9fc0-4a5d-9df0-460bd8b51fd4",
+          "kind": "chunk",
+          "title": "ERSTE Vállakozók — 2026 Q1 longterm tervek",
+          "parent_id": "cb889120-bf59-45d5-b045-23f0c4230d46",
+          "chunk_label": "Csatornastratégia termékek szerint",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 7,
+          "score": 17.4738,
+          "id": "ae1bd5d7-66c7-4961-8f09-e0c5cb5579c6",
+          "kind": "thought",
+          "title": "ERSTE — Q2 longterm prodlisták",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-15"
+        },
+        {
+          "rank": 8,
+          "score": 16.7304,
+          "id": "cb889120-bf59-45d5-b045-23f0c4230d46",
+          "kind": "thought",
+          "title": "ERSTE Vállakozók — 2026 Q1 longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-09"
+        },
+        {
+          "rank": 9,
+          "score": 15.4774,
+          "id": "61f806eb-d36f-4507-b7af-bcbce68b076f",
+          "kind": "chunk",
+          "title": "ERSTE — Q2 longterm prodlisták",
+          "parent_id": "ae1bd5d7-66c7-4961-8f09-e0c5cb5579c6",
+          "chunk_label": "Kreatív anyagok, határidők és Market Go változások",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 10,
+          "score": 15.17,
+          "id": "c95d5020-74db-4d21-9778-959f85fb088f",
+          "kind": "thought",
+          "title": "ERSTE — 2026 Q1 Longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-06"
+        }
+      ],
+      "hybrid": [
+        {
+          "rank": 1,
+          "score": 0.0333,
+          "id": "4b5ccd58-8e2a-4002-be61-94a4c3294367",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Banner méretek és Telex AV csomag",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 2,
+          "score": 0.0325,
+          "id": "8a78db2e-a7a4-4443-8d49-29daaf80d328",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Banner méretek, Telex és Social",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 3,
+          "score": 0.0296,
+          "id": "0e6a7937-38da-4e39-8dfd-a1fa2c5733f6",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — május 1-jei ajánlatváltás",
+          "parent_id": "65f02ce1-5597-4566-b20a-9a347c2372f4",
+          "chunk_label": "Kulcsdátumok és határidők",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 4,
+          "score": 0.0252,
+          "id": "433567ca-ffb2-47b8-8a05-a2a85ff8d6aa",
+          "kind": "chunk",
+          "title": "ERSTE — Q2 longterm prodlisták",
+          "parent_id": "ae1bd5d7-66c7-4961-8f09-e0c5cb5579c6",
+          "chunk_label": "Akciótételek és felelősök",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 5,
+          "score": 0.0241,
+          "id": "1cfac3c6-eb1b-45c8-8ee0-02199a959373",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — Hiteltinder kampány indítás",
+          "parent_id": "a2d1da09-923c-4afe-a74d-b80042a097f4",
+          "chunk_label": "Elérhető készletek és elosztás",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 6,
+          "score": 0.0205,
+          "id": "47cb8289-43d8-4f10-948e-7d497d60184d",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — Hiteltinder kampány indítás",
+          "parent_id": "a2d1da09-923c-4afe-a74d-b80042a097f4",
+          "chunk_label": "PPC irányelvek és volumen elosztás",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 7,
+          "score": 0.0161,
+          "id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "kind": "thought",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2025-11-26"
+        },
+        {
+          "rank": 8,
+          "score": 0.0159,
+          "id": "cbc68f43-b91e-456a-923b-8d8e2699c6ed",
+          "kind": "chunk",
+          "title": "ERSTE — Q2 longterm prodlisták",
+          "parent_id": "ae1bd5d7-66c7-4961-8f09-e0c5cb5579c6",
+          "chunk_label": "Kreatív anyagok és Market Go változások",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 9,
+          "score": 0.0159,
+          "id": "47fba227-14ae-4019-bb73-48be1eef377c",
+          "kind": "thought",
+          "title": "Telekom Regionális RMT Kutatás",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-03-17"
+        },
+        {
+          "rank": 10,
+          "score": 0.0156,
+          "id": "5f0c3a96-4088-4d85-b42c-727758c81c69",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 Q1 Longterm tervek",
+          "parent_id": "c95d5020-74db-4d21-9778-959f85fb088f",
+          "chunk_label": "Q1 kampánytervek csatornánként",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        }
+      ]
+    },
+    {
+      "query": "Pörköláb David Erste programmatic",
+      "annotation": {
+        "right_answer_ids": [],
+        "exclude_from_winrate": true,
+        "note": "Query premise is broken: (1) name is misspelled (should be Pröhle Dávid, not Pörköláb), (2) the named person is CC'd on every programmatic email but is not actually the programmatic owner — so no doc is the 'right' answer. Kept as a control query: a healthy search should NOT confidently surface a single top hit here."
+      },
+      "sparse_token_count": 4,
+      "band_spread": {
+        "dense": 0.0206,
+        "bm25": 3.4743,
+        "hybrid": 0.0065
+      },
+      "metrics": {
+        "dense": null,
+        "bm25": null,
+        "hybrid": null
+      },
+      "dense": [
+        {
+          "rank": 1,
+          "score": 0.7387,
+          "id": "c95d5020-74db-4d21-9778-959f85fb088f",
+          "kind": "thought",
+          "title": "ERSTE — 2026 Q1 Longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-06"
+        },
+        {
+          "rank": 2,
+          "score": 0.7327,
+          "id": "6dda658c-09de-4040-90b5-f0cc7a67770e",
+          "kind": "chunk",
+          "title": "ERSTE Vállakozók — 2026 Q1 longterm tervek",
+          "parent_id": "cb889120-bf59-45d5-b045-23f0c4230d46",
+          "chunk_label": "Érintett személyek és Max HK copy",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 3,
+          "score": 0.7324,
+          "id": "f64d70b0-d5a0-40dd-848c-eb01e627e072",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Videógyártási ajánlatkérés",
+          "parent_id": "c5c96797-aa8a-4e57-8b0d-f2d73f17ad9e",
+          "chunk_label": "Ajánlatkérés és videógyártási feltételek",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 4,
+          "score": 0.7305,
+          "id": "b634b3b6-9de6-4425-ae7c-74eb3ed30686",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Videógyártási ajánlatkérés",
+          "parent_id": "c5c96797-aa8a-4e57-8b0d-f2d73f17ad9e",
+          "chunk_label": "Videógyártási igény és árazás",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 5,
+          "score": 0.7254,
+          "id": "1218716e-ea8c-4cd8-9899-e84ddaf95205",
+          "kind": "thought",
+          "title": "ERSTE — DCO kéthetenkénti státusz",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "fireflies",
+          "effective_date": "2026-05-08"
+        },
+        {
+          "rank": 6,
+          "score": 0.724,
+          "id": "017158e9-d861-4f9b-9bc7-290947a8348d",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — kalkulátorszerű bannerek",
+          "parent_id": "6cdaea64-b6cf-4946-8031-258e2dde531d",
+          "chunk_label": "Mérés, programmatic és idővonal",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 7,
+          "score": 0.7225,
+          "id": "8c958cce-3e33-444d-975e-c616cfd4b148",
+          "kind": "chunk",
+          "title": "ERSTE Vállakozók — 2026 Q1 longterm tervek",
+          "parent_id": "cb889120-bf59-45d5-b045-23f0c4230d46",
+          "chunk_label": "Csatornastratégia termékek szerint",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 8,
+          "score": 0.7207,
+          "id": "83a89d60-fc4e-4235-890a-c2e264b060b3",
+          "kind": "chunk",
+          "title": "ERSTE Market — Future Q2 longterm kreatívok",
+          "parent_id": "27a8e877-7f66-409f-9024-e298338bba2e",
+          "chunk_label": "Kampányok és anyagok állapota",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 9,
+          "score": 0.7191,
+          "id": "71a36ac3-1e9f-44a9-a50e-535d5c787769",
+          "kind": "chunk",
+          "title": "ERSTE — 2026 kampány setup",
+          "parent_id": "61e7367d-c5cf-4d84-9efc-2421760c0f24",
+          "chunk_label": "Kampány- és line item setup",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 10,
+          "score": 0.7181,
+          "id": "cb889120-bf59-45d5-b045-23f0c4230d46",
+          "kind": "thought",
+          "title": "ERSTE Vállakozók — 2026 Q1 longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-09"
+        }
+      ],
+      "bm25": [
+        {
+          "rank": 1,
+          "score": 10.332,
+          "id": "cb889120-bf59-45d5-b045-23f0c4230d46",
+          "kind": "thought",
+          "title": "ERSTE Vállakozók — 2026 Q1 longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-09"
+        },
+        {
+          "rank": 2,
+          "score": 9.573,
+          "id": "267833d9-35b3-4d49-b7d5-ceea42515df4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Cseperedő Q2 2026 kampány",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-15"
+        },
+        {
+          "rank": 3,
+          "score": 9.1497,
+          "id": "c95d5020-74db-4d21-9778-959f85fb088f",
+          "kind": "thought",
+          "title": "ERSTE — 2026 Q1 Longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-06"
+        },
+        {
+          "rank": 4,
+          "score": 8.2205,
+          "id": "a9ab9756-11f6-491b-aeaf-613305397765",
+          "kind": "thought",
+          "title": "MCP Jövője 2026",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "youtube",
+          "effective_date": "2026-04-22"
+        },
+        {
+          "rank": 5,
+          "score": 8.1309,
+          "id": "adbb01dc-24e5-4e88-acc3-0a6d78cdce1c",
+          "kind": "thought",
+          "title": "ERSTE — Számla termékek messaging matrix",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-05"
+        },
+        {
+          "rank": 6,
+          "score": 7.6559,
+          "id": "c786c284-fc04-437a-8e31-3ee2d7215b02",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Cseperedő Q2 2026 kampány",
+          "parent_id": "267833d9-35b3-4d49-b7d5-ceea42515df4",
+          "chunk_label": "Kulcs személyek és szerepkörök",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 7,
+          "score": 7.2199,
+          "id": "8b847b77-3440-4e27-b62d-0859a7250253",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Diákszámla TikTok kreatív",
+          "parent_id": "3e5393c5-abcb-4502-82c9-3060a9782f32",
+          "chunk_label": "Jogi egyeztetés és következő lépések",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 8,
+          "score": 7.1731,
+          "id": "f64d70b0-d5a0-40dd-848c-eb01e627e072",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Videógyártási ajánlatkérés",
+          "parent_id": "c5c96797-aa8a-4e57-8b0d-f2d73f17ad9e",
+          "chunk_label": "Ajánlatkérés és videógyártási feltételek",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 9,
+          "score": 7.0438,
+          "id": "c5c96797-aa8a-4e57-8b0d-f2d73f17ad9e",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Videógyártási ajánlatkérés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-04-01"
+        },
+        {
+          "rank": 10,
+          "score": 6.8577,
+          "id": "27a8e877-7f66-409f-9024-e298338bba2e",
+          "kind": "thought",
+          "title": "ERSTE Market — Future Q2 longterm kreatívok",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-04-20"
+        }
+      ],
+      "hybrid": [
+        {
+          "rank": 1,
+          "score": 0.0328,
+          "id": "c95d5020-74db-4d21-9778-959f85fb088f",
+          "kind": "thought",
+          "title": "ERSTE — 2026 Q1 Longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-06"
+        },
+        {
+          "rank": 2,
+          "score": 0.0312,
+          "id": "cb889120-bf59-45d5-b045-23f0c4230d46",
+          "kind": "thought",
+          "title": "ERSTE Vállakozók — 2026 Q1 longterm tervek",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-02-09"
+        },
+        {
+          "rank": 3,
+          "score": 0.0311,
+          "id": "f64d70b0-d5a0-40dd-848c-eb01e627e072",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Videógyártási ajánlatkérés",
+          "parent_id": "c5c96797-aa8a-4e57-8b0d-f2d73f17ad9e",
+          "chunk_label": "Ajánlatkérés és videógyártási feltételek",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 4,
+          "score": 0.029,
+          "id": "c5c96797-aa8a-4e57-8b0d-f2d73f17ad9e",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Videógyártási ajánlatkérés",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-04-01"
+        },
+        {
+          "rank": 5,
+          "score": 0.0285,
+          "id": "c786c284-fc04-437a-8e31-3ee2d7215b02",
+          "kind": "chunk",
+          "title": "ERSTE Számlák — Cseperedő Q2 2026 kampány",
+          "parent_id": "267833d9-35b3-4d49-b7d5-ceea42515df4",
+          "chunk_label": "Kulcs személyek és szerepkörök",
+          "source": "gmail",
+          "effective_date": "2026-05-17"
+        },
+        {
+          "rank": 6,
+          "score": 0.0284,
+          "id": "83a89d60-fc4e-4235-890a-c2e264b060b3",
+          "kind": "chunk",
+          "title": "ERSTE Market — Future Q2 longterm kreatívok",
+          "parent_id": "27a8e877-7f66-409f-9024-e298338bba2e",
+          "chunk_label": "Kampányok és anyagok állapota",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 7,
+          "score": 0.0267,
+          "id": "267833d9-35b3-4d49-b7d5-ceea42515df4",
+          "kind": "thought",
+          "title": "ERSTE Számlák — Cseperedő Q2 2026 kampány",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-15"
+        },
+        {
+          "rank": 8,
+          "score": 0.0265,
+          "id": "e35b5c53-0303-425a-a3ee-1b3ff4e4948e",
+          "kind": "chunk",
+          "title": "ERSTE — BeErste 3.0 extra APR kampány",
+          "parent_id": "3e85cd43-d750-4297-b76f-1b9e965f90ff",
+          "chunk_label": "Csatornastratégia és kreatív témák",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 9,
+          "score": 0.0264,
+          "id": "177b4d03-88ce-4aa9-8e7c-ec2c03ee40b3",
+          "kind": "chunk",
+          "title": "ERSTE Személyi kölcsön — Márciusi 40.000 Ft akció",
+          "parent_id": "a5e421a9-b3e6-4279-a3bc-b3b50313b7a7",
+          "chunk_label": "DCO, native kampányok és visszaélesítés",
+          "source": "gmail",
+          "effective_date": "2026-05-16"
+        },
+        {
+          "rank": 10,
+          "score": 0.0263,
+          "id": "adbb01dc-24e5-4e88-acc3-0a6d78cdce1c",
+          "kind": "thought",
+          "title": "ERSTE — Számla termékek messaging matrix",
+          "parent_id": null,
+          "chunk_label": null,
+          "source": "gmail",
+          "effective_date": "2026-05-05"
+        }
+      ]
+    }
+  ]
+}

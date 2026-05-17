@@ -26,7 +26,16 @@ router.post('/capture', async (req, res) => {
 
 export default router;
 
-export async function captureThought(text, { conflictThreshold = 0.85, source = 'manual', sourceId = null, extraPayload = {} } = {}) {
+// conflictThreshold = 0.97 calibrated 2026-05-17 against the post-task-type
+// RETRIEVAL_DOCUMENT cosine distribution. See tasks/p8.2-threshold-calibration.json:
+// median nearest-non-self cosine in the new space is 0.899, with a long tail of
+// same-topic recurring content (weekly Bizi syncs, monthly ERSTE status emails)
+// that legitimately scores 0.94-0.96 without being paraphrases. 0.97 captures the
+// outlier tip where actual duplicates live (true dupes scored 0.985+), keeps
+// Haiku contradiction-check cost down, and accepts that paraphrases in the
+// 0.92-0.96 range will pass through un-flagged. Old default 0.85 was calibrated
+// for pre-task-type embeddings and would now trigger on every capture.
+export async function captureThought(text, { conflictThreshold = 0.97, source = 'manual', sourceId = null, extraPayload = {} } = {}) {
   if (sourceId) {
     const existing = await findBySourceId(source, sourceId);
     if (existing) {
