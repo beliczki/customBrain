@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-16 (v0.18.0)
+## Last updated: 2026-05-17 (v0.18.0 — P8 hybrid search promoted to ACTIVE NEXT)
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 
@@ -344,22 +344,51 @@ Elvetve: auto-mutáció éjjel csendben túl kockázatos egy single-user személ
 
 ---
 
-## P8: Search Quality — RRF hybrid (vector + BM25) — DEFERRED 2026-05-16
+## P8: Search Quality — RRF hybrid (vector + BM25) — ACTIVE 2026-05-17
 
-**Deferred**: 233 thought-on nincs mérhető recall probléma. Visszahozható ha valódi recall-failure-t észlelsz.
+**Status (2026-05-17)**: Promoted from DEFERRED → ACTIVE based on live evidence. Replaces P14's planned A→B→C path (project-tag re-rank + synonym dict + Haiku reformulation) with the structural fix the industry converged on: hybrid lexical + dense search with Reciprocal Rank Fusion (RRF). Implementation tasks in `tasks/todo.md` section "Hybrid search (P8)".
 
-Current pure-dense search misses exact-name queries and Hungarian agglutinative inflections ("megbeszélhetjük" vs "megbeszéltük" may not score as high as they should despite being nearly identical in meaning). Qdrant 1.10+ supports named sparse vectors and server-side Reciprocal Rank Fusion via the Query API.
+### Empirical evidence (2026-05-17 probe)
 
-- Add sparse vector field at `scripts/init-collection.js` (idempotent).
-- At capture: generate both dense (Gemini) + sparse (BM25-like) vectors in parallel.
-- `/search` route: RRF merge of dense + sparse top-k (server-side via Qdrant Query API preferred over client-side).
-- `scripts/backfill-sparse.js` for existing ~N thoughts.
-- Response shape of `/search` and `/capture` does NOT change. Only ranking improves.
+Triggered by: search "Boris Cherny" returns an unrelated 27k-char Fireflies meeting transcript above the tweet that literally contains "Boris Cherny" in the body.
 
-**Open question before implementing**: Hungarian tokenization. Qdrant's default BM25 uses whitespace tokens — won't necessarily fix the morphology case. Options: lemmatization (heavy), subword tokenization (lighter), or accept whitespace + rely on dense vector for morphology while sparse handles exact-name. Resolve before coding.
+| Result | Cosine | Age (days) | Decay | Final | Winner |
+|---|---|---|---|---|---|
+| DCO transcript (no mention of Cherny) | 0.567 | 23 | 0.797 | 0.452 | ✗ wins |
+| Cherny tweet (literally "Boris Cherny @bcherny") | 0.594 | 29 | 0.756 | 0.450 | loses by 0.002 |
 
-- Full spec in brain thought `11e3aa53-f685-4c29-8d13-c1b8fcdd5e2f` (Task 4).
-- **Defer until brain has 200+ thoughts and a real recall problem shows up** — current 41-thought brain doesn't produce enough A/B signal to validate the improvement.
+Diagnosis: **cosine quality is the bug, not decay**. 0.594 for an exact-name match is structurally weak — Gemini's pure-dense embeddings don't weight proper nouns strongly enough.
+
+Probed alternatives:
+- Add `RETRIEVAL_DOCUMENT` taskType on document side: cosine 0.594 → 0.660 (helps but still mediocre, ~14% lift)
+- Add `RETRIEVAL_QUERY` on query side: **no-op** — Gemini treats no-taskType as query mode already
+- Add `title:` parameter: actively hurts when title language ≠ query language (HU title vs EN-name query)
+- **Hybrid BM25 + dense + RRF**: industry-standard fix. "Boris Cherny" is rare → BM25 IDF dominates → tweet wins decisively. Reported real-world: recall@10 65–78% → ~91%.
+
+### Decisions locked (2026-05-17)
+
+- **Multilingual stemmer (HU + EN)** for BM25 tokenization — calendar + email + projects all bilingual. Naive whitespace would lose Hungarian morphology.
+- **No cross-encoder reranker for v1** — 237 thoughts doesn't justify latency/cost. Revisit at multi-thousand scale.
+- **No query-side taskType change** — probed, no effect.
+- **No `title` parameter** in document embeddings — probed, hurts cross-language.
+- **DO add `RETRIEVAL_DOCUMENT` to capture-time embeddings** — free 9–12% cosine lift baked into the same re-embed pass.
+
+### Implementation plan (4 steps)
+
+1. **Schema**: add sparse vector field to `thoughts` collection (verify Qdrant add-without-recreate; fall back to recreate via migration if not).
+2. **Capture pipeline**: compute dense (Gemini, `RETRIEVAL_DOCUMENT`) + sparse (BM25 with HU+EN stemmer) on every point — whole-thought AND every chunk.
+3. **Search pipeline**: switch `searchVector` to Qdrant Query API with prefetch on both vectors, RRF fusion (k=60). Decay applied post-fusion (unchanged). Multi-vector chunk rollup unchanged.
+4. **Backfill**: regenerate sparse vectors for all 237 thoughts + all chunks (CPU, no API cost). Re-embed dense with `RETRIEVAL_DOCUMENT` (Gemini, ~$1–3, 20–40min).
+
+### Verification
+
+Re-run "Boris Cherny" → tweet must be #1. Re-run 7 P14 pain queries → measure recall delta. Save to `tasks/p8-after.json`. Spot-check Hungarian-morphology queries (e.g., "Cseperedő" matching "Cseperedőt", "Cseperedőnek") to confirm stemmer.
+
+### Cross-refs
+
+- **P14 (Agenda relevance)** — this IS the chosen P14 approach (Option D from P14's cost-ranking). A→B→C path superseded.
+- **0.18.x v2 chunking** — sparse vectors written for every chunk too, otherwise chunks rank dense-only and miss exact-keyword matches.
+- Original deferred spec in brain thought `11e3aa53-f685-4c29-8d13-c1b8fcdd5e2f` (Task 4).
 
 ---
 
@@ -468,9 +497,11 @@ A B részt 2026-05-16 estéjén különválasztottuk **P16**-ra (lásd lent), me
 
 ---
 
-## P14 — Agenda relevance / Qdrant search quality — ACTIVE NEXT (promoted 2026-05-16 estéjén)
+## P14 — Agenda relevance / Qdrant search quality — APPROACH CHOSEN 2026-05-17 → P8 hybrid
 
-**Status 2026-05-16 estéjén**: defer → **active next**. User-feedback: "fáj". A P13B átsorolva → P16, mert a relevance napi szinten jobban hat mint az install-csomagolás (utóbbi amúgy is gated barát-testeren).
+**Status 2026-05-17**: approach locked → **P8 hybrid search (BM25 + dense + RRF)**. Today's "Boris Cherny" probe proved the underlying cosine quality is the root issue (0.594 for an exact-name match), not project-tag re-rank or synonym dict. Industry-standard fix is hybrid search — see P8 above for the spec. Original Option A/B/C (project-tag re-rank, synonym dict, Haiku reformulation) superseded as band-aids on top of a weak retriever.
+
+**Earlier status (2026-05-16)**: defer → active next. User-feedback: "fáj". A P13B átsorolva → P16, mert a relevance napi szinten jobban hat mint az install-csomagolás (utóbbi amúgy is gated barát-testeren). Live evidence below remains the rationale for solving search relevance — only the *approach* changed (D instead of A/B/C).
 
 
 **Probléma**: a 0.15.x Agenda live tesztje után egyértelmű hogy a Qdrant semantic search gyenge releváns thoughts-felhozásban a Te tényleges brain-edre. Példák a 2026-05-16 agenda-ról:
@@ -687,7 +718,7 @@ Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed
 2. **~~P4f Agenda — MCP + UI preview~~** — DONE (0.15.0 + 0.15.1 refinements + 0.16.0 clickable thoughts modal)
 3. **~~P13A Settings UI~~** — DONE (0.17.0)
 4. **~~P6 Brain Health Check~~** — DONE (0.18.0)
-5. **P14 Agenda relevance — ACTIVE NEXT** (promoted 2026-05-16 estéjén; "fáj") — javasolt scope: Option A (project-tag fallback re-rank cosine-szal, ~30min) + Option B (synonym dict pl. SZA→számla, ~1hr). Option C (Haiku reformulation) csak ha A+B mérése után még gyenge.
+5. **P8 hybrid search (BM25 + dense + RRF) — ACTIVE NEXT** (promoted 2026-05-17 a "Boris Cherny" probe alapján) — replaces the planned P14 A→B→C path. Scope: sparse vector field + multilingual stemmer (HU+EN) + Qdrant Query API hybrid + RRF + backfill. Estimate ~5–8h. See P8 section above and `tasks/todo.md` "Hybrid search (P8)".
 6. **P15 Security hardening** — pre-P16 kötelező pre-req (admin token + Show gomb leverése, ~1.5hr). Defer.
 7. **P16 INSTALL.md teljes step-by-step** (~3-4hr) — átsorolva volt-P13B-ből. Gated egy első barát-tester-en.
 8. **~~P12 X.com bookmarks~~** — DEFERRED post-agenda use. Lásd P12 banner.

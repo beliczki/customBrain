@@ -13,9 +13,10 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { getVaultContext } from '../server/drive-context.js';
 import { reprocessThought } from '../server/reprocess-v2.js';
 import { embedText } from '../server/embeddings.js';
+import { sparseEncodeDoc } from '../server/sparse.js';
 
 const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' });
-const COLLECTION = 'thoughts';
+const COLLECTION = 'thoughts_v2';
 const COUNT = parseInt(process.argv[2], 10) || 20;
 const LOG_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'state', `reprocess-v2-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`);
 
@@ -30,7 +31,10 @@ async function fetchRecentThoughts() {
     limit: COUNT,
     with_payload: true,
     with_vector: false,
-    order_by: { key: 'created_at', direction: 'desc' },
+    // effective_date desc — process by content recency (the real "what's
+    // fresh in my head") rather than capture time. Backed by the
+    // effective_date payload index added in 0.19.0.
+    order_by: { key: 'effective_date', direction: 'desc' },
     filter: { must_not: mustNot },
   });
   return res.points.map((p) => ({ id: p.id, ...p.payload }));
@@ -122,13 +126,17 @@ async function processOne(thought, vaultCtx) {
   };
 
   await qdrant.upsert(COLLECTION, {
-    points: [{ id: thought.id, vector: mainVector, payload: updatedPayload }],
+    points: [{
+      id: thought.id,
+      vector: { dense: mainVector, bm25: sparseEncodeDoc(result.summary) },
+      payload: updatedPayload,
+    }],
   });
 
   const chunkPoints = [
     ...summaryChunks.map((c, i) => ({
       id: crypto.randomUUID(),
-      vector: summaryChunkVectors[i],
+      vector: { dense: summaryChunkVectors[i], bm25: sparseEncodeDoc(c.text) },
       payload: {
         kind: 'chunk',
         chunk_kind: 'summary',
@@ -144,7 +152,7 @@ async function processOne(thought, vaultCtx) {
     })),
     ...contentChunks.map((c, i) => ({
       id: crypto.randomUUID(),
-      vector: contentChunkVectors[i],
+      vector: { dense: contentChunkVectors[i], bm25: sparseEncodeDoc(c.text) },
       payload: {
         kind: 'chunk',
         chunk_kind: 'content',

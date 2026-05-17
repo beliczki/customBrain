@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { embedText } from '../embeddings.js';
+import { sparseEncodeDoc } from '../sparse.js';
 import { extractMetadata, checkContradiction } from '../metadata.js';
 import { upsertPoint, searchVector, updatePayload, findBySourceId, getById } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
@@ -39,6 +40,7 @@ export async function captureThought(text, { conflictThreshold = 0.85, source = 
     embedText(text),
     extractMetadata(text, vaultCtx),
   ]);
+  const sparseVector = sparseEncodeDoc(text);
 
   // Check near-duplicates for contradictions (top 3, not just top 1)
   // Over-fetch and exclude chunks — only THOUGHT-points can be archived /
@@ -87,7 +89,7 @@ export async function captureThought(text, { conflictThreshold = 0.85, source = 
   // (last_internal_date, meeting_date, published_at) are visible.
   payload.effective_date = computeEffectiveDate(payload);
 
-  const id = await upsertPoint(vector, payload);
+  const id = await upsertPoint(vector, sparseVector, payload);
   return { ok: true, id, metadata, ...(supersedes && { supersedes, archived: supersedes }) };
 }
 
@@ -117,6 +119,7 @@ export async function refreshCapture(id, newText, { extraPayload = {} } = {}) {
     embedText(newText),
     extractMetadata(newText, vaultCtx),
   ]);
+  const sparseVector = sparseEncodeDoc(newText);
 
   const payload = {
     text: newText,
@@ -136,6 +139,6 @@ export async function refreshCapture(id, newText, { extraPayload = {} } = {}) {
   };
   payload.effective_date = computeEffectiveDate(payload);
 
-  await upsertPoint(vector, payload, id);
+  await upsertPoint(vector, sparseVector, payload, id);
   return { ok: true, id, refreshed: true, refresh_count: payload.refresh_count };
 }

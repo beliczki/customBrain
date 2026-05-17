@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { embedText } from '../embeddings.js';
-import { searchVector, getByIds } from '../qdrant.js';
+import { sparseEncodeQuery } from '../sparse.js';
+import { hybridSearch, getByIds } from '../qdrant.js';
 
 const router = Router();
 
@@ -102,10 +103,11 @@ async function rollupChunkHits(rawHits) {
 }
 
 export async function searchThoughts(query, limit = 5) {
-  const vector = await embedText(query);
+  const denseVector = await embedText(query);
+  const sparseVector = sparseEncodeQuery(query);
   // Over-fetch so rollup can collapse chunk-clusters and still leave us with N
   const overfetchLimit = Math.max(limit * 6, 30);
-  const rawHits = await searchVector(vector, overfetchLimit);
+  const rawHits = await hybridSearch(denseVector, sparseVector, overfetchLimit);
   const rolled = await rollupChunkHits(rawHits);
   const decayed = applyTimeDecay(rolled);
   return decayed.slice(0, limit);

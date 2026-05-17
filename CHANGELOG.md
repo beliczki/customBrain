@@ -2,6 +2,44 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.20.0 — 2026-05-17
+
+**P14 second wave — Hybrid search (BM25 + dense + RRF).** Promoted P8 from DEFERRED → SHIPPED after a live probe showed pure-dense search structurally weak on proper-noun queries ("Boris Cherny" scoring 0.594 cosine for a tweet literally containing the name, ranked below an unrelated meeting transcript). Industry-standard hybrid lexical + semantic search with Reciprocal Rank Fusion replaces the planned project-tag re-rank + synonym dict path.
+
+### Storage
+
+- **New collection `thoughts_v2`** with named vectors: `dense` (Gemini 3072-dim Cosine, unchanged) + `bm25` (sparse, server-side IDF via Qdrant `modifier: "idf"`). Original `thoughts` collection preserved as instant rollback for the first week post-deploy.
+- **`scripts/migrate-to-hybrid-collection.js`** — one-shot copy of all 596 points (243 thoughts + 353 chunks) from `thoughts` → `thoughts_v2`. Preserves dense vectors as-is, computes sparse from `text` (thoughts) or `chunk_text` (chunks), recreates 7 payload indexes. Idempotent with `--force`, supports `--limit N` for smoke testing.
+
+### Sparse encoder
+
+- **`server/sparse.js`** — BM25 sparse encoder with multilingual stemming. Tokenize: lowercase + Unicode NFC + strip non-letter/number + stopword filter + Hungarian Snowball stem (fall back to English Snowball if HU returns unchanged). Stable `term → u32` index via FNV-1a hash so indices survive process restarts without a persisted vocabulary.
+- **Two encoders**: `sparseEncodeDoc(text)` applies BM25 TF normalization (k1=1.2, b=0.75, avg_doc_len=500) for stored vectors; `sparseEncodeQuery(text)` sends raw term counts and lets Qdrant apply IDF server-side. Hungarian morphology verified: `Cseperedő` / `Cseperedőt` / `Cseperedőnek` all collapse to the same stem.
+- New dep: `snowball-stemmers@^0.6.0` (ISC).
+
+### Search pipeline
+
+- **`server/qdrant.js`** — `upsertPoint(denseVector, sparseVector, payload, id?)` now writes both vectors as named. New `hybridSearch(denseVec, sparseVec, limit)` uses Qdrant Query API with RRF prefetch — each leg over-fetches 4× the final limit. `searchVector` retained as dense-only path used by capture-time conflict detection (where lexical match would be wrong signal). `getAllWithVectors` unwraps `.dense` so consumers (Obsidian export's semantic neighbors, brain-health duplicate detector) stay back-compatible.
+- **`server/routes/search.js`** — embeds query both ways, calls `hybridSearch`. `rollupChunkHits` + `applyTimeDecay` unchanged.
+- **`server/routes/capture.js`** — `captureThought` + `refreshCapture` compute sparse alongside dense, write both vectors. New captures auto-flow through the hybrid stack.
+- **`scripts/reprocess-v2-prototype.js`** — chunk reprocess writes `{dense, bm25}` for thought-point AND every chunk-point.
+- **`scripts/init-collection.js`** — fresh installs get the new schema natively.
+
+### Measured wins
+
+- **"Boris Cherny"** (the originally-reported bug): tweet was previously buried (not in top-5 after chunk rollup), with raw cosine 0.594 vs unrelated DCO transcript at 0.567. Post-hybrid: tweet at `#1` with score 0.76 vs `#2` at 0.21 — **3.7× lead**, fixed end-to-end through the production `/search` API.
+- **"Bizi captcha hard gate egyeztetés"**: literal-title-match thought promoted from `#3` to `#1` with clear lead.
+- **"Amundi follow-up"**: surfaced "AmundiTargetingStratégia" into top-3 (previously missing from top-5).
+- No regressions on `/recent`, `/stats`, `/health-check` (91 duplicate candidates / 50 over-tagged / 2 stale / 93 oversized all preserved).
+
+### Deferred
+
+- **`RETRIEVAL_DOCUMENT` taskType** for Gemini document embeddings: would shift cosine ranges and invalidate the calibrated 0.85 conflict-detection threshold. Provides an additional ~14% cosine lift on top of hybrid. Will be done as a separate pass once the threshold is re-tuned.
+
+### Migration notes
+
+- Active code points at `thoughts_v2`. Old `thoughts` collection (596 points) left on the Qdrant instance for ~1 week as rollback safety net — drop it manually (`curl -X DELETE …/collections/thoughts`) once confident.
+
 ## 0.19.0 — 2026-05-17
 
 **P14 first wave — chunked multi-vector search + `effective_date` time-decay + Gmail outbound recency cap.** Multiple search-quality wins from the 2026-05-16 evening session, in two coupled efforts.

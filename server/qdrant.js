@@ -5,32 +5,25 @@ const qdrant = new QdrantClient({
   url: process.env.QDRANT_URL || 'http://localhost:6333',
 });
 
-const COLLECTION = 'thoughts';
+const COLLECTION = 'thoughts_v2';
 
-export async function upsertPoint(vector, payload, id = null) {
+export async function upsertPoint(denseVector, sparseVector, payload, id = null) {
   const pointId = id || crypto.randomUUID();
   await qdrant.upsert(COLLECTION, {
-    points: [{ id: pointId, vector, payload }],
+    points: [{
+      id: pointId,
+      vector: { dense: denseVector, bm25: sparseVector },
+      payload,
+    }],
   });
   return pointId;
 }
 
-/**
- * Raw vector search across BOTH thought-points and chunk-points.
- * Callers that want thought-only results should pass a chunk-excluding filter
- * OR (preferred) call searchThoughts in routes/search.js which does the rollup.
- */
-export async function searchVector(vector, limit = 5) {
-  const results = await qdrant.query(COLLECTION, {
-    query: vector,
-    limit,
-    with_payload: true,
-  });
-  return results.points.map((p) => ({
+function mapHit(p) {
+  return {
     id: p.id,
     score: p.score,
     kind: p.payload.kind || 'thought',
-    // thought fields
     text: p.payload.text,
     title: p.payload.title,
     created_at: p.payload.created_at,
@@ -42,14 +35,47 @@ export async function searchVector(vector, limit = 5) {
       type: p.payload.type,
       action_items: p.payload.action_items,
     },
-    // chunk fields (present only when kind === 'chunk')
     parent_id: p.payload.parent_id,
     chunk_kind: p.payload.chunk_kind,
     chunk_label: p.payload.chunk_label,
     chunk_text: p.payload.chunk_text,
     parent_title: p.payload.parent_title,
     parent_source: p.payload.parent_source,
-  }));
+  };
+}
+
+/**
+ * Pure-dense semantic search. Used for near-duplicate / conflict detection
+ * at capture time, where lexical match is the wrong signal — we want
+ * "semantically similar regardless of wording" so paraphrases trigger
+ * the contradiction check.
+ */
+export async function searchVector(vector, limit = 5) {
+  const results = await qdrant.query(COLLECTION, {
+    query: vector,
+    using: 'dense',
+    limit,
+    with_payload: true,
+  });
+  return results.points.map(mapHit);
+}
+
+/**
+ * Hybrid search: dense (Gemini cosine) + sparse (BM25 with server-side IDF)
+ * fused via Reciprocal Rank Fusion. Used by the user-facing search route.
+ * Each leg over-fetches 4× so RRF has room to fuse meaningfully.
+ */
+export async function hybridSearch(denseVector, sparseVector, limit = 5) {
+  const results = await qdrant.query(COLLECTION, {
+    prefetch: [
+      { query: denseVector, using: 'dense', limit: limit * 4 },
+      { query: sparseVector, using: 'bm25', limit: limit * 4 },
+    ],
+    query: { fusion: 'rrf' },
+    limit,
+    with_payload: true,
+  });
+  return results.points.map(mapHit);
 }
 
 /**
@@ -131,9 +157,11 @@ export async function getAllWithVectors() {
     if (!batch.next_page_offset) break;
     offset = batch.next_page_offset;
   }
+  // Unwrap the named-vector container so callers (Obsidian export's semantic
+  // neighbor computation) keep their existing array-of-floats contract.
   return all.map((p) => ({
     id: p.id,
-    vector: p.vector,
+    vector: p.vector?.dense || p.vector,
     payload: p.payload,
   }));
 }

@@ -5,7 +5,7 @@ const qdrant = new QdrantClient({
   url: process.env.QDRANT_URL || 'http://localhost:6333',
 });
 
-const COLLECTION = 'thoughts';
+const COLLECTION = 'thoughts_v2';
 
 async function ensureIndex(field, schema) {
   try {
@@ -24,9 +24,10 @@ async function init() {
   const exists = await qdrant.collectionExists(COLLECTION);
   if (!exists.exists) {
     await qdrant.createCollection(COLLECTION, {
-      vectors: { size: 3072, distance: 'Cosine' },
+      vectors: { dense: { size: 3072, distance: 'Cosine' } },
+      sparse_vectors: { bm25: { modifier: 'idf' } },
     });
-    console.log(`Collection "${COLLECTION}" created with 3072-dim Cosine vectors.`);
+    console.log(`Collection "${COLLECTION}" created with named dense (3072 Cosine) + sparse bm25 (IDF) vectors.`);
   } else {
     console.log(`Collection "${COLLECTION}" already exists, ensuring indexes.`);
   }
