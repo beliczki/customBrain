@@ -114,26 +114,35 @@ function buildLinksSection(thought, filename, allThoughts) {
   return lines.join('\n');
 }
 
+// YAML double-quoted scalar: `\` and `"` MUST be escaped, else the inner `"`
+// closes the wrapper early and the whole frontmatter becomes invalid YAML
+// (Obsidian renders the whole block as body text). Bug fix 0.19.x: previously
+// values like an action_item containing `"Unknowns / not confirmed"` broke
+// the entire file's Properties parsing.
+function yamlQuote(s) {
+  return `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 function toFrontmatter(thought) {
   const lines = ['---'];
   if (thought.people?.length) {
     lines.push('people:');
-    for (const p of thought.people) lines.push(`  - "[[People/${p}|${p}]]"`);
+    for (const p of thought.people) lines.push(`  - ${yamlQuote(`[[People/${p}|${p}]]`)}`);
   }
   if (thought.topics?.length) {
     lines.push('topics:');
-    for (const t of thought.topics) lines.push(`  - "${t}"`);
+    for (const t of thought.topics) lines.push(`  - ${yamlQuote(t)}`);
   }
   if (thought.projects?.length) {
     lines.push('projects:');
-    for (const p of thought.projects) lines.push(`  - "[[Projects/${p}|${p}]]"`);
+    for (const p of thought.projects) lines.push(`  - ${yamlQuote(`[[Projects/${p}|${p}]]`)}`);
   }
-  if (thought.type) lines.push(`type: "${thought.type}"`);
+  if (thought.type) lines.push(`type: ${yamlQuote(thought.type)}`);
   if (thought.action_items?.length) {
     lines.push('action_items:');
-    for (const a of thought.action_items) lines.push(`  - "${a}"`);
+    for (const a of thought.action_items) lines.push(`  - ${yamlQuote(a)}`);
   }
-  lines.push(`captured_at: "${thought.created_at}"`);
+  lines.push(`captured_at: ${yamlQuote(thought.created_at)}`);
   lines.push('---');
   return lines.join('\n');
 }
