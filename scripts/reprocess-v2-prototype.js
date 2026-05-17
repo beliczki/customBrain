@@ -97,9 +97,9 @@ async function processOne(thought, vaultCtx) {
   // Embed: main vector = summary embed (architectural decision in tasks/todo.md)
   const tEmbed = Date.now();
   const [mainVector, summaryChunkVectors, contentChunkVectors] = await Promise.all([
-    embedText(result.summary),
-    Promise.all(summaryChunks.map((c) => embedText(c.text))),
-    Promise.all(contentChunks.map((c) => embedText(c.text))),
+    embedText(result.summary, 'RETRIEVAL_DOCUMENT'),
+    Promise.all(summaryChunks.map((c) => embedText(c.text, 'RETRIEVAL_DOCUMENT'))),
+    Promise.all(contentChunks.map((c) => embedText(c.text, 'RETRIEVAL_DOCUMENT'))),
   ]);
   const embedMs = Date.now() - tEmbed;
   console.log(`  Gemini: ${embedMs}ms, embeds=${1 + summaryChunkVectors.length + contentChunkVectors.length}`);

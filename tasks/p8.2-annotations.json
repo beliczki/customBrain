@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "created_at": "2026-05-17",
+  "metric_spec": {
+    "right_answer_ids": "per query, set of canonical 'right' doc ids (size 1 for most, size>1 when multiple docs equally relevant)",
+    "hit_at_N": "true iff at least one right_answer_id appears in /search top-N. min_rank is the lowest rank of any right answer in the result set.",
+    "exclude_from_winrate": "true when the query premise is broken (e.g. wrong name, ambiguous intent) so no ranking signal is meaningful"
+  },
+  "annotations": [
+    {
+      "query": "Boris Cherny",
+      "right_answer_ids": ["aa813f55"],
+      "note": "Claude munka-ellenőrzés thought captures the Cherny tweet. Shipped to #1 in 0.20.0 hybrid work."
+    },
+    {
+      "query": "ERSTE Adform SZA frissítés 150e kaphatsz uj template új feed",
+      "right_answer_ids": ["65f02ce1"],
+      "note": "május 1-jei ajánlatváltás — about the SZA product changes driving the campaign update."
+    },
+    {
+      "query": "Bizi captcha hard gate egyeztetés",
+      "right_answer_ids": ["10ff686b"],
+      "note": "Bizi — Hard gate és captcha egyeztetés — title-exact match."
+    },
+    {
+      "query": "customBrain dev next steps",
+      "right_answer_ids": ["c762a607"],
+      "note": "customBrain — Verzió 0.19.0 állapota — current snapshot is what 'dev next steps' anchors against."
+    },
+    {
+      "query": "ERSTE Cseperedő számla status",
+      "right_answer_ids": ["da0bf6b9", "4fdebc96", "d26b7204", "6d0b0815"],
+      "note": "All 4 docs are the same Cseperedő Visa kampány médiatervezés content (1 parent thought + 3 chunks). Any in top-N counts as hit; ideal is all 4 surfaced."
+    },
+    {
+      "query": "Amundi follow-up",
+      "right_answer_ids": ["c2f4c2ee"],
+      "note": "Amundi kampány prezentáció."
+    },
+    {
+      "query": "Telex adaptive AV csomag",
+      "right_answer_ids": ["cbc68f43"],
+      "note": "ERSTE — Q2 longterm prodlisták (chunk: Kreatív anyagok és Market Go)."
+    },
+    {
+      "query": "Pörköláb David Erste programmatic",
+      "right_answer_ids": [],
+      "exclude_from_winrate": true,
+      "note": "Query premise is broken: (1) name is misspelled (should be Pröhle Dávid, not Pörköláb), (2) the named person is CC'd on every programmatic email but is not actually the programmatic owner — so no doc is the 'right' answer. Kept as a control query: a healthy search should NOT confidently surface a single top hit here."
+    }
+  ]
+}

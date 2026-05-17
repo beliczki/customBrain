@@ -37,12 +37,17 @@ export async function captureThought(text, { conflictThreshold = 0.85, source = 
   const vaultCtx = await getVaultContext();
 
   const [vector, metadata] = await Promise.all([
-    embedText(text),
+    embedText(text, 'RETRIEVAL_DOCUMENT'),
     extractMetadata(text, vaultCtx),
   ]);
   const sparseVector = sparseEncodeDoc(text);
 
-  // Check near-duplicates for contradictions (top 3, not just top 1)
+  // Check near-duplicates for contradictions (top 3, not just top 1).
+  // Note: the new-thought vector is RETRIEVAL_DOCUMENT and stored vectors are
+  // also RETRIEVAL_DOCUMENT → doc-vs-doc cosine, exactly what asymmetric
+  // retrieval was tuned for. Threshold (default 0.85) was calibrated empirically
+  // post-task-type migration; see scripts/calibrate-conflict-threshold.js +
+  // tasks/p8.2-threshold-calibration.json.
   // Over-fetch and exclude chunks — only THOUGHT-points can be archived /
   // superseded; a chunk archive is meaningless.
   let supersedes = null;
@@ -116,7 +121,7 @@ export async function refreshCapture(id, newText, { extraPayload = {} } = {}) {
 
   const vaultCtx = await getVaultContext();
   const [vector, metadata] = await Promise.all([
-    embedText(newText),
+    embedText(newText, 'RETRIEVAL_DOCUMENT'),
     extractMetadata(newText, vaultCtx),
   ]);
   const sparseVector = sparseEncodeDoc(newText);

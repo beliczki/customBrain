@@ -68,9 +68,9 @@ async function processOne(id, vaultCtx) {
   }
 
   const [mainVector, sumVecs, conVecs] = await Promise.all([
-    embedText(result.summary),
-    Promise.all(summaryChunks.map((c) => embedText(c.text))),
-    Promise.all(contentChunks.map((c) => embedText(c.text))),
+    embedText(result.summary, 'RETRIEVAL_DOCUMENT'),
+    Promise.all(summaryChunks.map((c) => embedText(c.text, 'RETRIEVAL_DOCUMENT'))),
+    Promise.all(contentChunks.map((c) => embedText(c.text, 'RETRIEVAL_DOCUMENT'))),
   ]);
 
   const now = new Date().toISOString();

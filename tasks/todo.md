@@ -271,3 +271,117 @@ The interesting follow-up is **not** the fusion algorithm: it's why dense embedd
 ## Open questions for user before starting
 
 None — direction is approved (RRF k=60). Plan above is the execution path. Confirm and I run it.
+
+---
+
+# P8.2 — Cross-domain dense discrimination (cone-collapse fix) — NEW 2026-05-17
+
+**Status**: ultraplan-drafted (Plan agent, 2026-05-17), awaiting user confirm on Open Questions before Phase 1 execution. Continues from P8.1 (RRF k=60 shipped in 0.20.1). Targets the residual failure documented in P8.1: hybrid+RRF cannot rescue an in-domain dense-ranked-#2 document when the query keywords also lexically favor a different in-domain document.
+
+## Problem (locked from P8.1 measurement)
+
+For `"ERSTE Adform SZA frissítés 150e kaphatsz uj template új feed"`:
+- Dense top-20 packed into cosine **0.7176–0.7384** (0.02 spread)
+- The "right" doc (`"május 1-jei ajánlatváltás"`, `65f02ce1-…`) sits at dense **#3** behind two other ERSTE-domain docs with effectively-equal cosine
+- BM25 winner is `"ERSTE — 2026 kampány setup"` (`61e7367d-…`, BM25 score 17.39) because the query terms `feed/kampány/template` land in that doc. The "right" doc isn't in BM25 top-20
+- RRF at any k cannot save it: neither leg ranks it #1, both legs rank a wrong-but-plausible doc #1, fusion math cannot promote a leg-#3 over two leg-#1's
+
+**This is not a fusion problem.** The dense embedding itself fails to discriminate among ERSTE-domain documents. Either separate the band, or add a second pass that reasons over candidate text.
+
+## Plausible causes (any combination)
+1. **Embedding anisotropy** — pretrained embeddings cluster within a narrow cone of the embedding space, especially for in-domain texts (well-documented across LMs, e.g. arxiv 2504.16318)
+2. **NOT using Gemini's `task_type` parameter** — currently both queries and documents are embedded with the default `task_type`. Google's canonical pattern is `RETRIEVAL_DOCUMENT` for storage and `RETRIEVAL_QUERY` for queries. This was DEFERRED in P8 because "would shift cosine ranges and invalidate the 0.85 conflict-detection threshold"
+3. **Summary text uniformity** — Haiku-generated summaries (`server/reprocess-v2.js`) may use near-identical templated phrasing for each ERSTE email, making embeddings near-identical regardless of content
+
+## Scope decision (2026-05-17, user-confirmed)
+
+**Ship Phase 1 only. Phases 1.5, 2, 3 explicitly deferred — not gated, deferred.**
+
+### Why deferred (the agent-as-reranker insight)
+
+The real consumer of `/search` is NOT a human reading top-3 results in a UI. It's an LLM agent (Claude Desktop, Coworker, or the MCP tool path). The agent already does textual relevance reasoning over the candidates we return — that's exactly what a cross-encoder reranker does, except the agent does it for free as part of its own reasoning step.
+
+This inverts the optimization target:
+- **Old framing**: "make `/search` precise — put the right doc at rank #1"
+- **New framing**: "make `/search` recall-focused — give the agent enough candidates that the right doc is in the set; the agent decides which one"
+
+Concrete implications:
+- Phase 2 (Cohere $1/mo + 200ms latency) and Phase 3 (HyDE +500ms) buy precision the agent doesn't need
+- DoD shifts from "top-3" to "top-5" — high-recall threshold matching the agent's working memory
+- If a query genuinely doesn't surface the right doc in top-5, the agent can re-query with refined terms — agent-as-query-rewriter is also free
+
+### Phase 1 still ships unconditionally
+
+Phase 1 is **not an optimization** — it's a missing config. Google's own docs specify `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY` task types for `gemini-embedding-001`; we're currently passing nothing, which gets default behavior (likely `SEMANTIC_SIMILARITY` or null-semantics). The P8 spec already locked this in (`tasks/todo.md:141`) and it was skipped at execution time — formally the stack is wrong.
+
+Ship Phase 1 because the stack is wrong, not because it provably fixes the SZA query. It might, it might not — that's not the gate.
+
+### D (anisotropy whitening) — dropped permanently
+
+At 596 points / 3072-dim with single-user load, projecting through a whitening matrix on every query is heavier than the agent-as-reranker fallback. Not on the roadmap.
+
+---
+
+## Phase 1 — `task_type`-aware embeddings + threshold migration
+
+**Goal**: Re-embed all 596 points with `task_type: RETRIEVAL_DOCUMENT`; switch query path to `RETRIEVAL_QUERY`. Quantify the band-spread change. Re-calibrate the 0.85 near-duplicate threshold on the new cosine distribution.
+
+**Budget**: ~3h impl + ~30min wall-clock backfill + ~$1 Gemini backfill cost.
+
+### Files to touch
+- `server/embeddings.js` — extend signature to `embedText(text, taskType)`, default `RETRIEVAL_QUERY` (search is hotter than capture; getting the search default right reduces script accidents)
+- `server/routes/capture.js:40,119` — pass `RETRIEVAL_DOCUMENT` explicitly in `captureThought` + `refreshCapture`
+- `server/routes/search.js:106` — pass `RETRIEVAL_QUERY` explicitly
+- `scripts/reprocess-v2-prototype.js:100-102` + `scripts/retry-failed-reprocess.js:71-73` — chunk + summary embeds become `RETRIEVAL_DOCUMENT`
+- `scripts/p8-probe.js:54` — wrap query embed; ALSO dump pre-RRF per-leg cosines for band-spread measurement
+
+### New files
+- `scripts/backfill-task-types.js` — idempotent backfill via `payload.embed_task_type` marker; concurrency 8; preserves existing sparse `bm25` vector via `with_vector: ['bm25']`
+- `scripts/calibrate-conflict-threshold.js` — sample paraphrase pairs + unrelated pairs, output empirical threshold distribution, recommend new default
+- `tasks/p8.2-phase1-baseline.json` + `tasks/p8.2-phase1-after.json` — same probe shape + new `band_spread` field
+
+### Threshold re-calibration (the gate everyone misses)
+Conflict-check at `capture.js:50` (`m.score > 0.85`) operates on doc-vs-doc cosine in `searchVector`. Under Phase 1 both sides become RETRIEVAL_DOCUMENT — well-defined doc-doc, range may shift modestly. Calibration script confirms; new default documented inline.
+
+### Win condition (Phase 1)
+Any of:
+- Band-spread on SZA query ≥ 0.05 (~2.4× widening, baseline 0.0208)
+- The "right" doc (`65f02ce1-…`) moves to dense rank #1 or #2 on SZA query
+- Average band-spread across 5 ERSTE-domain queries widens by ≥ 50%
+
+Partial win (band widens but ranks don't improve) → triggers Phase 1.5. No-op (band doesn't widen) → skip 1.5, go straight to Phase 2.
+
+---
+
+## ~~Phase 1.5 / 2 / 3~~ — DEFERRED (see "Scope decision" above)
+
+Plan agent's original phases 1.5 (summary audit), 2 (Cohere rerank), 3 (HyDE) are documented in git history for reference but **not in this plan**. The agent-as-reranker architecture makes them unjustified for this stack. If we later add a non-LLM consumer of `/search` (e.g. a fully autonomous batch process with no agent in the loop), reopen.
+
+## Definition of Done (Phase 1 only)
+
+1. **Stack correctness** (hard gate): every Gemini embed call across capture, refresh, reprocess, search, and probe carries an explicit `task_type` (`RETRIEVAL_DOCUMENT` for stored, `RETRIEVAL_QUERY` for queries). Verified by grep across the repo.
+2. **Backfill complete**: all 596 points in `thoughts_v2` carry `payload.embed_task_type = 'RETRIEVAL_DOCUMENT'`. Verified by Qdrant count filtered on the field.
+3. **Threshold re-calibrated**: `server/routes/capture.js:29` conflict-detection default has an empirical basis (output of `scripts/calibrate-conflict-threshold.js` committed to `tasks/p8.2-threshold-calibration.json`), with a one-line comment at the constant pointing at the data file.
+4. **Recall-oriented success metric** (soft signal, not a hard gate): on the 8 canonical probe queries, the known-relevant doc is in `/search` **top-5** on ≥6/8 queries. Top-5 not top-3 because the consumer is an LLM agent that filters from a candidate set, not a human reading rank #1.
+5. **Band-spread report**: `tasks/p8.2-phase1-after.json` carries the new band-spread metric per query; commit even if the numbers are unchanged (a "task types didn't widen the band" finding is also useful data).
+6. No agenda sync regression (current: ~15-20s for 27 events at PARALLEL=5).
+7. No new external dependencies. No ongoing $-cost.
+
+If (4) fails, that's not a Phase 1 failure — it's data that the agent-as-reranker is now doing more work per query. Acceptable.
+
+## Critical files reference
+
+- `server/embeddings.js` — 17 LOC, the surface to extend
+- `server/routes/search.js:106` — query-side task type
+- `server/routes/capture.js:29,40,50,119` — doc-side task type + threshold re-calibration sites
+- `scripts/reprocess-v2-prototype.js:100-102` + `scripts/retry-failed-reprocess.js:71-73` — chunk/summary embed sites
+- `scripts/p8-probe.js` — extend with band-spread + top-5 metric (don't replace)
+- `server/agenda.js` — unchanged in Phase 1 (no rerank means MIN_SCORE gate stays valid)
+
+## Open questions (need user answer before Phase 1 starts)
+
+1. **Annotate "right answer" per query — or skip?** Phase 1 success metric (4) requires knowing the known-relevant doc per query. SZA already has one (`65f02ce1-…`). Other 7 queries need either: (a) 5-min user annotation now, or (b) measure on band-spread only (cheaper, but weaker signal — we won't know if rank actually improved). Recommend (a); it's a 5-min investment that pays back across all future search work.
+2. **`task_type` value casing verification** — Gemini docs vary across v1beta vs Vertex (some examples use `RETRIEVAL_DOCUMENT`, others `retrieval_document`). Should I spec a single curl test as step 0 of Phase 1 (5 min), or have you verified out-of-band?
+3. **Backfill timing** — re-embedding 596 points takes ~90s wall-clock at concurrency 8 (~$1 Gemini cost). It's destructive in-place to the dense vectors. Two options:
+   - **(a) Live-rolling** (recommended): backfill runs while pm2 is up. Risk: a capture landing mid-backfill might spuriously archive-or-not via conflict detection on a heterogeneous collection. ~90s window, low traffic, recoverable.
+   - **(b) Maintenance window**: `pm2 stop custombrain`, backfill, restart. Hard pause on captures + intake crons. Cleaner but you eat the downtime.

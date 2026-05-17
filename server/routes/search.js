@@ -103,7 +103,7 @@ async function rollupChunkHits(rawHits) {
 }
 
 export async function searchThoughts(query, limit = 5) {
-  const denseVector = await embedText(query);
+  const denseVector = await embedText(query, 'RETRIEVAL_QUERY');
   const sparseVector = sparseEncodeQuery(query);
   // Over-fetch so rollup can collapse chunk-clusters and still leave us with N
   const overfetchLimit = Math.max(limit * 6, 30);
