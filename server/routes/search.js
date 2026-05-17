@@ -28,7 +28,10 @@ function applyTimeDecay(results) {
       // boost as if it were a fresh thought.
       const dateStr = r.effective_date || r.created_at;
       const days = (now - new Date(dateStr).getTime()) / 86400000;
-      const decay = 1 / (1 + days / 30);
+      // 90-day half-life — gentler than initial 30-day. At 238 thoughts the
+      // brain has months of context; a 30-day decay over-penalises content
+      // older than a month even when cosine match is much stronger.
+      const decay = 1 / (1 + days / 90);
       return { ...r, cosine_score: r.score, score: r.score * decay };
     })
     .sort((a, b) => b.score - a.score);
