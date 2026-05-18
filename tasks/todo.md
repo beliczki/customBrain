@@ -743,3 +743,22 @@ The script does NOT touch `state/settings.json` if it doesn't exist (it creates 
 ## Open questions
 
 None — the user's direction is explicit ("menjen a B és takarítsuk ki a .env-et... gyökérbe"). Ready to execute on confirm.
+
+## Done (2026-05-18 — shipped as 0.23.0)
+
+- [x] `scripts/migrate-env-to-root.js` written (idempotent: each step checks current state, skips if done)
+- [x] `server/index.js` boots dotenv with explicit path → independent of pm2 `--cwd`
+- [x] All 23 scripts/cron updated: `'..', 'server', '.env'` → `'..', '.env'`
+- [x] `server/drive-context.js` + `server/routes/export.js` SA path resolution anchored at repo root
+- [x] `.env.example` rewritten to CAPTURE_SECRET only + Settings UI pointer
+- [x] `server/get-drive-token.js` + `scripts/get-drive-token.js` console output points at Settings UI
+- [x] Docs updated: `CLAUDE.md`, `README.md`, `DEPLOYMENT.md` reflect new layout; pm2-cwd note marked historical
+- [x] Version bumped 0.22.0 → 0.23.0 across 4 manifests
+- [x] CHANGELOG entry with breaking note for local-dev clones
+- [x] Hetzner deploy: pm2 stop all → fuser -k → git pull → migration → pm2 start all
+- [x] Verified: 596 keys still resolved via settings.json overlay, `/stats` HTTP 200 with new .env location, SA path resolves from root
+
+## Known follow-ups (not part of this scope)
+
+1. PM2 duplicate `id 14` "customBrain" (capital C, N/A version) still EADDRINUSE-looping in the background — pre-existing, unrelated, separate cleanup pass.
+2. `scripts/migrate-env-to-root.js` dry-run mode has a logic bug (strip step exits 1 when NEW_ENV doesn't yet exist in dry-run, breaking the chain). Actual run works fine and is idempotent. Fix on the next visit or skip; not load-bearing now that the one-time migration is done.
