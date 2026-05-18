@@ -635,3 +635,19 @@ UI-managed list of named MCP bearer tokens, so Claude Desktop / MCP connector te
 
 - Per-row `[Show]` / `[Hide]` toggle on the token list (reveal-anytime, like env-secret reveal).
 - Creation flow: name → POST → display full token in an inline highlighted row (no separate "shown only once" warning needed since reveal-anytime).
+
+## Done (2026-05-18 — shipped as 0.22.0)
+
+- [x] `server/mcp-token-store.js` — load/validate/create/revoke + atomic write + throttled last_used_at flush
+- [x] `server/routes/mcp-tokens.js` — GET/POST/DELETE under master auth
+- [x] `server/index.js` — path-aware auth middleware (master for non-MCP, named-token for /mcp/http)
+- [x] `client/src/api.js` — listMcpTokens, createMcpToken, revokeMcpToken
+- [x] `client/src/components/Settings.jsx` — McpTokensSection rendered above schema-driven fields
+- [x] Version bumped 0.21.0 → 0.22.0 across 4 manifests
+- [x] CHANGELOG entry (with ⚠ Breaking note for Claude Desktop config update)
+- [x] Deploy to Hetzner (pm2 stop all → fuser -k 3000/tcp → git pull → npm run build → pm2 start all)
+- [x] Smoke test (all 6 pass): master→/mcp-tokens 200 · master→/mcp/http 401 · create token · new token→/mcp/http 200 · revoke 200 · revoked token→/mcp/http 401
+
+## Live cutover for user
+
+The next time you open Claude Desktop (or any other external MCP client), it will 401 against `/mcp/http` because it's still configured with `CAPTURE_SECRET`. 30-second recovery: open the UI Settings tab → MCP tokens → Generate a named token (e.g. "Claude Desktop") → Show → Copy → paste into Claude Desktop config replacing the old CAPTURE_SECRET. From that point on the master is UI-only.
