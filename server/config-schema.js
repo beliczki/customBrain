@@ -9,12 +9,12 @@
 export const SETTINGS_SCHEMA = [
   // ─── Core ──────────────────────────────────────────────────────────
   {
-    key: 'CAPTURE_SECRET',
+    key: 'UI_SECRET',
     category: 'Core',
-    label: 'API token (Bearer)',
+    label: 'UI master secret (Bearer)',
     is_secret: true,
     required: true,
-    description: 'Required. Bearer token for all API + MCP routes. Also unlocks this UI.',
+    description: 'Required. Master secret that unlocks the UI and authorizes all non-MCP HTTP routes. Renamed from CAPTURE_SECRET in 0.24.0. Lives in .env (bootstrap), never goes to MCP.',
   },
   {
     key: 'PORT',

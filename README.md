@@ -42,9 +42,9 @@ If you genuinely need local dev:
 # 1. Start Qdrant
 docker compose up -d
 
-# 2. Create .env at repo root with CAPTURE_SECRET only (since 0.23.0)
+# 2. Create .env at repo root with UI_SECRET only (renamed from CAPTURE_SECRET in 0.24.0)
 cp .env.example .env
-# Edit .env and set CAPTURE_SECRET=<random-string>
+# Edit .env and set UI_SECRET=<random-string>
 # Everything else (Google/Anthropic/Fireflies/Gmail) goes via Settings UI
 # tab after first boot — values are persisted in state/settings.json.
 # Also drop service-account.json at repo root if using Drive features.
@@ -66,7 +66,7 @@ Production deploy: see `DEPLOYMENT.md` for the mandatory pm2 + `fuser -k 3000/tc
 
 ## HTTP API
 
-All routes require `Authorization: Bearer <CAPTURE_SECRET>` (also accepts `?token=` query param for browser use). Exception: `/fireflies-webhook` has its own HMAC-based auth.
+All non-MCP routes require `Authorization: Bearer <UI_SECRET>` (also accepts `?token=` query param). `/mcp/http` requires a named token from `state/mcp-tokens.json` (managed via UI Settings → MCP tokens). `/fireflies-webhook` has its own HMAC-based auth.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -311,7 +311,7 @@ Tab-based SPA served from `/`. Components in `client/src/components/`.
 | **Stats** | Mirrors `brain_stats` MCP tool: counts by type, top topics, daily capture histogram (Chart.js). |
 | **Export** | "Rebuild Obsidian vault now" button that calls `POST /export`. Shows last export time + thought count. |
 
-Auth: the client-side token gate prompts for `CAPTURE_SECRET` on first visit, stores in localStorage.
+Auth: the client-side token gate prompts for `UI_SECRET` on first visit, stores in localStorage. On mount the stored token is validated against `/stats` — if 401 (e.g., server restarted with a new secret), the UI bounces back to the Unlock screen.
 
 ---
 

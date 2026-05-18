@@ -2,6 +2,20 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.24.0 — 2026-05-18
+
+**`CAPTURE_SECRET` → `UI_SECRET` rename (clean break) + UI auto-logout on stale token.** The old name was misleading once 0.22.0 split MCP off — the secret no longer guards `/capture` alone; it's the UI master. Same value, new name, no back-compat fallback (one-time cutover via migration script).
+
+- `server/index.js` auth middleware reads `process.env.UI_SECRET` (no fallback).
+- `server/config-schema.js` Core entry key renamed `CAPTURE_SECRET` → `UI_SECRET`.
+- `client/src/api.js` + `client/src/App.jsx` localStorage key renamed `capture_secret` → `ui_secret` (no migration — stale entries bounce the user to the Unlock screen via the new mount-time validation).
+- `client/src/App.jsx` adds mount-time auth validation: if a stored token returns 401 from `/stats` (deploy swapped the secret, env changed, etc.), the UI clears the token and bounces to Unlock instead of letting the user see a silently-broken app. Brief "Checking token…" state during the validation fetch.
+- `.env.example` + docs (`README.md`, `CLAUDE.md`, `DEPLOYMENT.md`, `INSTALL.md`) updated.
+- Comments updated in `server/mcp-token-store.js` + `server/routes/mcp-tokens.js`.
+- `scripts/rename-capture-to-ui.js` — idempotent Hetzner migration that renames `CAPTURE_SECRET` → `UI_SECRET` in BOTH `/root/customBrain/.env` AND `state/settings.json`. Must run after `git pull` and before `pm2 start`.
+
+**⚠ Breaking**: any client (CLI script, curl, extension popup) hardcoding `Authorization: Bearer <CAPTURE_SECRET>` against `/stats` etc. keeps working at the wire-protocol level (the value didn't change, only the env var name on the server). The browser UI re-prompts once because localStorage key changed. Chrome extension (which uses chrome.storage with key `captureSecret`) untouched — will be addressed in 0.25.0 with capture-scope named tokens.
+
 ## 0.23.0 — 2026-05-18
 
 **Config relocation: `.env` and `service-account.json` move from `server/` to repo root; `.env` strips to `CAPTURE_SECRET` only.** Everything else (16 vars: AI keys, Google Drive OAuth2, Fireflies, Gmail, Qdrant, port, tunables) now lives exclusively in `state/settings.json`, managed via the Settings UI. The `applySettingsToEnv()` boot overlay (already in place since 0.17.0) makes this transparent to all `process.env.X` readers.

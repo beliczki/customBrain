@@ -17,7 +17,7 @@ One-time setup on Hetzner:
    npm run init   # idempotent; ensures source + source_id indexes exist
    ```
 
-2. **Set env vars** in the Settings UI tab (since 0.23.0; previously `/root/customBrain/server/.env`, now `/root/customBrain/.env` for `CAPTURE_SECRET` only):
+2. **Set env vars** in the Settings UI tab (since 0.23.0; previously `/root/customBrain/server/.env`, now `/root/customBrain/.env` for `UI_SECRET` only — renamed from `CAPTURE_SECRET` in 0.24.0):
    - `FIREFLIES_WEBHOOK_SECRET` = <random 32-char string>
    - `GMAIL_BRAIN_LABEL` = `brain`
    - `GMAIL_CAPTURED_LABEL` = `brain/captured`

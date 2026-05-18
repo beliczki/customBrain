@@ -53,7 +53,7 @@ node server/mcp-stdio.js            # connects Claude Desktop without Express
 ```
 
 ### Environment setup
-Copy `.env.example` to `.env` at REPO ROOT (since 0.23.0; previously at `server/`). Only `CAPTURE_SECRET` lives in `.env` now — it's the UI bootstrap secret. All other config (API keys, Google Drive OAuth2 + service account path, Fireflies, Gmail labels, Qdrant URL, port) flows through `state/settings.json` and is managed via the Settings UI tab. Run `scripts/get-drive-token.js` to generate the OAuth2 refresh token, then paste the printed values into Settings → Google Drive section. `service-account.json` also lives at repo root.
+Copy `.env.example` to `.env` at REPO ROOT (since 0.23.0; previously at `server/`). Only `UI_SECRET` lives in `.env` now (renamed from `CAPTURE_SECRET` in 0.24.0) — it's the UI bootstrap master secret. All other config (API keys, Google Drive OAuth2 + service account path, Fireflies, Gmail labels, Qdrant URL, port) flows through `state/settings.json` and is managed via the Settings UI tab. Run `scripts/get-drive-token.js` to generate the OAuth2 refresh token, then paste the printed values into Settings → Google Drive section. `service-account.json` also lives at repo root.
 
 ### Dependency management
 Root `package.json` and `server/package.json` have separate dependency trees (no workspaces). Client has its own `package.json` too. Agent code imports from server's `node_modules` via relative paths.
@@ -107,7 +107,7 @@ Route files export an Express router (default) and a named function for core log
 - **Capture pipeline**: text → parallel [embedding + metadata extraction] → Qdrant upsert. Context-aware: `server/drive-context.js` reads People/Projects from Drive (via SA) including `alias:` lines from People .md files. Post-processing resolves aliases to canonical names. Near-duplicate detection (cosine > 0.85): archives old thought (`status: archived`), links new thought via `supersedes`. Semantic contradiction detection is limited — embeddings measure topic similarity, not logical opposition.
 - **Obsidian export**: full vault rebuild (not incremental). Deletes all .md, rewrites from Qdrant. Since 0.6.0, exported `.md` files also get a semantic `## Related thoughts` section (top-N cosine neighbors, not tag-overlap) — tunables `RELATED_MIN_SCORE=0.75`, `RELATED_MAX=3` in `server/routes/export.js`.
 - **Delete**: `DELETE /thoughts/:id` lives in `server/routes/recent.js`.
-- **Auth**: All API and MCP routes require `Authorization: Bearer <CAPTURE_SECRET>` (also accepts `?token=` query param). Static files (React SPA) are open — token gate in the client. MCP stdio has no auth (local only).
+- **Auth (since 0.22.0 + 0.24.0)**: non-MCP routes require `Authorization: Bearer <UI_SECRET>` env master (also `?token=` query). `/mcp/http` requires a named token from `state/mcp-tokens.json` — master UI_SECRET does NOT authorize MCP (strict separation). Static files (React SPA) are open — token gate is client-side. MCP stdio has no auth (local only).
 - **SPA routing**: `server/index.js` serves `client/dist/` as static, with a wildcard `GET *` that sends `index.html` for any path not matching an API route. API routes are hardcoded in the wildcard guard (including `/fireflies-webhook`) — new routes need to be added there too.
 - **MCP**: Streamable HTTP only (`/mcp/http`). Each connection gets its own McpServer.
 

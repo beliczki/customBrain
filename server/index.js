@@ -57,12 +57,14 @@ app.use(
 
 // Auth middleware — path-aware split:
 //   - /mcp/http accepts ONLY named tokens from state/mcp-tokens.json
-//     (strict separation: the env-only master CAPTURE_SECRET never authorizes
-//     MCP traffic, so a leak of the UI secret doesn't expose the MCP surface)
+//     (strict separation: the env-only master UI_SECRET never authorizes MCP
+//     traffic, so a leak of the UI secret doesn't expose the MCP surface)
 //   - everything else (UI, /capture, /search, /mcp-tokens management, etc.)
-//     requires the master CAPTURE_SECRET only
+//     requires the master UI_SECRET only
 // Bootstrap: with zero MCP tokens, MCP is locked until UI mints one — the UI
-// itself uses CAPTURE_SECRET so no lockout is possible.
+// itself uses UI_SECRET so no lockout is possible.
+// Renamed from CAPTURE_SECRET in 0.24.0 for semantic clarity (the secret no
+// longer guards /capture alone since 0.22.0 split MCP off; it's the UI master).
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   const rawToken = req.headers.authorization?.startsWith('Bearer ')
@@ -74,7 +76,7 @@ app.use((req, res, next) => {
     return res.status(401).json({ error: 'MCP requires a named token from /mcp-tokens (master secret does not authorize MCP)' });
   }
 
-  if (rawToken && rawToken === process.env.CAPTURE_SECRET) return next();
+  if (rawToken && rawToken === process.env.UI_SECRET) return next();
   return res.status(401).json({ error: 'Unauthorized' });
 });
 

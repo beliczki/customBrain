@@ -1,7 +1,11 @@
 const BASE = '';
 
+// localStorage key renamed from 'capture_secret' → 'ui_secret' in 0.24.0
+// for parity with the env var rename. Old entries are NOT auto-migrated:
+// stale tokens get re-prompted at App mount via the validation fetch in
+// App.jsx, so a one-time re-login on first 0.24.0 load is the cutover UX.
 function authHeaders() {
-  const token = localStorage.getItem('capture_secret');
+  const token = localStorage.getItem('ui_secret');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

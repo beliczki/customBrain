@@ -245,7 +245,7 @@ function McpTokensSection({ onStatus }) {
       </h2>
       <p className="text-xs text-txt-ter mb-3">
         Named bearer tokens for <code className="text-txt-sec">/mcp/http</code> (Claude Desktop, connector testing, etc.).
-        Master <code className="text-txt-sec">CAPTURE_SECRET</code> is UI-only and does NOT authorize MCP — every external MCP client needs its own token from this list.
+        Master <code className="text-txt-sec">UI_SECRET</code> is UI-only and does NOT authorize MCP — every external MCP client needs its own token from this list.
       </p>
 
       {/* Create new token */}

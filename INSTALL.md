@@ -118,7 +118,7 @@ Each step has:
 
 **Output to user**:
 - `https://<host>/` is live
-- Open the Settings tab, paste API keys (categories: Google Drive, Fireflies, Anthropic, Google API, Gmail OAuth, YouTube, CAPTURE_SECRET)
+- Open the Settings tab, paste API keys (categories: Google Drive, Fireflies, Anthropic, Google API, Gmail OAuth, YouTube, UI_SECRET — renamed from CAPTURE_SECRET in 0.24.0)
 - After "Save & Restart", the brain is functional
 - For Claude Desktop integration: add the MCP snippet below to `~/Library/Application Support/Claude/claude_desktop_config.json` *(snippet TBD)*
 

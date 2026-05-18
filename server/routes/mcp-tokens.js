@@ -4,9 +4,9 @@ import { listTokens, createToken, revokeToken } from '../mcp-token-store.js';
 const router = Router();
 
 // All three routes are mounted under the global auth middleware, which (per
-// server/index.js) requires master CAPTURE_SECRET for any non-MCP path.
-// `/mcp-tokens` ≠ `/mcp/http` — token management is master-only, MCP usage
-// is named-token-only.
+// server/index.js) requires master UI_SECRET (renamed from CAPTURE_SECRET in
+// 0.24.0) for any non-MCP path. `/mcp-tokens` ≠ `/mcp/http` — token management
+// is master-only, MCP usage is named-token-only.
 
 router.get('/mcp-tokens', (req, res) => {
   try {

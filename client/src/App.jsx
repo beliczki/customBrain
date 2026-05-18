@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Capture from './components/Capture.jsx';
 import Search from './components/Search.jsx';
 import Recent from './components/Recent.jsx';
@@ -15,7 +15,44 @@ const APP_VERSION = pkg.version;
 
 export default function App() {
   const [active, setActive] = useState('Capture');
-  const [token, setToken] = useState(localStorage.getItem('capture_secret') || '');
+  const [token, setToken] = useState(localStorage.getItem('ui_secret') || '');
+  // While true, we have a token in localStorage but haven't verified it against
+  // the server yet. Mount-time validation: if /stats returns 401, the stored
+  // token is stale (e.g. UI_SECRET rotated, deployment swapped env, .env reset).
+  // Clear it and bounce the user to the Unlock screen instead of letting them
+  // see a broken UI that silently 401s every API call.
+  const [validating, setValidating] = useState(!!token);
+
+  useEffect(() => {
+    if (!token) {
+      setValidating(false);
+      return;
+    }
+    let canceled = false;
+    fetch('/stats', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (canceled) return;
+        if (res.status === 401) {
+          localStorage.removeItem('ui_secret');
+          setToken('');
+        }
+        setValidating(false);
+      })
+      .catch(() => {
+        // Network error — don't kick out, the user may be offline. Let
+        // them interact and the next API call will surface the real failure.
+        if (!canceled) setValidating(false);
+      });
+    return () => { canceled = true; };
+  }, [token]);
+
+  if (validating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-txt-ter text-sm">Checking token…</p>
+      </div>
+    );
+  }
 
   if (!token) {
     return (
@@ -32,7 +69,7 @@ export default function App() {
                   e.preventDefault();
                   const val = e.target.elements.token.value.trim();
                   if (val) {
-                    localStorage.setItem('capture_secret', val);
+                    localStorage.setItem('ui_secret', val);
                     setToken(val);
                   }
                 }}
