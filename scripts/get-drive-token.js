@@ -27,7 +27,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end('<h1>Done! You can close this tab.</h1>');
 
-    console.log('\n✓ Success! Add these to your server/.env:\n');
+    console.log('\n✓ Success! Paste these into Settings UI → Google Drive section (since 0.23.0):\n');
     console.log(`GOOGLE_DRIVE_REFRESH_TOKEN=${tokens.refresh_token}`);
     console.log(`GOOGLE_DRIVE_CLIENT_ID=${client_id}`);
     console.log(`GOOGLE_DRIVE_CLIENT_SECRET=${client_secret}`);

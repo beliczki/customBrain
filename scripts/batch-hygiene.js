@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { writeFileSync } from 'node:fs';
-dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', 'server', '.env') });
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 
 import { getConnectionStats, getById } from '../server/qdrant.js';
 import { findOverconnected } from '../server/brain-hygiene.js';

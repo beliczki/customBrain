@@ -651,3 +651,95 @@ UI-managed list of named MCP bearer tokens, so Claude Desktop / MCP connector te
 ## Live cutover for user
 
 The next time you open Claude Desktop (or any other external MCP client), it will 401 against `/mcp/http` because it's still configured with `CAPTURE_SECRET`. 30-second recovery: open the UI Settings tab → MCP tokens → Generate a named token (e.g. "Claude Desktop") → Show → Copy → paste into Claude Desktop config replacing the old CAPTURE_SECRET. From that point on the master is UI-only.
+
+---
+
+# Config layout cleanup — .env to root, strip to bootstrap-only, secrets via Settings UI — NEW 2026-05-18
+
+**Status**: plan drafted, awaiting user confirm.
+
+## Goal
+
+Move config files to repo root and strip `.env` down to just the UI bootstrap secret. Everything else (17 env vars currently in `.env`) flows through `state/settings.json` (already schema-driven via `server/config-schema.js`), manageable via the existing Settings UI.
+
+End-state filesystem on Hetzner:
+```
+/root/customBrain/
+├── .env                       ← CAPTURE_SECRET only (UI bootstrap)
+├── .env.example               ← CAPTURE_SECRET= + comment pointing to Settings UI
+├── service-account.json       ← Google service account (moved from server/)
+├── state/
+│   ├── settings.json          ← ALL other config (existing file, just gets more values)
+│   ├── mcp-tokens.json
+│   └── ...
+├── server/                    ← code only, no config
+├── client/
+├── scripts/
+└── cron/
+```
+
+## Why this is safe (existing mechanism)
+
+`server/config.js::applySettingsToEnv()` runs at boot AFTER `dotenv/config` (see `server/index.js:1-3`). It reads `state/settings.json` and OVERRIDES `process.env` with anything in there. All 17 env vars are already in the schema (`server/config-schema.js`). So migrating values from `.env` to `settings.json` is a pure data copy — no code changes needed for the secret-handoff itself.
+
+## What's currently on Hetzner (verified)
+
+- 17 env vars in `/root/customBrain/server/.env`: ANTHROPIC_API_KEY, CAPTURE_SECRET, FIREFLIES_API_KEY, FIREFLIES_WEBHOOK_SECRET, GMAIL_BRAIN_LABEL, GMAIL_CAPTURED_LABEL, GOOGLE_API_KEY, GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, GOOGLE_DRIVE_FOLDER_ID, GOOGLE_DRIVE_PEOPLE_FOLDER_ID, GOOGLE_DRIVE_PROJECTS_FOLDER_ID, GOOGLE_DRIVE_REFRESH_TOKEN, GOOGLE_SERVICE_ACCOUNT_PATH, PORT, QDRANT_URL, YOUTUBE_SKIP_CATEGORIES.
+- `state/settings.json` exists (1238 bytes, May 16) — partially migrated already.
+- `server/service-account.json` exists (2373 bytes).
+- All 17 keys are in `SETTINGS_SCHEMA`.
+
+## Code changes (git)
+
+- `server/index.js:1-3` — `dotenv/config` magic loads from CWD. Switch to explicit path: `dotenv.config({ path: join(__dirname, '..', '.env') })`. This works regardless of pm2's `--cwd` setting.
+- All 8 scripts/cron with explicit `join(REPO_ROOT, 'server', '.env')` → `join(REPO_ROOT, '.env')`:
+  - `cron/export.js`, `cron/gmail-intake.js`, `cron/youtube-intake.js`
+  - `scripts/reprocess-v2-prototype.js`, `scripts/retry-failed-reprocess.js`
+  - `scripts/backfill-task-types.js`, `scripts/calibrate-conflict-threshold.js`, `scripts/p8-probe.js`
+- `server/routes/export.js::resolveSaPath` (lines 17-23) — fallback path from `resolve(MODULE_DIR, '..', 'service-account.json')` (which is `server/service-account.json`) to `resolve(MODULE_DIR, '..', '..', 'service-account.json')` (root). Env var override (`GOOGLE_SERVICE_ACCOUNT_PATH`) keeps working.
+- `.env.example` rewrite — only `CAPTURE_SECRET=` with a comment: "Everything else is managed via Settings UI; see state/settings.json".
+- `DEPLOYMENT.md` updates — pm2 `--cwd` requirement note (line 44) becomes obsolete with explicit dotenv path; document the root-layout.
+
+## Server-side data migration (NOT in git, one-time)
+
+Idempotent script: `scripts/migrate-env-to-root.js`. Run ONCE on Hetzner after deploy.
+
+Steps the script performs:
+1. Parse existing `/root/customBrain/server/.env` into key-value map.
+2. Load existing `/root/customBrain/state/settings.json`. For each non-CAPTURE_SECRET key from .env, write to settings.json IF NOT ALREADY SET. (Settings.json wins on conflict — assume Hetzner is the source of truth for whatever's already there.)
+3. If `service-account.json` exists in `/root/customBrain/server/`, move it to `/root/customBrain/service-account.json`. Update `GOOGLE_SERVICE_ACCOUNT_PATH` value in settings.json to the new absolute path.
+4. Move `.env` from `server/` to root.
+5. Strip the root `.env` to only `CAPTURE_SECRET=<value>` + a header comment.
+6. Print what was migrated, what was kept-as-was, and what was skipped.
+
+The script does NOT touch `state/settings.json` if it doesn't exist (it creates one). It does NOT delete the old .env file — it MOVES it then strips it, so an Ctrl-C mid-run leaves you in either a) old state (file at server/) or b) new state (file at root, contents stripped). No half-state where both exist.
+
+## Deploy sequence
+
+1. Push code (changes above) to GitHub.
+2. SSH to Hetzner:
+   a. `pm2 stop all` + `fuser -k 3000/tcp` (per `feedback_hetzner_restart.md`).
+   b. `cd /root/customBrain && git pull origin main`.
+   c. `node scripts/migrate-env-to-root.js` — runs the data migration.
+   d. `pm2 start all`.
+3. Smoke test: `curl /stats` (master in localStorage still works), `curl /mcp-tokens` (master works), check `pm2 logs custombrain` for boot line `[config: 17 from settings.json]` (or similar count).
+
+## Risks
+
+- **Boot order**: if new code is deployed but .env hasn't moved, `dotenv.config({ path: '<repo>/.env' })` finds nothing → server boots without CAPTURE_SECRET → 401 forever. Mitigation: pm2 stop BEFORE pull, migrate BEFORE start. Order in deploy sequence ensures this.
+- **Settings.json mismatch**: if Hetzner's settings.json has a stale value that differs from .env, the migration favors settings.json (no overwrite). Manual review possible by reading settings.json after migration.
+- **Backup**: the migration script does NOT back up the old .env or service-account.json before moving. If migration breaks something, rollback is via git revert + manual file copy. Mitigation: run a `cp /root/customBrain/server/.env /tmp/env-backup-$(date +%s)` BEFORE the migration script.
+- **Local dev**: if anyone clones the repo fresh, .env.example tells them to put CAPTURE_SECRET in `.env` at root. The Settings UI bootstraps the rest. Matches the new architecture.
+
+## Definition of Done
+
+1. `/root/customBrain/.env` contains ONLY `CAPTURE_SECRET=...` (plus comments).
+2. `/root/customBrain/service-account.json` exists; old location empty/gone.
+3. `state/settings.json` contains all 16 non-CAPTURE_SECRET values from the previous .env.
+4. `pm2 restart custombrain` boots cleanly, all API calls work as before (no regression).
+5. `.env.example` reflects the new layout.
+6. Version bumped 0.22.0 → 0.23.0 (minor: file relocation + config flow change, breaking for anyone with hardcoded paths).
+
+## Open questions
+
+None — the user's direction is explicit ("menjen a B és takarítsuk ki a .env-et... gyökérbe"). Ready to execute on confirm.

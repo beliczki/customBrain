@@ -42,14 +42,12 @@ If you genuinely need local dev:
 # 1. Start Qdrant
 docker compose up -d
 
-# 2. Create server/.env (mirror .env.example with real values)
-cp .env.example server/.env
-# Fill: GOOGLE_API_KEY, ANTHROPIC_API_KEY, CAPTURE_SECRET,
-#       GOOGLE_SERVICE_ACCOUNT_PATH, GOOGLE_DRIVE_FOLDER_ID,
-#       GOOGLE_DRIVE_PEOPLE_FOLDER_ID, GOOGLE_DRIVE_PROJECTS_FOLDER_ID,
-#       GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, GOOGLE_DRIVE_REFRESH_TOKEN,
-#       FIREFLIES_API_KEY, FIREFLIES_WEBHOOK_SECRET,
-#       GMAIL_BRAIN_LABEL, GMAIL_CAPTURED_LABEL
+# 2. Create .env at repo root with CAPTURE_SECRET only (since 0.23.0)
+cp .env.example .env
+# Edit .env and set CAPTURE_SECRET=<random-string>
+# Everything else (Google/Anthropic/Fireflies/Gmail) goes via Settings UI
+# tab after first boot — values are persisted in state/settings.json.
+# Also drop service-account.json at repo root if using Drive features.
 
 # 3. Initialize Qdrant collection (idempotent — safe on existing data)
 npm run init

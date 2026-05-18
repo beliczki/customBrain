@@ -4,13 +4,17 @@ import { isAbsolute, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(MODULE_DIR, '..');
 
+// service-account.json lives at repo root since 0.23.0 (moved from server/).
+// Relative paths in GOOGLE_SERVICE_ACCOUNT_PATH resolve against REPO_ROOT now;
+// absolute paths are honored as-is.
 function resolveSaPath() {
   const envPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
   if (envPath) {
-    return isAbsolute(envPath) ? envPath : resolve(MODULE_DIR, envPath);
+    return isAbsolute(envPath) ? envPath : resolve(REPO_ROOT, envPath);
   }
-  return resolve(MODULE_DIR, 'service-account.json');
+  return resolve(REPO_ROOT, 'service-account.json');
 }
 
 let cachedContext = null;

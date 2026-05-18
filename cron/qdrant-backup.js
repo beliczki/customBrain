@@ -11,7 +11,7 @@ import { mkdirSync, createReadStream, readdirSync, statSync, unlinkSync, writeFi
 import { google } from 'googleapis';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: join(SCRIPT_DIR, '..', 'server', '.env') });
+dotenv.config({ path: join(SCRIPT_DIR, '..', '.env') });
 
 const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
 const COLLECTION = 'thoughts';

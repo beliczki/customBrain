@@ -13,13 +13,18 @@ const RELATED_MIN_SCORE = 0.75;
 const RELATED_MAX = 3;
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(MODULE_DIR, '..', '..');
 
+// service-account.json lives at repo root since 0.23.0 (moved from server/).
+// Mirror the path-resolution in server/drive-context.js — single source of
+// truth would be cleaner, but the duplication is intentional to keep the
+// route file self-contained.
 function resolveSaPath() {
   const envPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
   if (envPath) {
-    return isAbsolute(envPath) ? envPath : resolve(MODULE_DIR, '..', envPath);
+    return isAbsolute(envPath) ? envPath : resolve(REPO_ROOT, envPath);
   }
-  return resolve(MODULE_DIR, '..', 'service-account.json');
+  return resolve(REPO_ROOT, 'service-account.json');
 }
 
 const router = Router();

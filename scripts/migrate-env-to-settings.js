@@ -10,7 +10,7 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', 'server', '.env') });
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 
 import { SETTINGS_SCHEMA, isSecret } from '../server/config-schema.js';
 import { loadSettings, saveSettings, SETTINGS_PATH } from '../server/config.js';

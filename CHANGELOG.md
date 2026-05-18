@@ -2,6 +2,20 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.23.0 — 2026-05-18
+
+**Config relocation: `.env` and `service-account.json` move from `server/` to repo root; `.env` strips to `CAPTURE_SECRET` only.** Everything else (16 vars: AI keys, Google Drive OAuth2, Fireflies, Gmail, Qdrant, port, tunables) now lives exclusively in `state/settings.json`, managed via the Settings UI. The `applySettingsToEnv()` boot overlay (already in place since 0.17.0) makes this transparent to all `process.env.X` readers.
+
+- `server/index.js` boots `dotenv.config({ path: <repo-root>/.env })` explicitly — independent of pm2 `--cwd`.
+- All 23 scripts/cron updated: `'..', 'server', '.env'` → `'..', '.env'`.
+- `server/drive-context.js` + `server/routes/export.js` SA-path resolution now anchored at repo root (relative `GOOGLE_SERVICE_ACCOUNT_PATH=./service-account.json` keeps working; previously resolved to `server/service-account.json`).
+- `.env.example` rewritten to `CAPTURE_SECRET` only + an explanatory header pointing to Settings UI.
+- `server/get-drive-token.js` + `scripts/get-drive-token.js` console output now points to Settings UI instead of `server/.env`.
+- Docs updated: `CLAUDE.md`, `README.md`, `DEPLOYMENT.md` reflect the new layout. DEPLOYMENT pm2-cwd gotcha note marked historical.
+- `scripts/migrate-env-to-root.js` — idempotent one-time migration on Hetzner: moves `service-account.json`, moves `.env`, strips `.env` to just `CAPTURE_SECRET`. settings.json values already migrated (verified during planning — all 17 keys present pre-deploy).
+
+**⚠ Local-dev breaking**: any clone that has `.env` at `server/` will fail to boot — move to repo root. Production Hetzner handled via migration script.
+
 ## 0.22.0 — 2026-05-18
 
 **Named MCP bearer tokens, UI-managed.** Master `CAPTURE_SECRET` (env) is now UI-only — it no longer authorizes `/mcp/http`. External MCP clients (Claude Desktop, connector tests) MUST use a named token from `state/mcp-tokens.json`, manageable in the Settings tab. Bootstrap is impossible to lock out because the UI itself uses CAPTURE_SECRET to create the first MCP token.

@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Deploying?** Read `DEPLOYMENT.md` first.
 
 ## No local environment — deploy-tested only
-There is no `server/.env` or `service-account.json` on the local Mac filesystem. Local `npm start`, local crons, and the Vite dev server will all fail without them. All testing happens directly on Hetzner (`brain.beliczki.hu`). Static checks (syntax, pure-function unit tests, regex validation) are fine locally; anything that hits Qdrant, Google APIs, Fireflies, or Anthropic needs the server. Propose SSH-based verification instead of "run it locally first".
+There is no `.env` or `service-account.json` on the local Mac filesystem (both live at repo root on Hetzner since 0.23.0; previously at `server/`). Local `npm start`, local crons, and the Vite dev server will all fail without them. All testing happens directly on Hetzner (`brain.beliczki.hu`). Static checks (syntax, pure-function unit tests, regex validation) are fine locally; anything that hits Qdrant, Google APIs, Fireflies, or Anthropic needs the server. Propose SSH-based verification instead of "run it locally first".
 
 ## Where plans live
 - **`ROADMAP.md`** — canonical priority list (P1–P9, sequenced with a usage gate at position 0). Stubs cross-reference brain thought IDs for full specs.
@@ -53,7 +53,7 @@ node server/mcp-stdio.js            # connects Claude Desktop without Express
 ```
 
 ### Environment setup
-Copy `.env.example` to `server/.env`. Key vars: `GOOGLE_API_KEY` (Gemini), `ANTHROPIC_API_KEY` (Haiku), `CAPTURE_SECRET`, Google Drive service account + OAuth2 creds. Run `scripts/get-drive-token.js` to generate the OAuth2 refresh token. Note: `.env.example` is incomplete — OAuth2 vars (`GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`) needed by agent tools and Drive writes are not listed.
+Copy `.env.example` to `.env` at REPO ROOT (since 0.23.0; previously at `server/`). Only `CAPTURE_SECRET` lives in `.env` now — it's the UI bootstrap secret. All other config (API keys, Google Drive OAuth2 + service account path, Fireflies, Gmail labels, Qdrant URL, port) flows through `state/settings.json` and is managed via the Settings UI tab. Run `scripts/get-drive-token.js` to generate the OAuth2 refresh token, then paste the printed values into Settings → Google Drive section. `service-account.json` also lives at repo root.
 
 ### Dependency management
 Root `package.json` and `server/package.json` have separate dependency trees (no workspaces). Client has its own `package.json` too. Agent code imports from server's `node_modules` via relative paths.

@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(MODULE_DIR, '..');
-dotenv.config({ path: join(REPO_ROOT, 'server', '.env') });
+dotenv.config({ path: join(REPO_ROOT, '.env') });
 
 const { QdrantClient } = await import('@qdrant/js-client-rest');
 const { embedText } = await import('../server/embeddings.js');

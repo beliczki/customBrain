@@ -1,10 +1,13 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+// Explicit path so we're independent of pm2 --cwd. The .env lives at repo
+// root (single bootstrap secret) since 0.23.0 — moved from server/.env.
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 import { applySettingsToEnv } from './config.js';
 const settingsLoad = applySettingsToEnv();
 import express from 'express';
 import cors from 'cors';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 import captureRouter from './routes/capture.js';
 import searchRouter from './routes/search.js';
 import recentRouter from './routes/recent.js';

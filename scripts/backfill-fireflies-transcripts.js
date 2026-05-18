@@ -21,7 +21,7 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', 'server', '.env') });
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 
 import { getFirefliesTranscriptById } from '../agent/tools/fireflies.js';
 import { scrollFilteredRaw } from '../server/qdrant.js';

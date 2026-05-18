@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
-dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', 'server', '.env') });
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
 
 import { getGmail, getVaultContext } from '../server/drive-context.js';
 import { extractBody, getHeader, ensureLabel } from '../agent/tools/gmail.js';

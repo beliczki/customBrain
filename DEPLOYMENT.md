@@ -17,12 +17,12 @@ One-time setup on Hetzner:
    npm run init   # idempotent; ensures source + source_id indexes exist
    ```
 
-2. **Set env vars** in `/root/customBrain/server/.env`:
-   ```
-   FIREFLIES_WEBHOOK_SECRET=<random 32-char string>
-   GMAIL_BRAIN_LABEL=brain
-   GMAIL_CAPTURED_LABEL=brain/captured
-   ```
+2. **Set env vars** in the Settings UI tab (since 0.23.0; previously `/root/customBrain/server/.env`, now `/root/customBrain/.env` for `CAPTURE_SECRET` only):
+   - `FIREFLIES_WEBHOOK_SECRET` = <random 32-char string>
+   - `GMAIL_BRAIN_LABEL` = `brain`
+   - `GMAIL_CAPTURED_LABEL` = `brain/captured`
+
+   These persist in `state/settings.json` and override env at boot via `applySettingsToEnv()`.
 
 3. **Fireflies webhook** — in Fireflies Developer Settings → Webhooks, add:
    `https://brain.beliczki.hu/fireflies-webhook?secret=<FIREFLIES_WEBHOOK_SECRET>`
@@ -41,7 +41,7 @@ One-time setup on Hetzner:
 
 ## Known gotchas
 
-- **pm2 cwd matters** — pm2 must start with `--cwd /root/customBrain/server` on Hetzner, otherwise `dotenv` can't find `.env` and Qdrant/API calls fail with "fetch failed".
+- **pm2 cwd** — historically had to be `/root/customBrain/server` so `dotenv/config` could find `.env`. Since 0.23.0 `server/index.js` uses an explicit dotenv path relative to the file itself, so pm2 cwd is no longer load-bearing for env loading. Still good hygiene to set it to `/root/customBrain/server` for any other CWD-relative IO.
 - **express.json() blocks Streamable HTTP** — `/mcp/http` route is excluded from `express.json()` middleware because `StreamableHTTPServerTransport` needs the raw body.
 - **Claude Desktop MCP config** — only supports `command`+`args` (stdio), not SSE/HTTP directly. Use `npx mcp-remote https://brain.beliczki.hu/mcp/http` as the command to bridge stdio↔Hetzner.
 - **OAuth2 scope expansion** — when adding Google API scopes, must re-run `server/get-drive-token.js` and update the refresh token in `.env` on all environments (local + Hetzner).
