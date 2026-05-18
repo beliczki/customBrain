@@ -2,6 +2,22 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.24.3 — 2026-05-18
+
+**Security hardening pass — code half.** Companion to the same-day infra hardening (chmod 600 on secret files, nginx log scrub of `?token=` to `[REDACTED]`, archived log purge, fail2ban on sshd, ufw allowlist 22/80/443). The code-side changes:
+
+- `app.set('trust proxy', 'loopback')` in `server/index.js` — express resolves `req.ip` via the nginx X-Forwarded-For header (added to the custombrain nginx site config in the same pass). Without this, per-IP anything is global behind nginx.
+- **CORS tightened to `https://brain.beliczki.hu`** — was `cors()` wildcard. UI is same-origin so unaffected. Chrome extension bypasses CORS via `host_permissions` in its manifest. Closes the "XSS leaks bearer to attacker JS that reads response" route.
+- **Per-IP rate limiter** (`server/rate-limiter.js` rewritten) — global counter in 0.24.2 was a DoS vector: any IP could trigger 3 failures and lock out the legitimate user. Now keyed on `req.ip` with the same ladder (3 → 1min, 3 → 5min, 3 → 10min, 3 → 30min cap). Stale entries pruned on 5-min interval. Single-user load = tiny map.
+
+**Same-day infra changes** (not in git, applied via SSH on Hetzner):
+- `chmod 600` on `.env`, `service-account.json`, `mcp-tokens.json` (was 644).
+- `/etc/nginx/conf.d/scrub-log.conf` — map directive + `scrubbed` log_format replacing `token=<value>` query params with `token=[REDACTED]` in nginx access logs.
+- `access_log /var/log/nginx/access.log scrubbed;` added to custombrain site block.
+- `truncate -s 0 /var/log/nginx/access.log` + `rm /var/log/nginx/access.log.*` — purged historical logs containing pre-scrub tokens.
+- `apt install fail2ban` + minimal `/etc/fail2ban/jail.local` enabling sshd jail (5 fails in 10 min → 1h ban). 3 IPs already banned at deploy time.
+- `ufw allow OpenSSH` + `ufw allow 'Nginx Full'` + `ufw --force enable` — default-deny firewall. Locks down the sibling mm-server-* apps' open `*:3003`/`*:3005` ports from external access (they stay bound on all interfaces; ufw blocks externally).
+
 ## 0.24.2 — 2026-05-18
 
 **Rate limiter on UI auth failures + Unlock form pre-validation.** Defends the UI bootstrap secret against brute-force.

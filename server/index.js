@@ -27,7 +27,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// Trust the loopback proxy (nginx → 127.0.0.1:3000) so `req.ip` resolves to
+// the X-Forwarded-For client address instead of always '127.0.0.1'. Per-IP
+// rate limiting depends on this (since 0.24.3). The nginx site sends
+// X-Forwarded-For via `$proxy_add_x_forwarded_for`.
+app.set('trust proxy', 'loopback');
+
+// Tighten CORS to our own UI origin (was wildcard before 0.24.3). The UI is
+// same-origin so doesn't need CORS at all; tightening prevents any other site's
+// JS from reading API responses if a future XSS leaked the bearer token. The
+// Chrome extension is unaffected — host_permissions in its manifest bypass CORS.
+app.use(cors({ origin: 'https://brain.beliczki.hu' }));
 
 // Serve React client (no auth — it's just an SPA shell)
 app.use(express.static(join(__dirname, '..', 'client', 'dist')));
@@ -83,21 +93,23 @@ app.use((req, res, next) => {
 
   // Check rate limit BEFORE comparing tokens — saves the comparison cost on
   // a locked-out attacker and is consistent (a request during a lockout never
-  // succeeds, regardless of the token).
-  const limit = rateLimitCheck();
+  // succeeds, regardless of the token). Per-IP since 0.24.3 (was global) —
+  // req.ip is the real client IP via `trust proxy` + nginx X-Forwarded-For.
+  const ip = req.ip;
+  const limit = rateLimitCheck(ip);
   if (limit.blocked) {
     res.setHeader('Retry-After', String(limit.retry_after_seconds));
     return res.status(429).json({
-      error: `Too many failed auth attempts. Try again in ${limit.retry_after_seconds}s.`,
+      error: `Too many failed auth attempts from your IP. Try again in ${limit.retry_after_seconds}s.`,
       retry_after_seconds: limit.retry_after_seconds,
     });
   }
 
   if (rawToken && rawToken === process.env.UI_SECRET) {
-    rateLimitOk();
+    rateLimitOk(ip);
     return next();
   }
-  rateLimitBad();
+  rateLimitBad(ip);
   return res.status(401).json({ error: 'Unauthorized' });
 });
 
