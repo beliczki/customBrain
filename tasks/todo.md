@@ -424,3 +424,214 @@ If (4) fails, that's not a Phase 1 failure — it's data that the agent-as-reran
 - [x] CHANGELOG entry for 0.21.0
 - [x] Version bumped 0.20.1 → 0.21.0 across 4 manifests
 - [ ] Deploy to Hetzner (pm2 stop + fuser -k 3000/tcp + git pull + pm2 start)
+
+---
+
+# Export observability — last-run state + UI live progress — NEW 2026-05-18
+
+**Status**: plan drafted, awaiting user confirm.
+
+## Goal
+
+Surface the export pipeline (which runs hourly via `cron/export.js` and on-demand from `POST /export`) on the Export UI page:
+- "Legutóbbi export: <timestamp>" + collapsible log, persistent across page reloads
+- Live tempo of the log lines updating in the UI while an export is running, regardless of whether it was triggered from the UI button OR from cron — UI parity with the existing SSE behavior
+
+## Architectural decision (locked)
+
+**Storage**: single JSON file `state/export-last-run.json` — same pattern as `state/agenda-cache.json` and `state/gmail-watermark.json`. No new DB, no schema, no migrations. Always overwritten (only "most recent" matters per user spec).
+
+**Update mechanism**: SSE stays as the existing UI-triggered live channel (no behavior change for the button path). The state file gets written **in parallel** by a thin wrapper around `rebuildVault`, throttled to 250ms flushes so a 45s export with 1000+ log lines doesn't bash the disk. UI polls `/export/last` every 1.5s while `status === 'running'`, stops polling otherwise — this surfaces cron-triggered runs without bidirectional comms.
+
+**No SSE removal**: the existing `POST /export` SSE stream keeps working as-is; the wrapper just calls the existing onLog AND appends to the state file. Adding-not-replacing keeps the change small (CLAUDE.md: "Every change as small as possible").
+
+## State file shape
+
+```json
+{
+  "id": "<uuid>",
+  "started_at": "2026-05-18T10:00:00Z",
+  "ended_at": null,                    // null while running
+  "status": "running",                 // running | completed | failed
+  "triggered_by": "cron",              // cron | ui (mcp deferred — no rebuild trigger in MCP yet)
+  "log_lines": ["[0.0s] ...", "[0.1s] ..."],
+  "result": null,                      // rebuildVault return when status === completed
+  "error": null                        // error.message when status === failed
+}
+```
+
+## Files to touch
+
+- `server/routes/export.js`:
+  - Add `EXPORT_STATE_PATH` (resolves to `state/export-last-run.json` relative to `server/`).
+  - Add `runExportWithStatus(triggeredBy, onLogPassthrough)` wrapper:
+    - Generates uuid, writes initial state (`status: 'running'`, `ended_at: null`).
+    - Calls existing `rebuildVault(onLog)` with a multi-target onLog: (a) calls `onLogPassthrough` (SSE), (b) appends to in-memory log_lines, (c) throttled flush to state file (250ms).
+    - On success: status=`completed`, result, ended_at=now, final flush.
+    - On error: status=`failed`, error.message, ended_at=now, final flush.
+  - Atomic write: write `.tmp` then rename, so partial reads never see a half-written JSON.
+  - Modify `POST /export` to call `runExportWithStatus('ui', sseOnLog)` instead of `rebuildVault(sseOnLog)`.
+  - Add `GET /export/last`: reads state file, returns JSON, 404 if absent.
+- `cron/export.js`: replace `await rebuildVault(onLog)` with `await runExportWithStatus('cron', onLog)`. stdout still gets the lines via `onLog = console.log`.
+- `client/src/api.js`: add `getLastExport()` → GET `/export/last`, returns parsed JSON or null on 404.
+- `client/src/components/Export.jsx`:
+  - On mount: `getLastExport()`, if exists show "Legutóbbi export: <formatDate(started_at)> · <status badge> · triggered by <triggered_by>", render collapsible log.
+  - If `status === 'running'`: setInterval(1500) polling `getLastExport`, merge new log lines into displayed state, clear interval when status changes.
+  - "Export to Drive" button: unchanged — still uses `exportToObsidian` (SSE). After SSE completes, refresh from `/export/last` so the persistent view reflects the run.
+  - Add status badge component using existing color tokens (green for completed, blue for running, red for failed).
+- `server/index.js`: NO change. SPA wildcard guard already lists `/export` at line 28-34, so `GET /export/last` falls through to the router correctly.
+
+## SPA wildcard already covers `/export/*` — verified line 31:
+```js
+req.path.startsWith('/export') ||
+```
+
+## Risks
+- **State file write contention** if cron tick fires while UI export is running: both wrappers write the same file. Single-user, hourly cron + intentional UI click — collision rate is near zero. If it happens, last-write-wins; the actual exports both complete (they don't share runtime state apart from this log). Acceptable.
+- **State file growth**: a 45s export emits ~30-50 log lines (one per phase + one per uploaded file at default batch). At 596 thoughts the log can hit ~600 lines. JSON file size ~30-50KB. Not a concern.
+- **Atomic-write rename**: on the same FS this is atomic on POSIX (Hetzner ext4) — no partial-read risk.
+- **Polling cost**: 1.5s polling for the ~5min/day a cron export runs = ~200 polls/day from one open browser tab. Trivial.
+- **`/export/last` returns 404 before first run**: UI gracefully shows "No exports yet" empty state.
+
+## Definition of Done
+
+1. `state/export-last-run.json` exists and updates during BOTH a cron-triggered AND a UI-triggered run.
+2. UI Export page shows last run on load (date, status, collapsed log).
+3. During a running export, UI log updates within 1.5s of new line append (test by triggering an export from another tab/CLI and watching the page).
+4. UI-triggered button still works exactly as before (SSE-driven instant updates).
+5. No regression in cron export behavior (stdout still gets log lines).
+6. Version bumped 0.21.0 → 0.22.0 (minor: new HTTP route + new state field + UI behavior change).
+
+## Open questions
+
+1. **mcp trigger source** — the original spec note mentioned `triggered_by: 'mcp'` but the MCP tool surface has `rebuild_obsidian_vault` which uses `rebuildVault` directly. Want me to also wrap the MCP tool's path so MCP-triggered runs show up in UI, or skip until needed? Skipping = simpler now, easy to add later.
+2. **Show running export inline OR replace the existing "log terminal" component on click?** Current Export.jsx renders the SSE log only after the user clicks the button. New design needs to ALSO render the cron-triggered log when no button has been clicked. Simplest: one log component, source is the state file (filled at mount via `getLastExport`, updated via polling). When user clicks button, SSE updates the SAME log component live (alongside polling, which becomes redundant but harmless). Confirm this UI shape vs. keeping two separate log areas (one for "last run" + one for "this manual run")?
+3. **Polling interval** — 1.5s is the proposed default. Lower (500ms) feels snappier but trebles request rate. Higher (3s) saves requests but feels laggy on short runs. Stick with 1.5s?
+
+---
+
+# MCP token management — UI-managed named tokens, env stays master — NEW 2026-05-18
+
+**Status**: plan drafted, awaiting user confirm. Scope-narrowed Tier-2 of the auth-system pushback (single-user, MCP-only, env stays master).
+
+## Goal
+
+UI-managed list of named MCP bearer tokens, so Claude Desktop / MCP connector tests / temporary integrations each get their own token. Revoke any one without touching the others. CAPTURE_SECRET env var stays as the master-only secret used by the browser UI itself — never leaves the operator's machine. MCP endpoint accepts master OR any named-list token.
+
+## Architectural decisions (locked)
+
+**Storage**: new file `state/mcp-tokens.json`. List-shape, not KV-shape — incompatible with the existing schema-driven `state/settings.json`. Atomic write (`.tmp` + rename).
+
+```json
+{
+  "tokens": [
+    {
+      "id": "<uuid>",
+      "name": "Claude Desktop",
+      "token": "<64-char hex from crypto.randomBytes(32)>",
+      "created_at": "2026-05-18T...",
+      "last_used_at": "2026-05-18T..." | null,
+      "expires_at": null | "2026-06-18T..."
+    }
+  ]
+}
+```
+
+**Auth split**:
+- All non-MCP routes: master only (CAPTURE_SECRET env), unchanged behavior.
+- `/mcp/http`: master OR any valid (non-expired) named token.
+- Single smart middleware in `server/index.js` that reads `req.path` and accepts either form for `/mcp/http`, only master for everything else.
+- Token can be passed in `Authorization: Bearer <token>` OR `?token=<token>` query — same as current pattern (Claude Desktop config uses query form).
+
+**Token format**: `crypto.randomBytes(32).toString('hex')` = 64 hex chars. Easy to copy, ~256 bits of entropy.
+
+**Last-used tracking**: throttled. On successful validation, update `last_used_at` if `now - prev > 5 min`. Else skip the disk write. Keeps disk thrash off the hot path.
+
+**Token expiry**: optional. `expires_at` null = never; ISO string = hard cutoff. Expired tokens fail auth with 401. Don't auto-delete (let user see + manually revoke for audit).
+
+**Token display**: at creation, full token shown ONCE so user can copy. Subsequent reads (UI list) return masked form (e.g. `…last-4-chars`). Tokens stored in cleartext in the JSON file (HMAC/hash would prevent the UI from displaying anything useful for testing — single-user, file is readable only by the same user that runs node, acceptable).
+
+## Files to touch
+
+### Backend
+- `server/index.js:50-58` — replace global auth middleware with a path-aware one: master-only for non-MCP routes, master-or-named-token for `/mcp/http`. Order: keep the same; webhooks above, auth below, routers below auth.
+- `server/index.js:28-38` — add `/mcp-tokens` to the SPA wildcard guard so `GET/POST/DELETE /mcp-tokens` falls through to the router.
+- New file `server/mcp-token-store.js`:
+  - `loadTokens()` → returns `{ tokens: [...] }`, creates empty file on first call
+  - `validateToken(token)` → returns matching token record or null (checks expiry); on match updates `last_used_at` throttled
+  - `createToken(name, expiresInDays?)` → uuid + random hex + ISO timestamps, returns full record
+  - `revokeToken(id)` → boolean
+  - `listTokensMasked()` → public list with token masked to last-4-chars
+  - In-memory cache + atomic flush; safe to call from concurrent requests (single Node process, no real concurrency issue)
+- New file `server/routes/mcp-tokens.js`:
+  - `GET /mcp-tokens` → `listTokensMasked()`
+  - `POST /mcp-tokens` body `{ name, expires_in_days? }` → returns the FULL token + record (only call where full token returned)
+  - `DELETE /mcp-tokens/:id`
+  - All three require master auth (which is already the case — the route mounts under the master-only path of the middleware)
+- `server/index.js` — import + mount the new router
+
+### Frontend
+- `client/src/api.js` — add `listMcpTokens()`, `createMcpToken({ name, expiresInDays })`, `revokeMcpToken(id)`
+- `client/src/components/Settings.jsx` — render a new section ABOVE the schema-driven fields with the MCP token list UI:
+  - Table: name · last used · expires · masked-token · `[Copy]` `[Revoke]`
+  - `[+ Add MCP token]` button → modal: name (required) + optional expiry days → POST → display full token ONCE in a copy-to-clipboard banner with a clear "this won't be shown again" warning
+  - Match existing global semantic class patterns (`toolbar`, `toolbar-btn`, `form-field`) per `CLAUDE.md` design-reuse-over-invention rule
+
+### Docs
+- `CHANGELOG.md` — 0.21.0 → 0.22.0 entry (or 0.23.0 if it lands after export observability)
+- `tasks/todo.md` — Done section per the workflow
+
+## Risks & edge cases
+
+- **Bootstrap chicken-egg**: empty token list on first install = fine, all MCP traffic uses master CAPTURE_SECRET until user creates a named token. No lockout possible.
+- **Master compromise**: if CAPTURE_SECRET leaks, attacker can manage tokens (create/revoke) AND directly call MCP with master. Acceptable — that's the master's role.
+- **Named token leak**: attacker can call MCP only. Rotate via UI revoke. Compromise blast radius limited to MCP surface.
+- **State file write race**: single-user, very low traffic — last-write-wins on the rare collision is fine.
+- **Token cleartext at rest**: filesystem-only readable by the node user; same risk profile as `service-account.json` or `.env`. Acceptable for single-user. NOT acceptable if this becomes multi-user.
+- **`Mcp-Session-Id` header**: per `server/mcp.js:202` the MCP transport uses this header for session continuity. The auth check happens BEFORE the transport sees the request, so token-vs-session is orthogonal. No interaction issue.
+- **Token-via-query in URL**: same exposure pattern as current `?token=<CAPTURE_SECRET>` (URLs can leak to logs/history). User already accepts this for master; named tokens inherit the same trade-off. Document this in the UI ("don't paste tokens into pastebins / git").
+
+## Definition of Done
+
+1. Master CAPTURE_SECRET still works for ALL endpoints (including MCP) — backwards compatible.
+2. UI Settings page shows MCP token list; can add named token; full token displayed at creation only.
+3. Generated token successfully authenticates `/mcp/http` (verified by curl).
+4. Revoking a token causes subsequent calls with that token to 401.
+5. Non-MCP endpoints (`/search`, `/capture`, etc.) ONLY accept master — verified that a named MCP token returns 401 on `/search`.
+6. `last_used_at` updates on use (throttled to 5min granularity).
+7. Expired tokens (where `expires_at` < now) fail auth.
+8. Version bumped (minor — new HTTP routes + new auth flow + new UI section).
+
+## Decisions locked (2026-05-18)
+
+1. **Strict separation**: master CAPTURE_SECRET works ONLY for non-MCP routes (UI). MCP routes accept ONLY named tokens from the list — no master fallback. Bootstrap: with zero tokens, MCP is locked until UI generates one (UI itself uses CAPTURE_SECRET, so no lockout possible).
+2. **No token expiry** — drop the `expires_at` field entirely. Lifecycle is purely create/revoke.
+3. **Reveal anytime** — UI list shows masked tokens by default, with per-row Show/Hide toggle (same pattern as `Settings.jsx::SettingsField` reveal-toggle for env secrets at line 38-51). NOT creation-only.
+4. **Storage**: flat `state/mcp-tokens.json`, follows existing pattern (`state/agenda-cache.json`, `state/gmail-watermark.json`, `state/settings.json`). No nested `state/auth/` subfolder.
+
+## Updated shape (no expires_at)
+
+```json
+{
+  "tokens": [
+    {
+      "id": "<uuid>",
+      "name": "Claude Desktop",
+      "token": "<64-char hex>",
+      "created_at": "2026-05-18T...",
+      "last_used_at": "2026-05-18T..." | null
+    }
+  ]
+}
+```
+
+## Updated auth split
+
+- All non-MCP routes: master CAPTURE_SECRET only (unchanged).
+- `/mcp/http`: ONLY tokens from `state/mcp-tokens.json`. CAPTURE_SECRET fails on MCP.
+- Single path-aware middleware in `server/index.js`.
+
+## Updated frontend behavior
+
+- Per-row `[Show]` / `[Hide]` toggle on the token list (reveal-anytime, like env-secret reveal).
+- Creation flow: name → POST → display full token in an inline highlighted row (no separate "shown only once" warning needed since reveal-anytime).

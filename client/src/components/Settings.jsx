@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSettings, saveSettings, restartServer, waitForServer } from '../api.js';
+import { getSettings, saveSettings, restartServer, waitForServer, listMcpTokens, createMcpToken, revokeMcpToken } from '../api.js';
 
 export default function Settings() {
   const [data, setData] = useState(null);
@@ -130,6 +130,8 @@ export default function Settings() {
         </div>
       )}
 
+      <McpTokensSection onStatus={setStatus} />
+
       {[...byCategory.entries()].map(([category, items]) => (
         <div key={category} className="settings-category mb-8">
           <h2 className="settings-category__header text-xs uppercase tracking-wider text-txt-ter mb-3 pb-1 border-b border-subtle">
@@ -151,6 +153,180 @@ export default function Settings() {
       <p className="text-xs text-txt-ter mt-8">
         Settings file: <code className="text-txt-sec">{data.settings_path}</code>
       </p>
+    </div>
+  );
+}
+
+function McpTokensSection({ onStatus }) {
+  const [tokens, setTokens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [revealed, setRevealed] = useState({}); // id → raw token
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const res = await listMcpTokens();
+      setTokens(res.tokens || []);
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `MCP tokens load failed: ${err.message}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const onCreate = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      const res = await createMcpToken(name);
+      setRevealed((p) => ({ ...p, [res.token.id]: res.token.token }));
+      setNewName('');
+      onStatus?.({ type: 'ok', text: `Created MCP token "${name}" — copy it now from the row below.` });
+      await refresh();
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `Create failed: ${err.message}` });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const onRevoke = async (token) => {
+    if (!confirm(`Revoke "${token.name}"? This cannot be undone — any client using it will get 401.`)) return;
+    try {
+      await revokeMcpToken(token.id);
+      setRevealed((p) => {
+        const copy = { ...p };
+        delete copy[token.id];
+        return copy;
+      });
+      onStatus?.({ type: 'ok', text: `Revoked "${token.name}".` });
+      await refresh();
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `Revoke failed: ${err.message}` });
+    }
+  };
+
+  const onRevealToggle = async (token) => {
+    if (revealed[token.id]) {
+      setRevealed((p) => {
+        const copy = { ...p };
+        delete copy[token.id];
+        return copy;
+      });
+      return;
+    }
+    try {
+      const res = await listMcpTokens({ revealId: token.id });
+      const full = res.tokens.find((t) => t.id === token.id);
+      if (full) setRevealed((p) => ({ ...p, [token.id]: full.token }));
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `Reveal failed: ${err.message}` });
+    }
+  };
+
+  const onCopy = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      onStatus?.({ type: 'ok', text: `Copied ${label}.` });
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `Copy failed: ${err.message}` });
+    }
+  };
+
+  return (
+    <div className="settings-category mcp-tokens mb-8">
+      <h2 className="settings-category__header text-xs uppercase tracking-wider text-txt-ter mb-3 pb-1 border-b border-subtle">
+        MCP tokens
+      </h2>
+      <p className="text-xs text-txt-ter mb-3">
+        Named bearer tokens for <code className="text-txt-sec">/mcp/http</code> (Claude Desktop, connector testing, etc.).
+        Master <code className="text-txt-sec">CAPTURE_SECRET</code> is UI-only and does NOT authorize MCP — every external MCP client needs its own token from this list.
+      </p>
+
+      {/* Create new token */}
+      <div className="form-field flex items-stretch gap-2 mb-4">
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') onCreate(); }}
+          placeholder='e.g. "Claude Desktop", "MCP test"'
+          className="flex-1 px-2 py-1.5 bg-surface border border-subtle text-sm text-txt"
+          disabled={creating}
+        />
+        <button
+          type="button"
+          onClick={onCreate}
+          disabled={!newName.trim() || creating}
+          className="toolbar-btn px-3 py-1.5 bg-accent text-white text-xs font-medium hover:bg-accent-dark disabled:opacity-50 transition-colors"
+        >
+          {creating ? 'Creating…' : '+ Generate token'}
+        </button>
+      </div>
+
+      {/* Token list */}
+      {loading ? (
+        <p className="text-txt-ter text-sm">Loading…</p>
+      ) : tokens.length === 0 ? (
+        <p className="empty-state text-txt-ter text-sm py-3 italic">
+          No MCP tokens yet. Generate one above to start using <code>/mcp/http</code>.
+        </p>
+      ) : (
+        <div className="mcp-tokens__list">
+          {tokens.map((t) => {
+            const rawToken = revealed[t.id] || null;
+            const display = rawToken || t.token;
+            return (
+              <div key={t.id} className="mcp-tokens__row py-3 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-txt font-medium">{t.name}</div>
+                    <div className="text-[10px] text-txt-ter">
+                      Created {new Date(t.created_at).toLocaleString()}
+                      {t.last_used_at
+                        ? <> · last used {new Date(t.last_used_at).toLocaleString()}</>
+                        : <> · never used</>}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onRevoke(t)}
+                    className="toolbar-btn px-2 py-1 bg-surface border border-subtle text-xs text-red-600 dark:text-red-400 hover:bg-[var(--border)] transition-colors shrink-0"
+                  >
+                    Revoke
+                  </button>
+                </div>
+                <div className="flex items-stretch gap-2">
+                  <code className="flex-1 min-w-0 px-2 py-1.5 bg-surface border border-subtle text-xs text-txt-sec font-mono overflow-x-auto whitespace-nowrap">
+                    {display}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => onRevealToggle(t)}
+                    className="toolbar-btn px-2 py-1.5 bg-surface border border-subtle text-xs text-txt-sec hover:bg-[var(--border)] transition-colors"
+                  >
+                    {rawToken ? 'Hide' : 'Show'}
+                  </button>
+                  {rawToken && (
+                    <button
+                      type="button"
+                      onClick={() => onCopy(rawToken, t.name)}
+                      className="toolbar-btn px-2 py-1.5 bg-surface border border-subtle text-xs text-txt-sec hover:bg-[var(--border)] transition-colors"
+                    >
+                      Copy
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -145,3 +145,33 @@ export async function exportToObsidian({ filter_topic, filter_days } = {}, onLog
 
   return result;
 }
+
+// === MCP tokens (named bearer tokens for /mcp/http) ===
+
+export async function listMcpTokens({ revealId } = {}) {
+  const qs = revealId ? `?reveal_id=${encodeURIComponent(revealId)}` : '';
+  const res = await fetch(`${BASE}/mcp-tokens${qs}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to list MCP tokens (HTTP ${res.status})`);
+  return res.json();
+}
+
+export async function createMcpToken(name) {
+  const res = await fetch(`${BASE}/mcp-tokens`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ name }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+export async function revokeMcpToken(id) {
+  const res = await fetch(`${BASE}/mcp-tokens/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}

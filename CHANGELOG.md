@@ -2,6 +2,20 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.22.0 — 2026-05-18
+
+**Named MCP bearer tokens, UI-managed.** Master `CAPTURE_SECRET` (env) is now UI-only — it no longer authorizes `/mcp/http`. External MCP clients (Claude Desktop, connector tests) MUST use a named token from `state/mcp-tokens.json`, manageable in the Settings tab. Bootstrap is impossible to lock out because the UI itself uses CAPTURE_SECRET to create the first MCP token.
+
+**⚠ Breaking for MCP**: any Claude Desktop or external MCP client previously using `?token=<CAPTURE_SECRET>` will start 401-ing on `/mcp/http` after this deploy. Recovery is ~30s: open Settings → MCP tokens → Generate token → copy → paste into Claude Desktop config.
+
+- New file `server/mcp-token-store.js` — load/validate/create/revoke with atomic write to `state/mcp-tokens.json` (cleartext at rest, same risk profile as `service-account.json`). `last_used_at` flush throttled to 5-min granularity to keep the validation hot-path off disk.
+- New route `server/routes/mcp-tokens.js` — `GET /mcp-tokens` (masked list, `?reveal_id=<id>` per-row reveal), `POST /mcp-tokens` (generate from name), `DELETE /mcp-tokens/:id`.
+- `server/index.js` auth middleware is now path-aware: `/mcp/http` accepts ONLY validated named tokens; everything else requires master `CAPTURE_SECRET` (unchanged).
+- Tokens: 64-hex from `crypto.randomBytes(32)`. No expiry (lifecycle is create/revoke only). Per-row Show/Hide in UI (reveal-anytime, mirrors the existing env-secret reveal pattern in `Settings.jsx`).
+- `client/src/components/Settings.jsx` new `<McpTokensSection>` rendered above the schema-driven fields — name input + Generate + per-row Show/Copy/Revoke + last-used display.
+- `client/src/api.js` — `listMcpTokens`, `createMcpToken`, `revokeMcpToken`.
+- Bootstrap path: with zero tokens, MCP is locked. UI is reachable via `CAPTURE_SECRET` and can mint the first token, so no lockout is possible.
+
 ## 0.21.0 — 2026-05-17
 
 **P8.2 Phase 1: Gemini `task_type` asymmetric retrieval (missing-config fix).** `gemini-embedding-001` accepts a `taskType` parameter that documents how the embedding will be used; passing no `taskType` silently maps to `RETRIEVAL_QUERY` (verified by curl). The stack was therefore doing symmetric retrieval (queries and stored docs both in QUERY space) instead of Google's documented asymmetric pattern. This was locked in the P8 spec (`tasks/todo.md:141`) but skipped at execution time — formally the stack was wrong.

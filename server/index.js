@@ -15,7 +15,9 @@ import agendaRouter from './routes/agenda.js';
 import settingsRouter from './routes/settings.js';
 import healthCheckRouter from './routes/health-check.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
+import mcpTokensRouter from './routes/mcp-tokens.js';
 import { handleMcpHttp } from './mcp.js';
+import { validateToken as validateMcpToken } from './mcp-token-store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -37,6 +39,9 @@ app.get('*', (req, res, next) => {
   res.sendFile(join(__dirname, '..', 'client', 'dist', 'index.html'));
 });
 
+// Note: /mcp-tokens (token management UI) is covered by /mcp prefix above
+// — it's an HTTP API, not an SPA route, so the wildcard passes it through.
+
 // Webhook routes use their own secret — mounted before Bearer auth.
 // Parse JSON but save raw body on req so HMAC can verify the exact bytes.
 app.use(
@@ -47,14 +52,27 @@ app.use(
   firefliesWebhookRouter,
 );
 
-// Auth middleware — all routes below require Bearer token
+// Auth middleware — path-aware split:
+//   - /mcp/http accepts ONLY named tokens from state/mcp-tokens.json
+//     (strict separation: the env-only master CAPTURE_SECRET never authorizes
+//     MCP traffic, so a leak of the UI secret doesn't expose the MCP surface)
+//   - everything else (UI, /capture, /search, /mcp-tokens management, etc.)
+//     requires the master CAPTURE_SECRET only
+// Bootstrap: with zero MCP tokens, MCP is locked until UI mints one — the UI
+// itself uses CAPTURE_SECRET so no lockout is possible.
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return next();
-  const auth = req.headers.authorization || (req.query.token ? `Bearer ${req.query.token}` : '');
-  if (!auth || auth !== `Bearer ${process.env.CAPTURE_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  const rawToken = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : (req.query.token || '');
+
+  if (req.path === '/mcp/http') {
+    if (rawToken && validateMcpToken(rawToken)) return next();
+    return res.status(401).json({ error: 'MCP requires a named token from /mcp-tokens (master secret does not authorize MCP)' });
   }
-  next();
+
+  if (rawToken && rawToken === process.env.CAPTURE_SECRET) return next();
+  return res.status(401).json({ error: 'Unauthorized' });
 });
 
 // Body parsing (skip /mcp/http — StreamableHTTPServerTransport needs raw body)
@@ -73,6 +91,7 @@ app.use(summaryRouter);
 app.use(agendaRouter);
 app.use(settingsRouter);
 app.use(healthCheckRouter);
+app.use(mcpTokensRouter);
 
 // MCP endpoint (Streamable HTTP only)
 app.all('/mcp/http', handleMcpHttp);
