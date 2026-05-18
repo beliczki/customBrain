@@ -21,6 +21,7 @@ import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import mcpTokensRouter from './routes/mcp-tokens.js';
 import { handleMcpHttp } from './mcp.js';
 import { validateToken as validateMcpToken } from './mcp-token-store.js';
+import { isBlocked as rateLimitCheck, recordSuccess as rateLimitOk, recordFailure as rateLimitBad } from './rate-limiter.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -65,6 +66,10 @@ app.use(
 // itself uses UI_SECRET so no lockout is possible.
 // Renamed from CAPTURE_SECRET in 0.24.0 for semantic clarity (the secret no
 // longer guards /capture alone since 0.22.0 split MCP off; it's the UI master).
+//
+// Rate limit (since 0.24.2): non-MCP failed auth attempts trigger an escalating
+// global lockout ladder (3 → 1min, 3 → 5min, 3 → 10min, 3 → 30min cap).
+// Single-user system, single counter — see server/rate-limiter.js for the rationale.
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   const rawToken = req.headers.authorization?.startsWith('Bearer ')
@@ -76,7 +81,23 @@ app.use((req, res, next) => {
     return res.status(401).json({ error: 'MCP requires a named token from /mcp-tokens (master secret does not authorize MCP)' });
   }
 
-  if (rawToken && rawToken === process.env.UI_SECRET) return next();
+  // Check rate limit BEFORE comparing tokens — saves the comparison cost on
+  // a locked-out attacker and is consistent (a request during a lockout never
+  // succeeds, regardless of the token).
+  const limit = rateLimitCheck();
+  if (limit.blocked) {
+    res.setHeader('Retry-After', String(limit.retry_after_seconds));
+    return res.status(429).json({
+      error: `Too many failed auth attempts. Try again in ${limit.retry_after_seconds}s.`,
+      retry_after_seconds: limit.retry_after_seconds,
+    });
+  }
+
+  if (rawToken && rawToken === process.env.UI_SECRET) {
+    rateLimitOk();
+    return next();
+  }
+  rateLimitBad();
   return res.status(401).json({ error: 'Unauthorized' });
 });
 

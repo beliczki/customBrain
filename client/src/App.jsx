@@ -13,6 +13,79 @@ const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Stats', 'Export', 'Setti
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'customBrain';
 const APP_VERSION = pkg.version;
 
+// Pre-validates the token against /stats before saving to localStorage. Inline
+// error messages for 401 (wrong token) and 429 (rate-limit lockout, since
+// 0.24.2). The server's escalating ladder (3 → 1min, 3 → 5min, 3 → 10min,
+// 3 → 30min) is global; the message just surfaces the retry-after value.
+function UnlockForm({ onAuthenticated }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const val = e.target.elements.token.value.trim();
+    if (!val) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch('/stats', { headers: { Authorization: `Bearer ${val}` } });
+      if (res.ok) {
+        onAuthenticated(val);
+        return;
+      }
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        const seconds = data.retry_after_seconds || 60;
+        const display = seconds >= 60 ? `${Math.ceil(seconds / 60)} min` : `${seconds}s`;
+        setError(`Too many failed attempts. Locked for ${display}.`);
+      } else if (res.status === 401) {
+        setError('Wrong token.');
+      } else {
+        setError(`Unexpected error (HTTP ${res.status}).`);
+      }
+    } catch (err) {
+      setError(`Network error: ${err.message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen">
+      <ThemeToggle />
+      <div className="section-row">
+        <div className="container">
+          <div className="py-24 flex flex-col items-center px-6">
+            <img src="/brain_darkmode.svg" alt="" className="w-24 h-24 mb-4 dark:block hidden" />
+            <img src="/brain.svg" alt="" className="w-24 h-24 mb-4 dark:hidden" />
+            <h1 className="text-2xl font-bold mb-8 text-txt">{APP_NAME}</h1>
+            <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
+              <input
+                name="token"
+                type="password"
+                placeholder="API token"
+                className="w-full px-3 py-2 bg-surface border border-subtle text-txt text-sm"
+                autoFocus
+                disabled={submitting}
+              />
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full px-6 py-2 bg-accent text-white text-sm font-medium hover:bg-accent-dark disabled:opacity-50 transition-colors"
+              >
+                {submitting ? 'Unlocking…' : 'Unlock'}
+              </button>
+              {error && (
+                <p className="text-red-600 dark:text-red-400 text-sm text-center">{error}</p>
+              )}
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [active, setActive] = useState('Capture');
   const [token, setToken] = useState(localStorage.getItem('ui_secret') || '');
@@ -55,45 +128,7 @@ export default function App() {
   }
 
   if (!token) {
-    return (
-      <div className="min-h-screen">
-        <ThemeToggle />
-        <div className="section-row">
-          <div className="container">
-            <div className="py-24 flex flex-col items-center px-6">
-              <img src="/brain_darkmode.svg" alt="" className="w-24 h-24 mb-4 dark:block hidden" />
-              <img src="/brain.svg" alt="" className="w-24 h-24 mb-4 dark:hidden" />
-              <h1 className="text-2xl font-bold mb-8 text-txt">{APP_NAME}</h1>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const val = e.target.elements.token.value.trim();
-                  if (val) {
-                    localStorage.setItem('ui_secret', val);
-                    setToken(val);
-                  }
-                }}
-                className="w-full max-w-sm space-y-4"
-              >
-                <input
-                  name="token"
-                  type="password"
-                  placeholder="API token"
-                  className="w-full px-3 py-2 bg-surface border border-subtle text-txt text-sm"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  className="w-full px-6 py-2 bg-accent text-white text-sm font-medium hover:bg-accent-dark transition-colors"
-                >
-                  Unlock
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <UnlockForm onAuthenticated={(val) => { localStorage.setItem('ui_secret', val); setToken(val); }} />;
   }
 
   return (

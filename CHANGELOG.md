@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.24.2 — 2026-05-18
+
+**Rate limiter on UI auth failures + Unlock form pre-validation.** Defends the UI bootstrap secret against brute-force.
+
+- `server/rate-limiter.js` — global counter (single-user system, one shared state). Ladder per the user's spec: 3 failures → 1 min lockout, 3 more → 5 min, 3 more → 10 min, 3 more → 30 min (cap; further failures keep re-arming the 30 min block until a success). Only applies to non-MCP routes — MCP token validation is excluded (separate failure mode, the user explicitly excluded it).
+- `server/index.js` auth middleware checks rate limit BEFORE comparing tokens (saves comparison cost on a blocked attacker). Returns HTTP 429 with `Retry-After` header and `{ error, retry_after_seconds }` body. Successful UI auth resets the counter + level.
+- `client/src/App.jsx` — Unlock form refactored to a new `UnlockForm` component that PRE-VALIDATES the entered token against `/stats` BEFORE writing to `localStorage`. Inline error messages: "Wrong token." for 401, "Too many failed attempts. Locked for X min." for 429. Submit button disables while in flight. Prior behavior (save-first, mount-time validation kicks out on 401) still in place as a second line of defense for stale tokens after server restarts.
+
 ## 0.24.1 — 2026-05-18
 
 **`UI_SECRET` is now env-only by design — never editable from the UI.** Letting the bootstrap master secret be edited from the UI it gates is a chicken-and-egg foot-gun (a typo locks you out, no path back except SSH). Rotation flow is now: edit `/root/customBrain/.env` + `pm2 restart custombrain`.
