@@ -8,14 +8,12 @@
 
 export const SETTINGS_SCHEMA = [
   // ─── Core ──────────────────────────────────────────────────────────
-  {
-    key: 'UI_SECRET',
-    category: 'Core',
-    label: 'UI master secret (Bearer)',
-    is_secret: true,
-    required: true,
-    description: 'Required. Master secret that unlocks the UI and authorizes all non-MCP HTTP routes. Renamed from CAPTURE_SECRET in 0.24.0. Lives in .env (bootstrap), never goes to MCP.',
-  },
+  // Note: UI_SECRET is INTENTIONALLY absent from the schema since 0.24.1.
+  // It's the bootstrap master that unlocks the UI — letting it be edited
+  // *from* the UI is a chicken-and-egg foot-gun (a typo locks you out).
+  // Rotate by editing `.env` on the server + `pm2 restart custombrain`.
+  // server/config.js::applySettingsToEnv enforces this with a never-overlay
+  // guard so a stray settings.json entry can't silently override .env.
   {
     key: 'PORT',
     category: 'Core',

@@ -25,6 +25,13 @@ export const SETTINGS_PATH = resolve(MODULE_DIR, '..', 'state', 'settings.json')
 
 const RESERVED_KEYS = new Set(['_updated_at']);
 
+// UI_SECRET is the bootstrap master secret — by design it ONLY lives in .env,
+// never in settings.json. If a key somehow appears in settings.json (legacy
+// migration, manual edit, etc.) we refuse to overlay it onto process.env so
+// the .env value remains authoritative. Rotating UI_SECRET = edit .env +
+// `pm2 restart custombrain`. Documented in config-schema.js header comment.
+const NEVER_OVERLAY = new Set(['UI_SECRET']);
+
 export function loadSettings() {
   if (!existsSync(SETTINGS_PATH)) return null;
   try {
@@ -39,11 +46,16 @@ export function applySettingsToEnv() {
   const data = loadSettings();
   if (!data) return { applied: 0, source: 'env' };
   let count = 0;
+  let skipped_never_overlay = 0;
   for (const [key, value] of Object.entries(data)) {
     if (RESERVED_KEYS.has(key)) continue;
+    if (NEVER_OVERLAY.has(key)) { skipped_never_overlay++; continue; }
     if (value == null || value === '') continue;
     process.env[key] = String(value);
     count++;
+  }
+  if (skipped_never_overlay > 0) {
+    console.log(`[config] Skipped ${skipped_never_overlay} never-overlay key(s) from settings.json (UI_SECRET stays env-only by design)`);
   }
   return { applied: count, source: 'settings.json' };
 }

@@ -2,6 +2,16 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.24.1 — 2026-05-18
+
+**`UI_SECRET` is now env-only by design — never editable from the UI.** Letting the bootstrap master secret be edited from the UI it gates is a chicken-and-egg foot-gun (a typo locks you out, no path back except SSH). Rotation flow is now: edit `/root/customBrain/.env` + `pm2 restart custombrain`.
+
+- `server/config-schema.js` — `UI_SECRET` schema entry removed. Settings UI no longer renders a field for it; Core category now contains only `PORT` and `QDRANT_URL`.
+- `server/config.js::applySettingsToEnv` — added `NEVER_OVERLAY = new Set(['UI_SECRET'])` guard. Even if a stray `UI_SECRET` key appears in `state/settings.json` (legacy migration, manual edit), the overlay refuses to set it onto `process.env`, so the `.env` value remains authoritative.
+- One-time Hetzner cleanup: `UI_SECRET` key removed from `state/settings.json`. Schema-driven `PUT /settings` already rejects unknown keys, so it cannot be reintroduced via the API.
+
+Rotation flow: `nano /root/customBrain/.env` → save → `pm2 stop custombrain && fuser -k 3000/tcp && pm2 start custombrain` (per the standard restart pattern).
+
 ## 0.24.0 — 2026-05-18
 
 **`CAPTURE_SECRET` → `UI_SECRET` rename (clean break) + UI auto-logout on stale token.** The old name was misleading once 0.22.0 split MCP off — the secret no longer guards `/capture` alone; it's the UI master. Same value, new name, no back-compat fallback (one-time cutover via migration script).
