@@ -351,15 +351,28 @@ function consentErrorPage(errors) {
          color: #c9d1d9; display: flex; align-items: center; justify-content: center;
          min-height: 100vh; margin: 0; }
   .card { background: #161b22; border: 1px solid #30363d; padding: 32px;
-          max-width: 480px; border-radius: 6px; }
+          max-width: 480px; width: 90%; border-radius: 6px; }
   h1 { color: #f85149; font-size: 18px; margin: 0 0 16px; }
+  ul { margin: 0 0 20px; padding-left: 20px; }
   li { margin: 4px 0; }
+  .row { display: flex; gap: 8px; }
+  button, a.btn { flex: 1; padding: 10px; font-size: 14px; cursor: pointer; border: 0;
+                  border-radius: 4px; font-weight: 600; text-align: center;
+                  text-decoration: none; display: inline-block; color: #c9d1d9;
+                  background: transparent; border: 1px solid #30363d; box-sizing: border-box; }
+  button:hover, a.btn:hover { background: #21262d; }
+  .primary { background: #238636; color: white; border: 0; }
+  .primary:hover { background: #2ea043; }
 </style>
 </head>
 <body>
 <div class="card">
   <h1>OAuth kérés visszautasítva</h1>
   <ul>${errors.map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>
+  <div class="row">
+    <button type="button" onclick="if(history.length>1){history.back()}else{window.close()}">Vissza</button>
+    <button type="button" class="primary" onclick="window.close()">Bezárás</button>
+  </div>
 </div>
 </body>
 </html>`;

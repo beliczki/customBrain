@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.25.2 — 2026-05-19
+
+**OAuth error page UX: Vissza + Bezárás gombok.** When the consent flow fails (e.g. "unknown client_id" because the connector typed a client_id that wasn't registered server-side), the user was stuck in a dead-end popup with no way out except closing the browser tab manually. Added two buttons: "Vissza" (history.back(), falls back to window.close() if no history) and "Bezárás" (window.close()).
+
 ## 0.25.1 — 2026-05-19
 
 **Custom client_id for OAuth client creation.** Users can now type a memorable client_id (e.g. `beliczki`, `grok`, `claude-desktop`) instead of accepting the auto-generated 32-hex value. Useful when the connector form on the client side wants a typed value (Grok's form lets you type one — if it doesn't match what's registered server-side, `/oauth/authorize` rejects with "unknown client_id").
