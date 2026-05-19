@@ -120,7 +120,7 @@ export function getClientByClientId(client_id) {
  * @returns {Promise<{ id, client_id, client_secret|null, ...meta }>}
  *   client_secret is returned ONCE on creation; never readable again.
  */
-export async function createClient({ name, redirect_uris, token_endpoint_auth_method, auto_registered = false }) {
+export async function createClient({ name, redirect_uris, token_endpoint_auth_method, auto_registered = false, client_id: customClientId = null }) {
   if (!name || typeof name !== 'string' || name.trim() === '') {
     throw new Error('name required');
   }
@@ -143,7 +143,22 @@ export async function createClient({ name, redirect_uris, token_endpoint_auth_me
     throw new Error(`Client with name "${trimmed}" already exists`);
   }
 
-  const client_id = crypto.randomBytes(16).toString('hex');
+  // Optional custom client_id (e.g. "beliczki", "grok"). Must be unique across
+  // all clients. Constrained to ASCII alnum + a few safe punctuation chars so
+  // it survives form fields, URLs, and Basic-auth without escaping headaches.
+  let client_id;
+  if (customClientId && typeof customClientId === 'string' && customClientId.trim() !== '') {
+    const candidate = customClientId.trim();
+    if (!/^[A-Za-z0-9._-]{3,64}$/.test(candidate)) {
+      throw new Error('Custom client_id must be 3-64 chars of letters/digits/dot/dash/underscore');
+    }
+    if (store.clients.some((c) => c.client_id === candidate)) {
+      throw new Error(`client_id "${candidate}" already in use`);
+    }
+    client_id = candidate;
+  } else {
+    client_id = crypto.randomBytes(16).toString('hex');
+  }
   // No secret for PKCE-only clients
   const client_secret = token_endpoint_auth_method === 'none'
     ? null

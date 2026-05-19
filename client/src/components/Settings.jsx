@@ -163,6 +163,7 @@ function OAuthClientsSection({ onStatus }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
+  const [newClientId, setNewClientId] = useState('');
   const [newRedirect, setNewRedirect] = useState('');
   const [newAuthMethod, setNewAuthMethod] = useState('none');
   const [creating, setCreating] = useState(false);
@@ -194,9 +195,11 @@ function OAuthClientsSection({ onStatus }) {
         name,
         redirect_uris: redirectsList,
         token_endpoint_auth_method: newAuthMethod,
+        client_id: newClientId.trim() || undefined,
       });
       setJustCreated(res.client);
       setNewName('');
+      setNewClientId('');
       setNewRedirect('');
       setNewAuthMethod('none');
       onStatus?.({ type: 'ok', text: `Created OAuth client "${name}". ${res.client.client_secret ? 'Copy the client_secret now — it won\'t be shown again.' : 'PKCE-only client (no secret needed).'}` });
@@ -244,15 +247,23 @@ function OAuthClientsSection({ onStatus }) {
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder='Client name (e.g. "Grok", "Claude Desktop")'
+          placeholder='Display name (e.g. "Grok", "Claude Desktop")'
           className="px-2 py-1.5 bg-surface border border-subtle text-sm text-txt"
+          disabled={creating}
+        />
+        <input
+          type="text"
+          value={newClientId}
+          onChange={(e) => setNewClientId(e.target.value)}
+          placeholder='Custom client_id (optional — leave empty for random hex)'
+          className="px-2 py-1.5 bg-surface border border-subtle text-sm text-txt font-mono text-xs"
           disabled={creating}
         />
         <input
           type="text"
           value={newRedirect}
           onChange={(e) => setNewRedirect(e.target.value)}
-          placeholder='Redirect URI(s) — comma-separated (e.g. https://grok.com/connectors/callback)'
+          placeholder='Redirect URI(s) — comma-separated (e.g. https://grok.com/connectors-oauth-exchange-code/)'
           className="px-2 py-1.5 bg-surface border border-subtle text-sm text-txt font-mono text-xs"
           disabled={creating}
         />

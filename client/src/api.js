@@ -188,11 +188,11 @@ export async function listOAuthClients() {
   return res.json();
 }
 
-export async function createOAuthClient({ name, redirect_uris, token_endpoint_auth_method }) {
+export async function createOAuthClient({ name, redirect_uris, token_endpoint_auth_method, client_id }) {
   const res = await fetch(`${BASE}/oauth/clients`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ name, redirect_uris, token_endpoint_auth_method }),
+    body: JSON.stringify({ name, redirect_uris, token_endpoint_auth_method, client_id }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);

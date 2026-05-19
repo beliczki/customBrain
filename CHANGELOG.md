@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.25.1 — 2026-05-19
+
+**Custom client_id for OAuth client creation.** Users can now type a memorable client_id (e.g. `beliczki`, `grok`, `claude-desktop`) instead of accepting the auto-generated 32-hex value. Useful when the connector form on the client side wants a typed value (Grok's form lets you type one — if it doesn't match what's registered server-side, `/oauth/authorize` rejects with "unknown client_id").
+
+- `server/oauth-store.js::createClient` accepts optional `client_id` arg. Validation: 3-64 chars of `[A-Za-z0-9._-]`, must be globally unique among registered clients. Empty/missing → auto-generates random hex (unchanged behavior).
+- `server/routes/oauth.js` POST /oauth/clients passes the optional `client_id` through.
+- `client/src/api.js::createOAuthClient` accepts the new field.
+- `client/src/components/Settings.jsx::OAuthClientsSection` form gains a third input: "Custom client_id (optional — leave empty for random hex)".
+
 ## 0.25.0 — 2026-05-19
 
 **OAuth 2.0 for MCP — Grok + Claude Desktop ready.** Grok's connector config requires OAuth (PKCE recommended); Claude Desktop's MCP integration is going the same way (PKCE + Dynamic Client Registration per RFC 7591). T2 scope: full OAuth 2.0 Authorization Code flow + PKCE S256 + all three token-endpoint auth methods (`none`, `client_secret_basic`, `client_secret_post`) + DCR.

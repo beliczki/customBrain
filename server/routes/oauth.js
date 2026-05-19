@@ -251,11 +251,12 @@ router.post('/oauth/clients', async (req, res) => {
       name: req.body?.name,
       redirect_uris: req.body?.redirect_uris,
       token_endpoint_auth_method: req.body?.token_endpoint_auth_method,
+      client_id: req.body?.client_id || null,
       auto_registered: false,
     });
     res.status(201).json({ client: created });
   } catch (err) {
-    const status = err.message.includes('already exists') ? 409 : 400;
+    const status = err.message.includes('already') ? 409 : 400;
     res.status(status).json({ error: err.message });
   }
 });
