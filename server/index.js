@@ -131,10 +131,17 @@ app.use((req, res, next) => {
   return res.status(401).json({ error: 'Unauthorized' });
 });
 
-// Body parsing (skip /mcp/http — StreamableHTTPServerTransport needs raw body)
+// Body parsing (skip /mcp/http — StreamableHTTPServerTransport needs raw body).
+// Both JSON and url-encoded forms are parsed so the OAuth flow works: RFC 6749
+// /oauth/token wants `application/x-www-form-urlencoded`; the consent page form
+// also posts urlencoded by default. Without urlencoded parser these reach the
+// route handler with an empty req.body and silently fail with "unknown client_id".
 app.use((req, res, next) => {
   if (req.path === '/mcp/http') return next();
-  express.json()(req, res, next);
+  express.json()(req, res, (err) => {
+    if (err) return next(err);
+    express.urlencoded({ extended: true })(req, res, next);
+  });
 });
 
 // API routes

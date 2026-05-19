@@ -2,6 +2,12 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.25.3 — 2026-05-19
+
+**Critical bug fix: OAuth POST endpoints (token + authorize consent) couldn't parse url-encoded bodies.** The body parsing middleware in `server/index.js` only registered `express.json()`. The consent HTML form posts as `application/x-www-form-urlencoded` (default form encoding); RFC 6749 also mandates urlencoded for `/oauth/token`. Without the urlencoded parser, `req.body` was empty → `client_id` undefined → `getClientByClientId(undefined)` returned null → consent rejected with 400 "unknown client_id" even though the client WAS registered.
+
+Verified from nginx logs: Grok's DCR (which sends JSON) succeeded, but subsequent `/oauth/authorize` POST (urlencoded form) always 400'd. Fix: chain `express.urlencoded({ extended: true })` after `express.json()` in the body-parser middleware so both content types are accepted.
+
 ## 0.25.2 — 2026-05-19
 
 **OAuth error page UX: Vissza + Bezárás gombok.** When the consent flow fails (e.g. "unknown client_id" because the connector typed a client_id that wasn't registered server-side), the user was stuck in a dead-end popup with no way out except closing the browser tab manually. Added two buttons: "Vissza" (history.back(), falls back to window.close() if no history) and "Bezárás" (window.close()).
