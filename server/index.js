@@ -19,6 +19,7 @@ import settingsRouter from './routes/settings.js';
 import healthCheckRouter from './routes/health-check.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import mcpTokensRouter from './routes/mcp-tokens.js';
+import oauthRouter from './routes/oauth.js';
 import { handleMcpHttp } from './mcp.js';
 import { validateToken as validateMcpToken } from './mcp-token-store.js';
 import { isBlocked as rateLimitCheck, recordSuccess as rateLimitOk, recordFailure as rateLimitBad } from './rate-limiter.js';
@@ -47,7 +48,8 @@ app.get('*', (req, res, next) => {
       req.path.startsWith('/stats') || req.path.startsWith('/export') ||
       req.path.startsWith('/thoughts') || req.path.startsWith('/agenda') ||
       req.path.startsWith('/settings') || req.path.startsWith('/health-check') ||
-      req.path.startsWith('/fireflies-webhook')) {
+      req.path.startsWith('/fireflies-webhook') ||
+      req.path.startsWith('/oauth') || req.path.startsWith('/.well-known')) {
     return next();
   }
   res.sendFile(join(__dirname, '..', 'client', 'dist', 'index.html'));
@@ -82,6 +84,22 @@ app.use(
 // Single-user system, single counter — see server/rate-limiter.js for the rationale.
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return next();
+
+  // OAuth endpoints + RFC 8414 discovery are PUBLIC — they have their own
+  // auth mechanisms (PKCE / client_secret / OAUTH_USER+PASSWORD on consent).
+  // Bypassing the global Bearer check lets clients reach them without holding
+  // a token yet. The Settings-UI management endpoints (/oauth/clients) DO
+  // require master Bearer — they're protected per-route inside oauth.js by
+  // checking the Authorization header explicitly there.
+  // We exempt /oauth/authorize, /oauth/token, /oauth/register, and /.well-known.
+  // /oauth/clients (management) goes through the master-auth flow below.
+  if (req.path.startsWith('/.well-known') ||
+      req.path === '/oauth/authorize' ||
+      req.path === '/oauth/token' ||
+      req.path === '/oauth/register') {
+    return next();
+  }
+
   const rawToken = req.headers.authorization?.startsWith('Bearer ')
     ? req.headers.authorization.slice(7)
     : (req.query.token || '');
@@ -130,6 +148,7 @@ app.use(agendaRouter);
 app.use(settingsRouter);
 app.use(healthCheckRouter);
 app.use(mcpTokensRouter);
+app.use(oauthRouter);
 
 // MCP endpoint (Streamable HTTP only)
 app.all('/mcp/http', handleMcpHttp);

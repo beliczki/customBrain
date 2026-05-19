@@ -64,19 +64,26 @@ function publicShape(t, { reveal = false } = {}) {
     token: reveal ? t.token : maskToken(t.token),
     created_at: t.created_at,
     last_used_at: t.last_used_at,
+    // OAuth metadata (since 0.25.0). null for manually-minted tokens.
+    oauth_client_id: t.oauth_client_id || null,
+    expires_at: t.expires_at || null,
   };
 }
 
 /**
  * Validate an incoming bearer token against the named list.
  * Returns the token record on match (and updates last_used_at throttled),
- * or null on miss.
+ * or null on miss / expiry.
+ * Since 0.25.0: tokens with expires_at < now are treated as no-match.
  */
 export function validateToken(token) {
   if (!token) return null;
   const store = getCache();
   const found = store.tokens.find((t) => t.token === token);
   if (!found) return null;
+  if (found.expires_at && new Date(found.expires_at).getTime() < Date.now()) {
+    return null;
+  }
   const now = Date.now();
   const prev = found.last_used_at ? new Date(found.last_used_at).getTime() : 0;
   if (now - prev > LAST_USED_FLUSH_MS) {
@@ -98,21 +105,30 @@ export function listTokens({ reveal = false, revealId = null } = {}) {
   });
 }
 
-export function createToken(name) {
+export function createToken(name, { oauth_client_id = null, expires_at = null } = {}) {
   if (!name || typeof name !== 'string' || name.trim() === '') {
     throw new Error('Token name required');
   }
   const store = getCache();
   const trimmed = name.trim();
-  if (store.tokens.some((t) => t.name === trimmed)) {
-    throw new Error(`Token with name "${trimmed}" already exists`);
+  // OAuth-minted tokens MAY share names with prior tokens (e.g., re-auth from
+  // the same client) — disambiguate by appending a short suffix when oauth.
+  let finalName = trimmed;
+  if (store.tokens.some((t) => t.name === finalName)) {
+    if (oauth_client_id) {
+      finalName = `${trimmed} (${new Date().toISOString().slice(0, 16).replace('T', ' ')})`;
+    } else {
+      throw new Error(`Token with name "${trimmed}" already exists`);
+    }
   }
   const record = {
     id: crypto.randomUUID(),
-    name: trimmed,
+    name: finalName,
     token: crypto.randomBytes(32).toString('hex'),
     created_at: new Date().toISOString(),
     last_used_at: null,
+    oauth_client_id,
+    expires_at,
   };
   store.tokens.push(record);
   flush();

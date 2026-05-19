@@ -654,6 +654,85 @@ The next time you open Claude Desktop (or any other external MCP client), it wil
 
 ---
 
+# OAuth 2.0 for MCP — Grok + Claude Desktop ready — NEW 2026-05-19
+
+**Status**: implementing as 0.25.0. T2 scope locked.
+
+## Why
+
+Grok's connector config requires OAuth (screenshot 2026-05-19). PKCE highlighted as "recommended". Claude Desktop's MCP integration is moving the same way (PKCE + DCR per RFC 7591).
+
+## T2 scope (locked)
+
+**Endpoints to implement**:
+- `GET /.well-known/oauth-authorization-server` — discovery JSON (RFC 8414)
+- `GET /oauth/authorize` — consent page (server-rendered HTML)
+- `POST /oauth/authorize` — process consent, mint auth code, redirect to client
+- `POST /oauth/token` — exchange code for access token. Three auth modes:
+  - PKCE only (`none` — public client, RFC 7636 S256)
+  - `client_secret_post` (confidential, secret in body)
+  - `client_secret_basic` (confidential, HTTP Basic header)
+- `POST /oauth/register` — Dynamic Client Registration (RFC 7591, for Claude Desktop-style auto-discovery)
+
+**Storage**:
+- `state/oauth-clients.json` — registered clients: `{ id, name, client_id, client_secret_hash (scrypt), token_endpoint_auth_method, redirect_uris[], grant_types, created_at, last_used_at, auto_registered (DCR?) }`. Manual UI-mints + DCR-mints in the same list.
+- `state/mcp-tokens.json` extended: optional `oauth_client_id` and `expires_at` fields. Existing manual tokens stay `oauth_client_id: null, expires_at: null` (never expire). OAuth-issued tokens are tagged with the client and have a 1-year expiry.
+- Pending auth codes: in-memory Map keyed by code, 60s TTL. Loss on pm2 restart is acceptable (code is short-lived anyway).
+
+**Token validation extension**: `mcp-token-store.js::validateToken` now checks `expires_at` — expired = no-match. Existing manual tokens with `null` expiry stay unaffected.
+
+**Auth on /mcp/http**: unchanged code path — already validates against mcp-tokens.json. OAuth-minted tokens transparently flow through.
+
+**Consent page**: server-rendered HTML form. Shows client name + scope. Asks for UI_SECRET (single-user; this is the "user authentication" step). On approve → generate code → 302 redirect to `redirect_uri?code=...&state=...`.
+
+**Scope**: single scope `full` granting full MCP tool access. Future scopes can subset (e.g. `read-only`) but not in T2.
+
+**Token lifecycle**:
+- Access token: 1 year expiry (single-user, ritka rotation)
+- No refresh tokens in T2 (re-do OAuth flow if expired)
+- Per-token revoke from Settings UI (mirrors MCP tokens UX)
+
+**UI Settings new section** "OAuth clients" — above the MCP tokens section, below the schema-driven fields:
+- Lista: name · client_id · auth_method · redirect_uri(s) · created · last_used · [Revoke]
+- "+ Add OAuth client" button → modal: name, redirect_uri, auth_method dropdown (none/basic/post). On create:
+  - If method = `none` (PKCE-only) → return `client_id` only
+  - Else → return `client_id` + `client_secret` (secret shown ONCE, never again — like industry standard)
+- DCR-auto-registered clients show with a small "DCR" badge.
+
+**SPA wildcard guard** (server/index.js): add `/oauth`, `/.well-known` to bypass list.
+
+**Auth middleware**: `/oauth/*` and `/.well-known/*` paths bypass the Bearer auth (the OAuth endpoints have their own auth mechanisms; `.well-known` is public per spec).
+
+## Files
+
+**New**:
+- `server/oauth-store.js` — client registration (load/create/validate/revoke) + auth code in-memory map
+- `server/routes/oauth.js` — all 5 endpoints + consent page HTML
+- `state/oauth-clients.json` — created on first use
+
+**Modify**:
+- `server/mcp-token-store.js` — extend record schema (`oauth_client_id`, `expires_at`); update `validateToken` to check expiry
+- `server/routes/mcp-tokens.js` — `createToken` accepts optional `oauth_client_id` + `expires_at`
+- `server/index.js` — mount oauth router, update SPA guard + auth middleware bypass for OAuth paths
+- `client/src/api.js` — OAuth client CRUD functions
+- `client/src/components/Settings.jsx` — new `<OAuthClientsSection>`
+- `CHANGELOG.md` + version bump
+
+**Out of scope (T3 if ever needed)**: refresh tokens, `/oauth/revoke`, `/oauth/introspect`, audit log.
+
+## Definition of Done
+
+1. Grok with PKCE-only mode (none) successfully connects and `search_brain` works
+2. Grok with client_secret_basic mode also works (legacy path coverage)
+3. Claude Desktop's DCR registration succeeds via `POST /oauth/register`, and subsequent flow works
+4. Manual `Add OAuth client` in UI works; consent page asks for UI_SECRET and approves
+5. Tokens issued by OAuth flow appear in MCP tokens list with the client name + expiry visible
+6. Expired tokens 401 on /mcp/http
+7. Existing manual MCP tokens (no expiry) continue to work — no regression
+8. Version bumped 0.24.3 → 0.25.0
+
+---
+
 # Config layout cleanup — .env to root, strip to bootstrap-only, secrets via Settings UI — NEW 2026-05-18
 
 **Status**: plan drafted, awaiting user confirm.

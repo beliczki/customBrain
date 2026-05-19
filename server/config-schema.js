@@ -15,6 +15,22 @@ export const SETTINGS_SCHEMA = [
   // server/config.js::applySettingsToEnv enforces this with a never-overlay
   // guard so a stray settings.json entry can't silently override .env.
   {
+    key: 'OAUTH_USER',
+    category: 'OAuth',
+    label: 'OAuth consent username',
+    is_secret: false,
+    required: false,
+    description: 'Username shown + accepted on the OAuth consent page (when Grok / Claude Desktop / any MCP client redirects here to authorize). Separate from UI_SECRET on purpose — so an OAuth credential leak does not compromise the UI master.',
+  },
+  {
+    key: 'OAUTH_PASSWORD',
+    category: 'OAuth',
+    label: 'OAuth consent password',
+    is_secret: true,
+    required: false,
+    description: 'Password for the OAuth consent page. Required for OAuth to work; if unset the consent page rejects all approvals.',
+  },
+  {
     key: 'PORT',
     category: 'Core',
     label: 'HTTP port',

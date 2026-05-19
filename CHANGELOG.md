@@ -2,6 +2,61 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.25.0 — 2026-05-19
+
+**OAuth 2.0 for MCP — Grok + Claude Desktop ready.** Grok's connector config requires OAuth (PKCE recommended); Claude Desktop's MCP integration is going the same way (PKCE + Dynamic Client Registration per RFC 7591). T2 scope: full OAuth 2.0 Authorization Code flow + PKCE S256 + all three token-endpoint auth methods (`none`, `client_secret_basic`, `client_secret_post`) + DCR.
+
+### Endpoints (all public, no Bearer required — they have their own auth)
+
+- `GET /.well-known/oauth-authorization-server` — RFC 8414 discovery
+- `GET /oauth/authorize` — consent page (server-rendered HTML, dark theme)
+- `POST /oauth/authorize` — process consent, mint auth code, redirect to client
+- `POST /oauth/token` — exchange code for access token (PKCE OR client_secret_*)
+- `POST /oauth/register` — RFC 7591 Dynamic Client Registration
+
+### Consent authentication
+
+OAuth consent uses a SEPARATE `OAUTH_USER` + `OAUTH_PASSWORD` (Settings UI → OAuth category) — NOT `UI_SECRET`. Two reasons:
+1. Leak of an OAuth credential must not compromise the UI master, and vice versa.
+2. The user wanted explicit, settable credentials independent of the UI bootstrap.
+
+If OAUTH_USER/PASSWORD are unset, the consent page rejects all approvals with a 503 directing to Settings.
+
+### Storage
+
+- `state/oauth-clients.json` — registered clients. Schema: `{ id, name, client_id, client_secret_hash (scrypt), token_endpoint_auth_method, redirect_uris[], auto_registered, created_at, last_used_at }`. Manual UI mints + DCR mints coexist.
+- `state/mcp-tokens.json` extended: optional `oauth_client_id` + `expires_at` fields. Existing manual tokens stay `oauth_client_id: null, expires_at: null` (never expire). OAuth-issued tokens are tagged with the client and have a 1-year expiry.
+- Pending auth codes: in-memory Map, 60s TTL. Lost on pm2 restart; OAuth dances complete sub-second so this is fine.
+
+### Files
+
+- New: `server/oauth-store.js` (client + code management, scrypt password hashing).
+- New: `server/routes/oauth.js` (all 5 endpoints + consent HTML).
+- New schema entries in `server/config-schema.js`: `OAUTH_USER`, `OAUTH_PASSWORD` (category "OAuth").
+- Modified: `server/mcp-token-store.js` (`createToken` accepts `oauth_client_id` + `expires_at`; `validateToken` rejects expired tokens; `publicShape` exposes new fields).
+- Modified: `server/index.js` (mount oauth router; SPA wildcard + auth middleware bypass for `/oauth/*` + `/.well-known/*`).
+- Modified: `client/src/api.js` (`listOAuthClients`, `createOAuthClient`, `revokeOAuthClient`).
+- Modified: `client/src/components/Settings.jsx` (new `<OAuthClientsSection>` above MCP tokens).
+
+### Rate limiting
+
+The per-IP rate limiter (0.24.3) also applies to `/oauth/authorize` POST. Brute-force on OAUTH_USER/PASSWORD triggers the same ladder (3 → 1min, 3 → 5min, 3 → 10min, 3 → 30min cap).
+
+### Token lifecycle
+
+- Access token: 1 year expiry. No refresh tokens in T2 (re-do OAuth flow if expired).
+- Per-token revoke from Settings UI → MCP tokens (the OAuth-issued ones show up there too with the client name in the label).
+
+### Setup needed after deploy (one-time)
+
+1. Settings → OAuth → set `OAUTH_USER` and `OAUTH_PASSWORD` (already pre-populated for the user on Hetzner).
+2. Settings → OAuth clients → Generate a client for each connector (Grok, Claude Desktop, etc.). Pick "none — PKCE only" unless the connector specifically requires a secret.
+3. Configure the connector with:
+   - Authorization endpoint: `https://brain.beliczki.hu/oauth/authorize`
+   - Token endpoint: `https://brain.beliczki.hu/oauth/token`
+   - Discovery (if supported): `https://brain.beliczki.hu/.well-known/oauth-authorization-server`
+   - Scope: `full`
+
 ## 0.24.3 — 2026-05-18
 
 **Security hardening pass — code half.** Companion to the same-day infra hardening (chmod 600 on secret files, nginx log scrub of `?token=` to `[REDACTED]`, archived log purge, fail2ban on sshd, ufw allowlist 22/80/443). The code-side changes:

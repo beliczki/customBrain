@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSettings, saveSettings, restartServer, waitForServer, listMcpTokens, createMcpToken, revokeMcpToken } from '../api.js';
+import { getSettings, saveSettings, restartServer, waitForServer, listMcpTokens, createMcpToken, revokeMcpToken, listOAuthClients, createOAuthClient, revokeOAuthClient } from '../api.js';
 
 export default function Settings() {
   const [data, setData] = useState(null);
@@ -130,6 +130,8 @@ export default function Settings() {
         </div>
       )}
 
+      <OAuthClientsSection onStatus={setStatus} />
+
       <McpTokensSection onStatus={setStatus} />
 
       {[...byCategory.entries()].map(([category, items]) => (
@@ -153,6 +155,194 @@ export default function Settings() {
       <p className="text-xs text-txt-ter mt-8">
         Settings file: <code className="text-txt-sec">{data.settings_path}</code>
       </p>
+    </div>
+  );
+}
+
+function OAuthClientsSection({ onStatus }) {
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newRedirect, setNewRedirect] = useState('');
+  const [newAuthMethod, setNewAuthMethod] = useState('none');
+  const [creating, setCreating] = useState(false);
+  // Holds the just-created client's full credentials (client_id + client_secret).
+  // Cleared on next refresh; secret is shown ONCE per industry standard.
+  const [justCreated, setJustCreated] = useState(null);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const res = await listOAuthClients();
+      setClients(res.clients || []);
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `OAuth clients load failed: ${err.message}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const onCreate = async () => {
+    const name = newName.trim();
+    const redirectsList = newRedirect.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!name || redirectsList.length === 0) return;
+    setCreating(true);
+    try {
+      const res = await createOAuthClient({
+        name,
+        redirect_uris: redirectsList,
+        token_endpoint_auth_method: newAuthMethod,
+      });
+      setJustCreated(res.client);
+      setNewName('');
+      setNewRedirect('');
+      setNewAuthMethod('none');
+      onStatus?.({ type: 'ok', text: `Created OAuth client "${name}". ${res.client.client_secret ? 'Copy the client_secret now — it won\'t be shown again.' : 'PKCE-only client (no secret needed).'}` });
+      await refresh();
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `Create failed: ${err.message}` });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const onRevoke = async (client) => {
+    if (!confirm(`Revoke OAuth client "${client.name}"? Any tokens already issued to it stay active until they expire — revoke those separately from the MCP tokens list below.`)) return;
+    try {
+      await revokeOAuthClient(client.id);
+      onStatus?.({ type: 'ok', text: `Revoked "${client.name}".` });
+      if (justCreated && justCreated.id === client.id) setJustCreated(null);
+      await refresh();
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `Revoke failed: ${err.message}` });
+    }
+  };
+
+  const onCopy = async (value, label) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      onStatus?.({ type: 'ok', text: `Copied ${label}.` });
+    } catch (err) {
+      onStatus?.({ type: 'err', text: `Copy failed: ${err.message}` });
+    }
+  };
+
+  return (
+    <div className="settings-category oauth-clients mb-8">
+      <h2 className="settings-category__header text-xs uppercase tracking-wider text-txt-ter mb-3 pb-1 border-b border-subtle">
+        OAuth clients
+      </h2>
+      <p className="text-xs text-txt-ter mb-3">
+        Registered OAuth 2.0 clients (Grok, Claude Desktop, etc.). Each gets its own <code>client_id</code> + optional <code>client_secret</code>;
+        consent uses the <code>OAUTH_USER</code> + <code>OAUTH_PASSWORD</code> values from the OAuth category below (NOT the UI master).
+      </p>
+
+      <div className="form-field grid grid-cols-1 gap-2 mb-2">
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder='Client name (e.g. "Grok", "Claude Desktop")'
+          className="px-2 py-1.5 bg-surface border border-subtle text-sm text-txt"
+          disabled={creating}
+        />
+        <input
+          type="text"
+          value={newRedirect}
+          onChange={(e) => setNewRedirect(e.target.value)}
+          placeholder='Redirect URI(s) — comma-separated (e.g. https://grok.com/connectors/callback)'
+          className="px-2 py-1.5 bg-surface border border-subtle text-sm text-txt font-mono text-xs"
+          disabled={creating}
+        />
+        <div className="flex items-stretch gap-2">
+          <select
+            value={newAuthMethod}
+            onChange={(e) => setNewAuthMethod(e.target.value)}
+            className="flex-1 px-2 py-1.5 bg-surface border border-subtle text-sm text-txt"
+            disabled={creating}
+          >
+            <option value="none">none — PKCE only (recommended)</option>
+            <option value="client_secret_basic">client_secret_basic</option>
+            <option value="client_secret_post">client_secret_post</option>
+          </select>
+          <button
+            type="button"
+            onClick={onCreate}
+            disabled={!newName.trim() || !newRedirect.trim() || creating}
+            className="toolbar-btn px-3 py-1.5 bg-accent text-white text-xs font-medium hover:bg-accent-dark disabled:opacity-50"
+          >
+            {creating ? 'Creating…' : '+ Generate client'}
+          </button>
+        </div>
+      </div>
+
+      {justCreated && (
+        <div className="mcp-tokens__row py-3 px-3 border border-amber-500 bg-amber-50 dark:bg-amber-900/20 mb-3">
+          <div className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase mb-2">
+            Just created — copy these now
+          </div>
+          <div className="text-xs text-txt-sec mb-1">client_id:</div>
+          <div className="flex items-stretch gap-2 mb-2">
+            <code className="flex-1 px-2 py-1.5 bg-surface border border-subtle text-xs text-txt-sec font-mono">{justCreated.client_id}</code>
+            <button type="button" onClick={() => onCopy(justCreated.client_id, 'client_id')} className="toolbar-btn px-2 py-1.5 bg-surface border border-subtle text-xs">Copy</button>
+          </div>
+          {justCreated.client_secret && (
+            <>
+              <div className="text-xs text-txt-sec mb-1">client_secret (shown only once):</div>
+              <div className="flex items-stretch gap-2">
+                <code className="flex-1 px-2 py-1.5 bg-surface border border-subtle text-xs text-txt-sec font-mono">{justCreated.client_secret}</code>
+                <button type="button" onClick={() => onCopy(justCreated.client_secret, 'client_secret')} className="toolbar-btn px-2 py-1.5 bg-surface border border-subtle text-xs">Copy</button>
+              </div>
+            </>
+          )}
+          {!justCreated.client_secret && (
+            <div className="text-xs text-txt-ter italic">PKCE-only client — no secret to copy. Connector uses code_verifier instead.</div>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-txt-ter text-sm">Loading…</p>
+      ) : clients.length === 0 ? (
+        <p className="empty-state text-txt-ter text-sm py-3 italic">
+          No OAuth clients yet. Generate one above for Grok / Claude Desktop connectors.
+        </p>
+      ) : (
+        <div className="oauth-clients__list">
+          {clients.map((c) => (
+            <div key={c.id} className="oauth-clients__row py-3 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-txt font-medium">
+                    {c.name}
+                    {c.auto_registered && <span className="ml-2 text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-300">DCR</span>}
+                    <span className="ml-2 text-[10px] uppercase tracking-wider text-txt-ter">{c.token_endpoint_auth_method}</span>
+                  </div>
+                  <div className="text-[10px] text-txt-ter mt-1 font-mono">
+                    client_id: {c.client_id}
+                  </div>
+                  <div className="text-[10px] text-txt-ter font-mono">
+                    redirect: {c.redirect_uris.join(', ')}
+                  </div>
+                  <div className="text-[10px] text-txt-ter">
+                    Created {new Date(c.created_at).toLocaleString()}
+                    {c.last_used_at ? <> · last used {new Date(c.last_used_at).toLocaleString()}</> : <> · never used</>}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRevoke(c)}
+                  className="toolbar-btn px-2 py-1 bg-surface border border-subtle text-xs text-red-600 dark:text-red-400 shrink-0"
+                >
+                  Revoke
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

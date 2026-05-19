@@ -179,3 +179,32 @@ export async function revokeMcpToken(id) {
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
+
+// === OAuth clients (Grok, Claude Desktop, any MCP connector that needs OAuth) ===
+
+export async function listOAuthClients() {
+  const res = await fetch(`${BASE}/oauth/clients`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to list OAuth clients (HTTP ${res.status})`);
+  return res.json();
+}
+
+export async function createOAuthClient({ name, redirect_uris, token_endpoint_auth_method }) {
+  const res = await fetch(`${BASE}/oauth/clients`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ name, redirect_uris, token_endpoint_auth_method }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+export async function revokeOAuthClient(id) {
+  const res = await fetch(`${BASE}/oauth/clients/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
