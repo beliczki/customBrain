@@ -1,7 +1,9 @@
-// Named MCP bearer tokens. UI_SECRET (env, renamed from CAPTURE_SECRET in 0.24.0)
-// authorizes the UI and the non-MCP HTTP surface; the tokens listed here are the
-// ONLY way to reach the MCP transport from outside. See `tasks/todo.md` (MCP
-// token management) for the auth-split decision.
+// Named bearer tokens. UI_SECRET (env, renamed from CAPTURE_SECRET in 0.24.0)
+// authorizes the UI and the full non-MCP HTTP surface; the tokens listed here
+// are the ONLY way to reach the MCP transport from outside, and (since 0.26.0)
+// also authorize the narrow REST allowlist /capture + /search so the Chrome
+// extension can hold a revocable token instead of the master secret. See
+// `tasks/todo.md` (MCP token management) for the auth-split decision.
 //
 // Storage: state/mcp-tokens.json — same pattern as state/agenda-cache.json,
 // state/gmail-watermark.json, state/settings.json. Atomic write (.tmp + rename).

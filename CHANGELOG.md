@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.26.0 — 2026-05-20
+
+**Chrome extension can use a revocable named token instead of the master `UI_SECRET`.** Previously the extension's only valid bearer was the master secret — a leak of the extension's `chrome.storage` exposed the keys to the kingdom, and pasting an MCP token there produced silent `429`s (the token failed REST auth, tripped the per-IP rate limiter, and locked the IP out).
+
+Fix: the auth middleware in `server/index.js` now accepts a named token (`state/mcp-tokens.json`, the same ones minted in Settings → Tokens) for a narrow REST allowlist — `NAMED_TOKEN_PATHS = ['/capture', '/search']`, exactly what the extension needs. A valid named token on any other path returns `403` **without** recording a rate-limit failure, so a misused extension token can't lock out the user's own IP. The master `UI_SECRET` still authorizes the full non-MCP surface; `/mcp/http` is unchanged (named tokens only, master never).
+
+Extension: the Settings field is relabelled "Brain token" with a hint to use a named token from Settings → Tokens, not the master secret. No behaviour change in how the extension sends auth — paste a named token and it works.
+
 ## 0.25.3 — 2026-05-19
 
 **Critical bug fix: OAuth POST endpoints (token + authorize consent) couldn't parse url-encoded bodies.** The body parsing middleware in `server/index.js` only registered `express.json()`. The consent HTML form posts as `application/x-www-form-urlencoded` (default form encoding); RFC 6749 also mandates urlencoded for `/oauth/token`. Without the urlencoded parser, `req.body` was empty → `client_id` undefined → `getClientByClientId(undefined)` returned null → consent rejected with 400 "unknown client_id" even though the client WAS registered.

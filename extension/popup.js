@@ -98,7 +98,7 @@ async function init() {
       headers: { Authorization: `Bearer ${settings.captureSecret}` },
     });
     if (res.status === 401) {
-      container.textContent = 'Unauthorized — set capture secret in Settings';
+      container.textContent = 'Unauthorized — set a named Brain token in Settings';
       return;
     }
     if (!res.ok) {

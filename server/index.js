@@ -72,7 +72,9 @@ app.use(
 //   - /mcp/http accepts ONLY named tokens from state/mcp-tokens.json
 //     (strict separation: the env-only master UI_SECRET never authorizes MCP
 //     traffic, so a leak of the UI secret doesn't expose the MCP surface)
-//   - everything else (UI, /capture, /search, /mcp-tokens management, etc.)
+//   - /capture + /search additionally accept a named token (since 0.26.0) so
+//     the Chrome extension can hold a revocable token, not the master secret
+//   - everything else (UI, /mcp-tokens management, /export, deletes, etc.)
 //     requires the master UI_SECRET only
 // Bootstrap: with zero MCP tokens, MCP is locked until UI mints one — the UI
 // itself uses UI_SECRET so no lockout is possible.
@@ -82,6 +84,12 @@ app.use(
 // Rate limit (since 0.24.2): non-MCP failed auth attempts trigger an escalating
 // global lockout ladder (3 → 1min, 3 → 5min, 3 → 10min, 3 → 30min cap).
 // Single-user system, single counter — see server/rate-limiter.js for the rationale.
+//
+// Named-token REST allowlist (since 0.26.0): the routes a named token from
+// state/mcp-tokens.json may reach in addition to /mcp/http. Kept deliberately
+// narrow — the Chrome extension needs exactly these two — so a leaked token
+// can never reach /settings, /mcp-tokens management, /export, or deletes.
+const NAMED_TOKEN_PATHS = ['/capture', '/search'];
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return next();
 
@@ -127,6 +135,19 @@ app.use((req, res, next) => {
     rateLimitOk(ip);
     return next();
   }
+
+  // Named tokens authorize the narrow REST allowlist above (extension: capture
+  // + search). A valid token on a non-allowlisted path returns 403 WITHOUT
+  // recording a failure — so a misused extension token can't lock out the
+  // user's own IP via the rate limiter.
+  if (rawToken && validateMcpToken(rawToken)) {
+    if (NAMED_TOKEN_PATHS.includes(req.path)) {
+      rateLimitOk(ip);
+      return next();
+    }
+    return res.status(403).json({ error: 'This token is not authorized for this route' });
+  }
+
   rateLimitBad(ip);
   return res.status(401).json({ error: 'Unauthorized' });
 });
