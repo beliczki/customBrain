@@ -61,6 +61,21 @@ function buildPrompt(text, localCtx, vaultCtx) {
     }
   }
 
+  // 0.27.0: optional topic-alias dictionary. Unlike projects, the topic
+  // vocabulary is NOT a whitelist — long-tail topics still pass through
+  // unchanged. The list only normalizes KNOWN synonyms.
+  if (vaultCtx?.topicAliases && Object.keys(vaultCtx.topicAliases).length) {
+    const byCanonical = {};
+    for (const [alias, canonical] of Object.entries(vaultCtx.topicAliases)) {
+      if (!byCanonical[canonical]) byCanonical[canonical] = [];
+      byCanonical[canonical].push(alias);
+    }
+    const lines = Object.entries(byCanonical).map(
+      ([canonical, alts]) => `- "${canonical}" is also known as: ${alts.join(', ')}`
+    );
+    contextBlock += `\n\nTopic aliases (if you would tag one of the aliases on the right, use the canonical name on the left instead — but do NOT force-normalize topics that have no entry here, the long-tail vocabulary stays as-is):\n${lines.join('\n')}`;
+  }
+
   return `Extract metadata from this text. Return ONLY valid JSON with these fields:
 - title: string (2-3 word short title summarizing the thought — in the same language as the text). If you identify a primary project (see rule below) AND it ends up in the \`projects\` array, prefix the title with the canonical project name and an em-dash, e.g. "Hello Business — KPI és biztonság" instead of "KPI és biztonság". Do NOT prefix if no primary project is in \`projects\`. Use the canonical project name exactly as listed in the vault context, not an alias.
 - people: string[] (names of REAL people actually discussed; exclude AI assistants, chatbots, virtual characters, and people mentioned only in cc/quotes/passing)
@@ -191,6 +206,21 @@ export async function suggestCleanedMetadata(thought, vaultContext) {
     projectAliasesHint = `\n\nProject aliases (if the thought mentions one of the aliases, the project IS the canonical name on the left):\n${lines.join('\n')}`;
   }
 
+  // 0.27.0: topic-alias hint for the cleaner. Same non-whitelist semantics as
+  // in extractMetadata — only collapse KNOWN synonyms, long-tail topics stay.
+  let topicAliasesHint = '';
+  if (vaultContext?.topicAliases && Object.keys(vaultContext.topicAliases).length) {
+    const byCanonical = {};
+    for (const [alias, canonical] of Object.entries(vaultContext.topicAliases)) {
+      if (!byCanonical[canonical]) byCanonical[canonical] = [];
+      byCanonical[canonical].push(alias);
+    }
+    const lines = Object.entries(byCanonical).map(
+      ([canonical, alts]) => `- "${canonical}" is also known as: ${alts.join(', ')}`
+    );
+    topicAliasesHint = `\n\nTopic aliases (replace any topic that matches an alias on the right with the canonical name on the left; topics without an entry stay as-is):\n${lines.join('\n')}`;
+  }
+
   // Best-effort language detection so we can explicitly constrain Haiku.
   // Simple heuristic: Hungarian-specific characters present → Hungarian.
   const textForDetect = `${thought.title || ''} ${thought.text?.slice(0, 500) || ''}`;
@@ -220,7 +250,7 @@ For TITLE: keep if it accurately summarizes in 2-4 words. Propose a tighter alte
 
 LANGUAGE RULE (strict): ${languageRule}
 
-${vaultProjectsHint}${projectAliasesHint}
+${vaultProjectsHint}${projectAliasesHint}${topicAliasesHint}
 
 Thought text:
 """
@@ -286,6 +316,9 @@ Respond with JSON ONLY, matching this schema exactly:
     if (parsed.proposed.projects) {
       parsed.proposed.projects = resolveAliases(parsed.proposed.projects, vaultContext?.projectAliases);
     }
+    if (parsed.proposed.topics) {
+      parsed.proposed.topics = resolveAliases(parsed.proposed.topics, vaultContext?.topicAliases);
+    }
   }
   return parsed;
 }
@@ -323,6 +356,7 @@ export async function extractMetadata(text, vaultContext) {
   const metadata = JSON.parse(match[1].trim());
   metadata.people = resolveAliases(metadata.people, vaultContext?.aliases);
   metadata.projects = resolveAliases(metadata.projects, vaultContext?.projectAliases);
+  metadata.topics = resolveAliases(metadata.topics, vaultContext?.topicAliases);
   metadata._prompt = buildPrompt(text, localCtx, vaultContext);
   return metadata;
 }

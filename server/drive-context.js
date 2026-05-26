@@ -275,6 +275,10 @@ export async function getVaultContext() {
     const drive = getSaDrive();
     const peopleFolderId = process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID;
     const projectsFolderId = process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID;
+    // 0.27.0: optional _meta/topics/ folder for topic canonicalization. One .md
+    // per canonical topic, frontmatter `aliases: [variant1, variant2]`. Missing
+    // env var or empty folder → empty alias map → capture behaves as before.
+    const topicsFolderId = process.env.GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID;
 
     const peopleResult = peopleFolderId
       ? await listWithAliases(drive, peopleFolderId)
@@ -282,6 +286,9 @@ export async function getVaultContext() {
     const projectsResult = projectsFolderId
       ? await listWithAliases(drive, projectsFolderId, { withDocuments: true })
       : { names: [], aliases: {}, documents: {} };
+    const topicsResult = topicsFolderId
+      ? await listWithAliases(drive, topicsFolderId)
+      : { names: [], aliases: {} };
 
     cachedContext = {
       people: peopleResult.names,
@@ -290,14 +297,16 @@ export async function getVaultContext() {
       projects: projectsResult.names,
       projectAliases: projectsResult.aliases,
       projectDocs: projectsResult.documents || {},
+      topicCanonicals: topicsResult.names,
+      topicAliases: topicsResult.aliases,
     };
     cacheTime = Date.now();
     console.log(
-      `Vault context loaded: ${peopleResult.names.length} people (${Object.keys(peopleResult.aliases).length} aliases, ${Object.keys(peopleResult.emails).length} emails), ${projectsResult.names.length} projects (${Object.keys(projectsResult.aliases).length} aliases)`,
+      `Vault context loaded: ${peopleResult.names.length} people (${Object.keys(peopleResult.aliases).length} aliases, ${Object.keys(peopleResult.emails).length} emails), ${projectsResult.names.length} projects (${Object.keys(projectsResult.aliases).length} aliases), ${topicsResult.names.length} canonical topics (${Object.keys(topicsResult.aliases).length} aliases)`,
     );
     return cachedContext;
   } catch (err) {
     console.error('Failed to load vault context:', err.message, '\n', err.stack);
-    return { people: [], projects: [], aliases: {}, projectAliases: {}, peopleEmails: {} };
+    return { people: [], projects: [], aliases: {}, projectAliases: {}, peopleEmails: {}, topicCanonicals: [], topicAliases: {} };
   }
 }

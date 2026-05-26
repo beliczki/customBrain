@@ -1,5 +1,5 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-17 (v0.18.0 — P8 hybrid search promoted to ACTIVE NEXT)
+## Last updated: 2026-05-23 (v0.27.0 — P17 Step 1 topic-aliases shipped; Steps 2-3 queued)
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 
@@ -635,6 +635,46 @@ P16 nélkül egy barát-tester se tud könnyen felrakni. P16 előtt mindenképp 
 
 ---
 
+## P17 — Topic consolidation + /dream coworker-loop (új 2026-05-23)
+
+**Status (2026-05-23)**: Step 1 SHIPPED (0.27.0). Step 2 + 3 queued, no fixed schedule. Teljes spec brain-ben: `TODO-TOPIC-DREAM-V1`.
+
+**Probléma**: 261 thought-on a `brain_stats` top-10 topics-ban legalább 4 nyilvánvaló szinonima-pár van (`Cseperedő`/`Cseperedő kampány`, `Diákszámla`/`online számla`, `kampányindítás`/`Cseperedő kampány` stb.). A long-tail ezt csak erősíti. A People/Projects alias-pattern (0.13.0) megvan, csak a topics-dimenzió hiányzott.
+
+Plusz: a meglévő brain-hygiene trio (P10) + brain_health_check (P6) + /summarize-long-thoughts coworker-loop (0.10.0) együtt **majdnem** lefedik amit a felhasználó "hétvégi tisztogatás / dream" igényként megfogalmazott — csak egy orchestration-skill és topic-szótár hiányzik. Új MCP endpoint NEM kell.
+
+### Step 1 — topic-aliases capture-time normalization — DONE 0.27.0
+
+- Drive convention: `customBrain/_meta/topics/` mappa, canonical-onként egy `.md` frontmatter `aliases: [...]`
+- Env var: `GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID` (opcionális — hiányzik = empty alias map, viselkedés változatlan)
+- `server/drive-context.js`: harmadik `listWithAliases()` hívás
+- `server/metadata.js`: új "Topic aliases" szekció a Haiku promptban + `resolveAliases` topics-ra mind `extractMetadata`-ban, mind `suggestCleanedMetadata`-ban
+- **Nem whitelist** (eltérés a projects-től): long-tail topics változatlanul átmennek, csak az ismert szinonimák kollabálódnak
+
+### Step 2 — `scripts/topic-consolidation-probe.js` (queued, ~1-2h)
+
+Read-only proposal-generátor: Qdrant összes distinct `topics[]` stringjét batch-embed-eli (Gemini), cosine>0.85 párokat UnionFind-clusterekbe rakja, output `tasks/topic-merge-proposals-<date>.md`. User kézzel hozza létre a `_meta/topics/<Canonical>.md` fájlokat a választott merge-ek alapján. Semmit nem ír Qdrant-be vagy Drive-ra.
+
+### Step 3 — `/dream` globális user-skill (queued, ~2h)
+
+`~/.claude/skills/customBrain-dream/SKILL.md` — subscription-billed Claude Code session-ben fut (/summarize-long-thoughts mintán). Orchesztrálja: `brain_health_check` + `find_overconnected` + `list_recent(30)` + Step 2 probe + per-thought top-3 cosine-szomszéd contradiction-check + Stanford Generative Agents-szerű reflection (3 kérdés + 5 insight citation-pointerekkel). Output: `tasks/dream-<date>.md` proposal-fájl 4 szekcióval. Soha nem mutál semmit automatikusan.
+
+### Mit NEM v1
+
+- Per-capture contradiction-flag (C opció a 2026-05-23 push-back-ből) — csak ha /dream nem elég gyakori
+- `type: reflection` formálisan külön payload-mező `cites: []`-szel — most a meglévő type-en megy
+- Heti automatikus cron — manuális trigger elég
+
+### Cross-ref
+
+- P10 (DONE 0.5.0) brain-hygiene trio — `/dream` ezt orchesztrálja
+- P6 (DONE 0.18.0) brain_health_check — `/dream` ezt orchesztrálja
+- 0.10.0 coworker-loop minta — `/dream` ezt követi
+- 0.13.0 Obsidian-native frontmatter — topic-aliases ugyanezt használja
+- Dream research (2026-05-23, agent report): Stanford Generative Agents Reflection mintaként; Letta sleep-time-compute mint architektúra-elv ("separate writer from reader"); Mem0 4-op vokabulár; NLI contradiction inherent limitációi
+
+---
+
 ## ~~P10: Brain Connection Hygiene~~ — DONE (2026-04-19, v0.5.0 + 0.5.2 post-pilot hardening)
 
 Interactive metadata curation — surfaces over-tagged thoughts, Haiku proposes tighter metadata, user approves, Qdrant patched in place, Obsidian graph self-corrects on next hourly export. Plus: tightened capture-time extraction prompt so new thoughts don't reintroduce the problem.
@@ -719,10 +759,11 @@ Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed
 3. **~~P13A Settings UI~~** — DONE (0.17.0)
 4. **~~P6 Brain Health Check~~** — DONE (0.18.0)
 5. **P8 hybrid search (BM25 + dense + RRF) — ACTIVE NEXT** (promoted 2026-05-17 a "Boris Cherny" probe alapján) — replaces the planned P14 A→B→C path. Scope: sparse vector field + multilingual stemmer (HU+EN) + Qdrant Query API hybrid + RRF + backfill. Estimate ~5–8h. See P8 section above and `tasks/todo.md` "Hybrid search (P8)".
-6. **P15 Security hardening** — pre-P16 kötelező pre-req (admin token + Show gomb leverése, ~1.5hr). Defer.
-7. **P16 INSTALL.md teljes step-by-step** (~3-4hr) — átsorolva volt-P13B-ből. Gated egy első barát-tester-en.
-8. **~~P12 X.com bookmarks~~** — DEFERRED post-agenda use. Lásd P12 banner.
-9. ***Sharing / federation vízió — nem most.*** Step 1 = 1 barát napi user 1 hónapig single-tenant instance-en. Csak utána térünk vissza a federation-protocol kérdésre.
+6. **P17 Topic consolidation + /dream** — Step 1 SHIPPED (0.27.0, topic-aliases capture-time normalization). Step 2 (probe szkript) + Step 3 (/dream skill) queued — futtatás amikor a topic-szótár első néhány canonical-je felkerült Drive-ra és gyűlik proposal-anyag.
+7. **P15 Security hardening** — pre-P16 kötelező pre-req (admin token + Show gomb leverése, ~1.5hr). Defer.
+8. **P16 INSTALL.md teljes step-by-step** (~3-4hr) — átsorolva volt-P13B-ből. Gated egy első barát-tester-en.
+9. **~~P12 X.com bookmarks~~** — DEFERRED post-agenda use. Lásd P12 banner.
+10. ***Sharing / federation vízió — nem most.*** Step 1 = 1 barát napi user 1 hónapig single-tenant instance-en. Csak utána térünk vissza a federation-protocol kérdésre.
 
 ### Folyamatos / opcionális
 

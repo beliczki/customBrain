@@ -1,3 +1,110 @@
+# Assessment of Current State (requested 2026-05-25 by user)
+
+**Context**: External review of customBrain repo (~/customBrain). Read CLAUDE.md, AGENTS.md, README.md, ROADMAP.md (2026-05-23, v0.27.0), DEPLOYMENT.md, CHANGELOG (through 0.27.0), tasks/todo.md active sections, package versions, key server modules (qdrant.js, etc.). No code changes made. This section is the "plan" per global workflow: read first → write checkbox plan → user verifies before deeper work or recommendations.
+
+## Pro (strengths, what works well)
+- [ ] Extremely high engineering discipline: detailed probe-before-build (p8-*.json snapshots), before/after measurement, explicit "Definition of Done", rollback plans, audit trail in git + brain thoughts.
+- [ ] Real 6+ weeks of daily production use drove the roadmap (USE IT FIRST gate passed 2026-05-16). Many killed/deferred items are honest (no signal).
+- [ ] Architecture is clean for the ambition: one backend (capture/search logic) exposed via 3 surfaces (HTTP, MCP HTTP, MCP stdio) without duplication.
+- [ ] Security & ops hardening in May 2026 (0.24.x series) is substantive: rate limiter per-IP, MCP vs UI secret split, OAuth2 for external clients (Grok/Claude DCR), log scrubbing, chmod 600, fail2ban, ufw, explicit consent creds.
+- [ ] Retrieval investment is correct and evidence-based (Boris Cherny probe → hybrid BM25+dense+RRF k=60 + task_type + topic aliases). Not prompt-hacking around weak cosine.
+- [ ] Alias system (People → Projects → Topics) + strict project whitelist + drive-context via SA is mature and solves real over-tagging / visibility problems.
+- [ ] Coworker-loop pattern (0.10.0 summarize + emerging P17 /dream) is elegant for single-user augmentation without server-side mutation loops.
+- [ ] Versioning, CHANGELOG, 4-manifest sync, and "remind to bump" convention are followed religiously.
+- [ ] Data model (source + source_id idempotency, immutable text + mutable metadata via PATCH, supersedes for conflicts) is sound.
+
+## Contra / Risks / Current pain points
+- [ ] Complexity debt is high for a single-user personal tool. May 17-23 window alone touched: hybrid collection swap, v2 chunking, task_type backfill, env/config relocation (3 scripts), MCP token system, full OAuth2 server + consent + DCR, rate limiter rewrite, topic aliases. Many moving parts in retrieval + auth.
+- [ ] v2 reprocessing (ACTIVE top of this file) only ~24% complete in the 2026-05-17 snapshot (58/238). 180 thoughts still on old pipeline — weaker summaries, no chunks, no RETRIEVAL_DOCUMENT vectors. Search quality uneven until finished.
+- [ ] No local dev story (per CLAUDE.md): every behavioral change or bug requires Hetzner SSH + user per-action approval. Slows iteration, raises risk of "it worked in my probe" surprises.
+- [ ] Export is still full-rebuild hourly (P11 incremental deferred). At current growth + chunk points this will eventually hurt.
+- [ ] Backup story for the irreplaceable brain (Qdrant snapshots + offsite) is still listed as open in ROADMAP "Ops" section.
+- [ ] Collection name is now `thoughts_v2` (hybrid). Old `thoughts` may be lingering as safety net or partially cleaned — needs explicit audit.
+- [ ] High surface area for auth mistakes: 3 token systems (UI_SECRET master, named mcp-tokens, OAuth-issued), consent page, rate limiter ladder, extension special-casing. One mis-wired middleware = lockout or secret leak.
+- [ ] Many one-off scripts in /scripts (backfills, probes, calibrations, migrations). Technical debt if not periodically pruned or turned into documented runbooks.
+- [ ] Hetzner CX22 (4GB) noted as OOM risk during client build; pm2 + fuser -k dance is mandatory and fragile.
+- [ ] Process note: project CLAUDE.md says "tasks/todo.md not used for customBrain; ROADMAP is canonical", yet this file is the detailed execution log for P8/P8.1/P8.2/P14 work. Minor inconsistency between declared and actual process.
+- [ ] Single point of failure + blast radius: one Hetzner box holds the only copy of the brain + all 3rd-party tokens (Drive, Gmail, Fireflies, Anthropic, Gemini). Even with hardening, compromise = total loss + credential exposure.
+
+## Open questions / recommendations (do not execute)
+- [ ] Finish or explicitly close the v2 reprocess batches (current top of file) before declaring hybrid search "done".
+
+---
+
+# Deep Code-Level Review: Best Practices, Pros/Cons, Security Holes (requested 2026-05-25)
+
+**Scope**: Full static analysis of the customBrain codebase (server/, agent/, cron/, scripts/, client/, extension/, config/auth flows). Focus on security, secret handling, input validation, privilege boundaries, error handling, and architectural best practices. Does **not** include runtime testing on Hetzner unless explicitly approved later.
+
+**Status**: Initial file reading done (server/index.js, config.js + schema, fireflies-webhook.js, drive-context.js, mcp.js, oauth routes, main structure). Full deep read + analysis **not yet started**.
+
+## Analysis Plan (execute only after user verification)
+
+### Phase 1 — Secret & Credential Handling (Highest risk)
+- [ ] Audit all places that read/write secrets (UI_SECRET, OAuth tokens, service account, API keys).
+- [ ] Verify the `NEVER_OVERLAY` + `applySettingsToEnv` logic is sound and has no bypasses.
+- [ ] Check how `service-account.json` and refresh tokens are resolved and protected (file perms, paths).
+- [ ] Review OAUTH_USER / OAUTH_PASSWORD consent flow for leaks or weak defaults.
+- [ ] Assess token storage in `state/mcp-tokens.json` and `state/oauth-clients.json` (cleartext, perms, encryption?).
+
+### Phase 2 — Authentication & Authorization Boundaries
+- [ ] Deep review of the path-aware auth middleware in `server/index.js` (MCP-only named tokens vs master UI_SECRET split).
+- [ ] Named token REST allowlist (`NAMED_TOKEN_PATHS`) — is it narrow enough?
+- [ ] OAuth2 server implementation (`routes/oauth.js` + `oauth-store.js`): PKCE, client registration, consent page, token issuance, revocation.
+- [ ] Rate limiter effectiveness and bypass risks.
+- [ ] Extension token handling (0.26.0 changes) and 403 vs 429 behavior.
+
+### Phase 3 — External Attack Surfaces
+- [ ] Fireflies webhook: HMAC verification, raw body handling, in-flight guard, retry behavior.
+- [ ] All public-ish endpoints (/oauth/*, /.well-known, webhook).
+- [ ] CORS tightening, trust proxy, and nginx assumptions.
+- [ ] Input validation on capture, search, metadata extraction prompts.
+
+### Phase 4 — High-Privilege Operations
+- [ ] `drive-context.js`: Dual OAuth2 + Service Account usage, scope minimization, error handling when SA or OAuth fails.
+- [ ] Gmail / Calendar / YouTube clients created from the same refresh token.
+- [ ] Full vault export (`routes/export.js`): deletion + rewrite logic, manifest safety (if any), atomicity.
+- [ ] `agent/` tools (Gmail intake, Fireflies, YouTube) — what they can do and whether they run with least privilege.
+
+### Phase 5 — Architecture & Best Practices
+- [ ] Error handling patterns (try/catch usage, information leakage in responses).
+- [ ] Logging of sensitive data (tokens, emails, transcripts).
+- [ ] Dependency hygiene (node_modules in server/, client/, root; zod version pinning).
+- [ ] Process model (pm2, single instance assumptions for inFlight maps, etc.).
+- [ ] Data model invariants (immutability of text vs mutability of metadata).
+- [ ] Use of `eval`, dynamic `require`, `child_process`, or dangerous string interpolation.
+- [ ] Client-side security (token storage in localStorage, extension manifest permissions).
+
+### Phase 6 — Summary & Risk Matrix
+- [ ] Produce prioritized list of findings (Critical / High / Medium / Low).
+- [ ] Pros/cons of current design choices (e.g., settings.json overlay, dual auth systems, full-rebuild export).
+- [ ] Concrete recommendations with effort estimates.
+- [ ] Update ROADMAP or create security section if warranted.
+
+## Execution Rules (per user global guidelines)
+- Read files one area at a time.
+- No code changes during analysis unless explicitly requested after this plan is approved.
+- Root cause, not symptoms.
+- Document both strengths and real weaknesses honestly.
+- After each major phase, surface findings before moving to the next.
+
+**User verification required before starting Phase 1 deep reads + writing**:
+- Approve this plan?
+- Any areas to deprioritize or expand?
+- Any files/areas you specifically want me to focus on or avoid?
+
+---
+- [ ] Decide on backup strategy (Qdrant snapshot API to S3/Drive vs full JSON export) — highest risk item.
+- [ ] Consider a lightweight "brain health" cron that only alerts (no auto-mutation) vs current on-demand model.
+- [ ] Audit: does the old `thoughts` collection still exist and need deletion or documented retirement?
+- [ ] For future features: apply the "push back BEFORE designing" rule from the global AGENTS.md even more strictly — this system is already at the edge of justifiable complexity for one person.
+- [ ] Document the current data volume (thoughts + chunks) and growth rate somewhere visible (ROADMAP or a /stats endpoint).
+
+## Next step (user verification required)
+- [ ] User reviews this assessment section.
+- [ ] User confirms: (a) expand any area into full root-cause analysis, (b) write concrete recommendations with effort estimates into ROADMAP, (c) nothing further — just archive this section.
+
+---
+
 # ACTIVE — Finish v2 chunking + embedding for all remaining v1 thoughts
 
 **State (2026-05-17)**: 58 v2 / 238 = ~24% coverage. **180 v1 thoughts remain.** Process in batches of 20 by `effective_date desc` (script default since today). Each batch ~$1.50–$3, ~10–18 min.

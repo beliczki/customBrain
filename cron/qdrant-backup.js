@@ -12,6 +12,8 @@ import { google } from 'googleapis';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(SCRIPT_DIR, '..', '.env') });
+import { applySettingsToEnv } from '../server/config.js';
+applySettingsToEnv();
 
 const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
 const COLLECTION = 'thoughts';

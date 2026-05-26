@@ -2,6 +2,21 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.27.0 — 2026-05-23
+
+**Topic-alias normalization at capture time — Step 1 of the topic-consolidation + /dream coworker-loop arc (brain spec: `TODO-TOPIC-DREAM-V1`).** Mirrors the People/Projects alias pattern (0.13.0) for the third metadata dimension. Backwards-compatible: no env var → no alias map → capture behaves exactly as before.
+
+Drive convention: `customBrain/_meta/topics/` folder, one `.md` per canonical topic with Obsidian Properties `aliases: [variant1, variant2, …]` in frontmatter. The vocabulary is intentionally NOT a whitelist (unlike projects) — only KNOWN synonyms get collapsed; long-tail topics pass through unchanged. New env var: `GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID`.
+
+- `server/drive-context.js`: third `listWithAliases()` call against the topics folder; `cachedContext` gains `topicCanonicals` + `topicAliases`. Vault-context log line now includes topic counts.
+- `server/metadata.js::buildPrompt`: new "Topic aliases" section in the Haiku capture-prompt with explicit non-whitelist semantics.
+- `server/metadata.js::extractMetadata`: `metadata.topics` is passed through `resolveAliases()` (deterministic post-process, same treatment as people/projects).
+- `server/metadata.js::suggestCleanedMetadata`: same topic-alias hint and post-process in the brain-hygiene cleaner so manual cleanup also honors the canonical form.
+
+What's NOT in 0.27.0 (queued under `TODO-TOPIC-DREAM-V1`): `scripts/topic-consolidation-probe.js` proposal generator, `/dream` coworker-loop skill, per-capture contradiction-flag.
+
+**Also in 0.27.0 — cron auth fix (regression from 0.23.0).** Since 0.23.0 stripped `.env` down to `UI_SECRET` and moved everything else to `state/settings.json`, the Express server kept working (it overlays settings.json → `process.env` at boot via `applySettingsToEnv()`), but cron scripts are separate Node processes that only call `dotenv.config()` — so `GOOGLE_DRIVE_REFRESH_TOKEN`, `ANTHROPIC_API_KEY`, `GOOGLE_DRIVE_FOLDER_ID` etc. were all undefined. All five crons (`youtube-intake`, `gmail-intake`, `export`, `agenda-sync`, `qdrant-backup`) have been silently broken for ~8 days, crashing every tick with `No access, refresh token...` or `... missing in env`. Fix: each cron now calls `applySettingsToEnv()` immediately after `dotenv.config()`, matching the server's boot flow.
+
 ## 0.26.0 — 2026-05-20
 
 **Chrome extension can use a revocable named token instead of the master `UI_SECRET`.** Previously the extension's only valid bearer was the master secret — a leak of the extension's `chrome.storage` exposed the keys to the kingdom, and pasting an MCP token there produced silent `429`s (the token failed REST auth, tripped the per-IP rate limiter, and locked the IP out).

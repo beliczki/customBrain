@@ -4,6 +4,8 @@ import { dirname, join } from 'node:path';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
+import { applySettingsToEnv } from '../server/config.js';
+applySettingsToEnv();
 
 import { getGmail, getVaultContext } from '../server/drive-context.js';
 import { extractBody, getHeader, ensureLabel } from '../agent/tools/gmail.js';

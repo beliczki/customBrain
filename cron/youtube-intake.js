@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') });
+import { applySettingsToEnv } from '../server/config.js';
+applySettingsToEnv();
 
 import { getYoutubeLikes } from '../agent/tools/youtube.js';
 import { fetchVideoSummary } from '../agent/tools/youtube-gemini.js';
