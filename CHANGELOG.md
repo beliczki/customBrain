@@ -2,6 +2,13 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.30.0 — 2026-06-12
+
+**P18 finish: index-richness badge + email-thread freshness/sender on cards.**
+
+- **Vector-richness badge** on every Search/Recent card: `1 vektor` for single-vector thoughts vs `summary + N chunk` for multi-vector ones — the "one thought = one vector" coverage gap is now visible at a glance. `/recent` and `/search` responses gained `has_v2_summary` + `chunk_count` (via `mapHit`, `scrollRecent`, and the search rollup).
+- **Gmail threads** now show **when the thread last got a new message** (`last_internal_date` + `refresh_count`) and **who sent the latest message**. The sender was previously lost — `buildThreadText` (`cron/gmail-intake.js`) now captures the newest message's `From` into a new `last_message_from` payload field (backfills naturally as threads refresh). `/recent` + `/search` expose `source`, `last_internal_date`, `refresh_count`, `last_message_from`.
+
 ## 0.29.0 — 2026-06-12
 
 **Retrieval-transparency viz + compact thought cards (ROADMAP P18, phase 3+4).**

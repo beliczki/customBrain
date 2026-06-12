@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { search } from '../api.js';
 import ThoughtBody from './ThoughtBody.jsx';
+import ThoughtFacts from './ThoughtFacts.jsx';
 import ChunkAnatomyModal from './ChunkAnatomyModal.jsx';
 
 export default function Search() {
@@ -116,6 +117,8 @@ export default function Search() {
                 </div>
               )}
             </div>
+
+            <ThoughtFacts item={r} />
 
             <p className="text-xs text-txt-ter mt-3">
               Score: {r.score?.toFixed(3)}{r.cosine_score ? ` (cosine: ${r.cosine_score.toFixed(3)})` : ''}

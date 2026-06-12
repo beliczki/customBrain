@@ -1,4 +1,5 @@
 import ThoughtBody from './ThoughtBody.jsx';
+import ThoughtFacts from './ThoughtFacts.jsx';
 
 // Reusable thought display block — shared between Recent (list mode) and
 // ThoughtModal (overlay mode). `onDelete` / `onAnatomy` optional; their buttons
@@ -90,6 +91,8 @@ export default function ThoughtView({ thought, onDelete, onAnatomy }) {
           </div>
         )}
       </div>
+
+      <ThoughtFacts item={thought} />
 
       {thought.created_at && (
         <p className="text-xs text-txt-ter mt-3">

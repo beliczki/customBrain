@@ -28,6 +28,12 @@ function mapHit(p) {
     title: p.payload.title,
     created_at: p.payload.created_at,
     effective_date: p.payload.effective_date,
+    source: p.payload.source,
+    has_v2_summary: p.payload.has_v2_summary,
+    chunk_count: p.payload.chunk_count,
+    last_internal_date: p.payload.last_internal_date,
+    refresh_count: p.payload.refresh_count,
+    last_message_from: p.payload.last_message_from,
     metadata: {
       people: p.payload.people,
       topics: p.payload.topics,
@@ -125,6 +131,12 @@ export async function scrollRecent(limit = 10) {
     },
     created_at: p.payload.created_at,
     effective_date: p.payload.effective_date,
+    source: p.payload.source,
+    has_v2_summary: p.payload.has_v2_summary,
+    chunk_count: p.payload.chunk_count,
+    last_internal_date: p.payload.last_internal_date,
+    refresh_count: p.payload.refresh_count,
+    last_message_from: p.payload.last_message_from,
   }));
 }
 

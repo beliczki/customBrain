@@ -98,6 +98,10 @@ async function buildThreadText(thread) {
     Number(a.internalDate || 0) - Number(b.internalDate || 0)
   );
   const bodies = ordered.map((m) => extractBody(m.payload)).filter(Boolean);
+  // Sender of the newest message in the thread — surfaced in the UI as "who
+  // added the latest line". Was previously lost: only the first sender made it
+  // into the header and the cleaner strips per-message From: lines.
+  const lastFrom = getHeader(ordered[ordered.length - 1].payload.headers, 'From');
 
   const { text: cleaned, stats } = await cleanEmailBody(bodies, {
     subject,
@@ -110,7 +114,7 @@ async function buildThreadText(thread) {
 
   const body = cleaned.slice(0, MAX_BODY_CHARS);
   const text = `# ${subject || '(no subject)'}\nFrom: ${from}\n${date}\n\n${body}`;
-  return { empty: false, text, stats };
+  return { empty: false, text, stats, last_message_from: lastFrom };
 }
 
 async function processThread(gmail, threadId, { brainLabelId, capturedLabelId, emptyLabelId, peopleEmails }) {
@@ -164,6 +168,7 @@ async function processThread(gmail, threadId, { brainLabelId, capturedLabelId, e
   const extraPayload = {
     thread_id: threadId,
     last_internal_date: latestDate,
+    ...(built.last_message_from && { last_message_from: built.last_message_from }),
     ...(outboundMatched && { auto_labeled_via: `outbound:${outboundMatched}` }),
   };
 
