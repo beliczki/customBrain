@@ -175,7 +175,29 @@ export async function getAllWithVectors() {
 }
 
 export async function deletePoint(id) {
+  // Purge any v2 chunk points belonging to this thought first — otherwise they
+  // become orphans that still surface in search with a dangling parent_id.
+  await deleteChunksByParent(id);
   await qdrant.delete(COLLECTION, { points: [id] });
+}
+
+// Delete all chunk points whose parent_id matches. Used on delete, and before
+// re-chunking on capture/refresh so stale chunks don't accumulate.
+export async function deleteChunksByParent(parentId) {
+  await qdrant.delete(COLLECTION, {
+    filter: {
+      must: [
+        { key: 'kind', match: { value: 'chunk' } },
+        { key: 'parent_id', match: { value: parentId } },
+      ],
+    },
+  });
+}
+
+// Batch-upsert pre-built chunk points (each { id, vector: {dense, bm25}, payload }).
+export async function upsertChunks(points) {
+  if (!points?.length) return;
+  await qdrant.upsert(COLLECTION, { points });
 }
 
 export async function updatePayload(id, payload) {

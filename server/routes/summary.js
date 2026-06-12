@@ -100,6 +100,7 @@ export async function setThoughtTextWithSummary(thoughtId, summaryText) {
   const wrapped = wrapWithSummary(stripped, summaryText.trim());
 
   const result = await refreshCapture(thoughtId, wrapped, {
+    chunk: false, // coworker path manages its own summary; don't re-summarize/chunk
     extraPayload: {
       has_auto_summary: true,
       summary_appended_at: new Date().toISOString(),

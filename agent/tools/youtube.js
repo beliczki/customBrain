@@ -19,9 +19,14 @@ export async function getYoutubeLikes(sinceDate) {
     maxResults: 50,
   });
 
-  const since = sinceDate ? new Date(sinceDate) : new Date(Date.now() - 86400000);
+  // snippet.publishedAt on a playlistItem is the date the video was ADDED to
+  // the playlist (i.e. when it was liked), NOT the video's publish date. When a
+  // sinceDate is given (MCP get_youtube_likes tool) we filter by like-date;
+  // when omitted (the intake cron) we process the whole playlist and let
+  // source_id dedup skip already-captured videos.
+  const since = sinceDate ? new Date(sinceDate) : null;
   const items = (itemsRes.data.items || []).filter(
-    (item) => new Date(item.snippet.publishedAt) >= since
+    (item) => !since || new Date(item.snippet.publishedAt) >= since
   );
 
   const results = [];

@@ -1,7 +1,37 @@
 # customBrain — Roadmap
-## Last updated: 2026-05-23 (v0.27.0 — P17 Step 1 topic-aliases shipped; Steps 2-3 queued)
+## Last updated: 2026-06-12 (v0.28.x — YouTube intake cat-24 fix shipped; P18 retrieval-transparency UI queued as TOP)
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
+
+---
+
+## P18 (NEW) — Retrieval-transparency UI + thought display — TOP PRIO (2026-06-12)
+
+**Why now**: a YouTube-intake debug (0.28.x) közben kiderült, hogy a brain-search tisztán szemantikus, a megjelenítés pedig nem mutatja meg *miért* talált meg egy thoughtot, sem hogy hány vektor reprezentálja. Robi explicit igénye: a chunk/vektor-szerkezet és a keresés működése legyen látható a UI-on. Scoping-döntések 2026-06-12: **élő explain endpoint** + **viz a jelenlegi adatra** (nem élesítjük most a chunkolást).
+
+### Backend (2 új read-only endpoint)
+1. **`GET /thoughts/:id/anatomy`** — pont-szerkezet (fő pont + chunkok: `chunk_kind`, `chunk_label`, `chunk_text`, `chunk_index`) + összesítők (pontok, dense/sparse vektorok, summary/content chunk szám). Forrás: Qdrant retrieve + `parent_id` scroll.
+2. **`GET /search/explain?q=&id=`** — élő explain: 3 láb (dense-only, bm25-only, RRF) nagy limittel; a thought minden pontjára dense cosine+rank, bm25 score+rank, RRF rank, felszínre-került-e. Qdrant saját pontozása → "mit adott ki és mit nem".
+3. Mindkét route felvétele a `server/index.js` wildcard-guardjába (SPA-routing).
+
+### Frontend
+4. **"Show more…" lenyíló** hosszú szövegre — új `CollapsibleText` komponens, Search + `ThoughtView` (Recent).
+5. **Summary ↔ teljes thought elválasztás** — v2-eseknél a `text` = `summary` + `---` + `eredeti`; summary kiemelt blokk, eredeti "Teljes thought" mögött. `has_v2_summary` + `chunk_count` beadása a `/recent` és `/search` válaszba.
+6. **"Anatómia" gomb** thoughtonként → új `ChunkAnatomyModal` (`ThoughtModal` stílus): számlálók + pont/chunk lista (kind-badge, label, collapsible chunk-text, "dense 3072d · bm25 N term"); keresésből nyitva az explain pontonkénti cosine/rank/RRF + nyertes chunk kiemelés.
+6b. **Inline "index-gazdagság" badge** minden kártyán (Search + Recent), NEM csak a dialogban: pl. `1 vektor` vs `summary + 5 chunk` — egy pillantásra látszik melyik thought van jól/gyengén indexelve. Ez teszi a "1 thought = 1 vektor" lefedettségi gap-et láthatóvá a napi használatban (`chunk_count` a payloadból).
+
+### Email-thread kiegészítések (Robi 2026-06-12)
+7. **Mikor frissült a szál** — a `last_internal_date` (+ `updated_at`/`refresh_count`) MÁR tárolva van; csak UI-ra kell hozni a Gmail-source thoughtoknál ("captured" mellé "szál frissítve: <last_internal_date>"). **UI-only.**
+8. **Ki küldte az új sort** — JELENLEG NINCS tárolva. A `buildThreadText` az összes üzenetet egy blobba fűzi, csak az ELSŐ feladó kerül a fejlécbe, és a cleaner a per-üzenet `From:` sorokat levágja. Ehhez **capture-pipeline változás kell**: vagy `last_message_from` mező a refresh payloadba (olcsó, 80%), vagy `buildThreadText` átépítés per-üzenet feladó/dátum markerekkel (drágább, de a teljes szál olvashatóbb). **Backend + UI.**
+
+### "Egy thought = egy vektor?" — nyitott kérdés (külön vita, 2026-06-12)
+A viz pont arra világít rá, hogy MA **58/243 thoughtnak van chunkja** (a v2-chunkolás egyszeri prototípus-szkript, nem él a capture/refresh pipeline-ban). A "minden thought = 1 summary-vektor + X chunk-vektor" cél vs. a jelenlegi "1 thought = 1 vektor" trade-offját külön kell eldönteni — ez a viz adja majd az evidence-et hozzá. Döntésig a viz a jelenlegi adatra épül.
+
+### Verzió-bump
+0.28.x → 0.29.0 (minor: 2 új HTTP route, payload-mezők, UI). A 8-as pont (per-üzenet feladó) önálló minor lehet ha capture-pipeline-t bővít.
+
+### Scope-határ
+A Search↔ThoughtView badge-duplikációt NEM refaktoráljuk; a chunkolást NEM élesítjük a pipeline-ban (külön döntés).
 
 ---
 

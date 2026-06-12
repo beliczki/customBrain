@@ -2,6 +2,21 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.28.0 — 2026-06-12
+
+**Two arcs: YouTube intake fix + live multi-vector chunking for long thoughts.**
+
+### YouTube intake — Nate B Jones (and other late-liked videos) were silently dropped
+- **Root cause 1 (dominant):** YouTube classifies many AI channels (incl. `AI News & Strategy Daily | Nate B Jones`) as category 24 (Entertainment), and the cron's `YOUTUBE_SKIP_CATEGORIES` was `10,23,24` → every Nate video filtered. Changed to `10,23` (Music + Comedy only) in `state/settings.json`.
+- **Root cause 2:** the intake filtered the likes playlist by a trailing 7-day window, dropping videos liked during cron downtime or before the cron existed. `getYoutubeLikes()` now processes the full playlist (≤50) and relies on `source_id` dedup (`agent/tools/youtube.js`, `cron/youtube-intake.js`). Added a `findBySourceId` pre-check before the Gemini summary so re-scanning the playlist each run stays cheap.
+- Backfilled the 12 missing tech videos (incl. 7 Nate B Jones) and re-summarized 17 summary-less YouTube captures.
+
+### Live multi-vector chunking (ROADMAP P18, phase 1+2)
+- **`server/chunking.js` (new):** extracts the v2 reprocess+embed logic (Sonnet summary + topic chunks) into a reusable module. `CHUNK_THRESHOLD = 1500` chars.
+- **`captureThought` + `refreshCapture` (`server/routes/capture.js`):** thoughts longer than the threshold now get a summary point (summary-embedded dense + bm25) plus one point per summary/content chunk — at capture time and on Gmail thread refresh, not just via the one-off prototype. Short thoughts stay single-vector. If Sonnet errors or yields 0 chunks, falls back to single-vector so the capture never fails. `summary.js` coworker path opts out (`chunk: false`).
+- **`server/qdrant.js`:** `deletePoint` now purges a thought's chunk points; added `deleteChunksByParent` + `upsertChunks`. Refresh purges stale chunks before re-chunking.
+- **`scripts/backfill-chunks.js` (new):** hourly cron (10/run) backfilling the multi-vector treatment onto existing long single-vector thoughts; self-terminating on `!has_v2_summary`.
+
 ## 0.27.0 — 2026-05-23
 
 **Topic-alias normalization at capture time — Step 1 of the topic-consolidation + /dream coworker-loop arc (brain spec: `TODO-TOPIC-DREAM-V1`).** Mirrors the People/Projects alias pattern (0.13.0) for the third metadata dimension. Backwards-compatible: no env var → no alias map → capture behaves exactly as before.

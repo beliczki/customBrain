@@ -8,6 +8,7 @@ applySettingsToEnv();
 import { getYoutubeLikes } from '../agent/tools/youtube.js';
 import { fetchVideoSummary } from '../agent/tools/youtube-gemini.js';
 import { captureThought } from '../server/routes/capture.js';
+import { findBySourceId } from '../server/qdrant.js';
 
 const BOOTSTRAP_WARN_THRESHOLD = 20;
 
@@ -37,9 +38,13 @@ function buildText(item) {
 }
 
 async function run() {
-  const sinceDate = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-  const items = await getYoutubeLikes(sinceDate);
-  console.log(`YouTube intake: ${items.length} liked items since ${sinceDate}`);
+  // No date window: process the full likes playlist (capped at 50 by the API)
+  // every run and rely on source_id dedup to skip already-captured videos. A
+  // trailing like-date window silently dropped videos liked during cron
+  // downtime or before the cron existed; dedup early-returns before any
+  // embedding/Haiku cost, so re-scanning the playlist each run is cheap.
+  const items = await getYoutubeLikes();
+  console.log(`YouTube intake: ${items.length} liked items (full playlist)`);
 
   let captured = 0;
   let skipped = 0;
@@ -53,6 +58,15 @@ async function run() {
       continue;
     }
     try {
+      // Dedup BEFORE the expensive Gemini summary. Since the cron now scans the
+      // whole playlist every run (no date window), most items are already
+      // captured — skipping them here avoids ~45 wasted Gemini calls per run.
+      // captureThought re-checks the same (source, source_id) as a safety net.
+      if (await findBySourceId('youtube', item.video_id)) {
+        skipped++;
+        continue;
+      }
+
       // Gemini summary AFTER the filter — skip for music/etc, no wasted API calls
       console.log(`  summarizing: ${item.title}`);
       try {
