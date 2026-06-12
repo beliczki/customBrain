@@ -1,9 +1,9 @@
-import ReactMarkdown from 'react-markdown';
+import ThoughtBody from './ThoughtBody.jsx';
 
 // Reusable thought display block — shared between Recent (list mode) and
-// ThoughtModal (overlay mode). `onDelete` optional; only renders delete
-// button when provided.
-export default function ThoughtView({ thought, onDelete }) {
+// ThoughtModal (overlay mode). `onDelete` / `onAnatomy` optional; their buttons
+// only render when the callback is provided.
+export default function ThoughtView({ thought, onDelete, onAnatomy }) {
   if (!thought) return null;
   const meta = thought.metadata || thought;  // tolerate both shapes
   return (
@@ -15,24 +15,31 @@ export default function ThoughtView({ thought, onDelete }) {
               {thought.title}
             </h3>
           )}
-          {thought.text && (
-            <div className="text-sm text-txt-sec prose-sm break-words">
-              <ReactMarkdown>{thought.text}</ReactMarkdown>
-            </div>
+          {thought.text && <ThoughtBody text={thought.text} />}
+        </div>
+        <div className="thought-view__actions flex items-center gap-2 ml-3 shrink-0">
+          {onAnatomy && (
+            <button
+              onClick={() => onAnatomy(thought.id)}
+              className="anatomy-btn inline-flex items-center gap-1 text-xs text-txt-ter hover:text-accent border border-subtle px-2 py-1"
+              title="Vektor-anatómia: hány vektor és milyen chunkok reprezentálják"
+            >
+              ⊞ Anatómia
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(thought.id)}
+              className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/40 dark:hover:bg-red-800 dark:text-red-400 text-xs flex items-center gap-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              Delete
+            </button>
           )}
         </div>
-        {onDelete && (
-          <button
-            onClick={() => onDelete(thought.id)}
-            className="ml-3 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/40 dark:hover:bg-red-800 dark:text-red-400 text-xs flex items-center gap-1 shrink-0"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-            Delete
-          </button>
-        )}
       </div>
 
       <div className="space-y-2 text-xs">

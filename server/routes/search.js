@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { embedText } from '../embeddings.js';
 import { sparseEncodeQuery } from '../sparse.js';
-import { hybridSearch, getByIds } from '../qdrant.js';
+import { hybridSearch, getByIds, explainLegs, getChunksWithVectors } from '../qdrant.js';
 
 const router = Router();
 
@@ -14,6 +14,55 @@ router.get('/search', async (req, res) => {
     res.json(results);
   } catch (err) {
     console.error('Search error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Live "why did this thought match?" explainer (P18). Runs the query on each
+// retrieval leg separately (dense-only, bm25-only, RRF-fused) and reports, for
+// every point of the given thought (summary + each chunk), its cosine/rank on
+// each leg — null when it didn't make the top-N. Shows what surfaced and what
+// didn't, straight from Qdrant's own scoring.
+router.get('/search/explain', async (req, res) => {
+  const { q, id } = req.query;
+  if (!q || !id) return res.status(400).json({ error: 'q and id parameters required' });
+
+  try {
+    const denseVector = await embedText(q, 'RETRIEVAL_QUERY');
+    const sparseVector = sparseEncodeQuery(q);
+    const legs = await explainLegs(denseVector, sparseVector, 100);
+    const chunks = await getChunksWithVectors(id);
+
+    const rankMap = (pts) => {
+      const m = new Map();
+      pts.forEach((p, i) => m.set(String(p.id), { rank: i + 1, score: p.score }));
+      return m;
+    };
+    const dM = rankMap(legs.dense);
+    const bM = rankMap(legs.bm25);
+    const rM = rankMap(legs.rrf);
+    const lookup = (pid) => ({
+      dense: dM.get(String(pid)) || null,
+      bm25: bM.get(String(pid)) || null,
+      rrf: rM.get(String(pid)) || null,
+    });
+
+    const points = [
+      { id, label: 'thought / summary', kind: 'thought', ...lookup(id) },
+      ...chunks.map((c) => ({
+        id: c.id,
+        label: c.payload.chunk_label,
+        kind: c.payload.chunk_kind,
+        ...lookup(c.id),
+      })),
+    ];
+    const winner = points
+      .filter((p) => p.rrf)
+      .sort((a, b) => a.rrf.rank - b.rrf.rank)[0]?.id || null;
+
+    res.json({ q, id, leg_limit: 100, winner, points });
+  } catch (err) {
+    console.error('Explain error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

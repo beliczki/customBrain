@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { scrollRecent, deletePoint, getById, updatePayload } from '../qdrant.js';
+import { scrollRecent, deletePoint, getById, updatePayload, getWithVectors, getChunksWithVectors } from '../qdrant.js';
 
 const router = Router();
 
@@ -27,6 +27,53 @@ router.get('/thoughts/:id', async (req, res) => {
     res.json(thought);
   } catch (err) {
     console.error('Get thought error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Retrieval anatomy: the thought's full point/vector structure (P18). Shows
+// how many vectors represent the thought and what each chunk is.
+router.get('/thoughts/:id/anatomy', async (req, res) => {
+  try {
+    const [main] = await getWithVectors([req.params.id]);
+    if (!main) return res.status(404).json({ error: 'Not found' });
+    const chunks = await getChunksWithVectors(req.params.id);
+
+    const vinfo = (p) => ({
+      dense_dim: Array.isArray(p.vector?.dense) ? p.vector.dense.length : 0,
+      bm25_terms: p.vector?.bm25?.indices?.length ?? 0,
+    });
+    const kindRank = (k) => (k === 'summary' ? 0 : 1);
+    const ordered = [...chunks].sort((a, b) =>
+      kindRank(a.payload.chunk_kind) - kindRank(b.payload.chunk_kind) ||
+      (a.payload.chunk_index ?? 0) - (b.payload.chunk_index ?? 0)
+    );
+
+    res.json({
+      id: req.params.id,
+      title: main.payload.title,
+      source: main.payload.source,
+      has_v2_summary: !!main.payload.has_v2_summary,
+      chunk_count: chunks.length,
+      main: { text_length: (main.payload.text || '').length, ...vinfo(main) },
+      chunks: ordered.map((c) => ({
+        id: c.id,
+        chunk_kind: c.payload.chunk_kind,
+        chunk_index: c.payload.chunk_index,
+        chunk_label: c.payload.chunk_label,
+        chunk_text: c.payload.chunk_text,
+        ...vinfo(c),
+      })),
+      totals: {
+        points: 1 + chunks.length,
+        dense_vectors: 1 + chunks.length,
+        sparse_vectors: 1 + chunks.length,
+        summary_chunks: chunks.filter((c) => c.payload.chunk_kind === 'summary').length,
+        content_chunks: chunks.filter((c) => c.payload.chunk_kind === 'content').length,
+      },
+    });
+  } catch (err) {
+    console.error('Anatomy error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

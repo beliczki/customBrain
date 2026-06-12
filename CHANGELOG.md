@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.29.0 — 2026-06-12
+
+**Retrieval-transparency viz + compact thought cards (ROADMAP P18, phase 3+4).**
+
+- **`GET /thoughts/:id/anatomy` (new route):** a thought's full point/vector structure — main (summary) point + every chunk, each with `dense 3072d · bm25 N term`, plus totals (points, dense/sparse vectors, summary/content chunk counts).
+- **`GET /search/explain?q=&id=` (new route):** live "why did this match?" — runs the query on each leg (dense-only, bm25-only, RRF) at limit 100 and reports, per point of the thought, its cosine/score + rank on each leg (or `null` when it didn't surface), plus which point won. `server/qdrant.js` gains `getWithVectors`, `getChunksWithVectors`, `explainLegs`.
+- **`ChunkAnatomyModal` (new):** opened via an `⊞ Anatómia` button on every Search result and Recent card (top-right, next to title/Delete). Shows the vector anatomy; from search it also renders per-point dense/bm25/RRF scores with the winning chunk highlighted.
+- **`ThoughtBody` (new) — compact cards:** thoughts stored as `summary --- original` (v2-chunked + YouTube) now show the summary collapsed past 600 chars with the full original behind a `▸ Teljes thought` toggle, instead of rendering as one wall of text. Keeps metadata and the Anatómia button reachable.
+
 ## 0.28.0 — 2026-06-12
 
 **Two arcs: YouTube intake fix + live multi-vector chunking for long thoughts.**

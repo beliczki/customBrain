@@ -41,6 +41,21 @@ export async function getThought(id) {
   return res.json();
 }
 
+export async function thoughtAnatomy(id) {
+  const res = await fetch(`${BASE}/thoughts/${id}/anatomy`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`anatomy HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function searchExplain(q, id) {
+  const res = await fetch(
+    `${BASE}/search/explain?q=${encodeURIComponent(q)}&id=${encodeURIComponent(id)}`,
+    { headers: authHeaders() }
+  );
+  if (!res.ok) throw new Error(`explain HTTP ${res.status}`);
+  return res.json();
+}
+
 export async function deleteThought(id) {
   const res = await fetch(`${BASE}/thoughts/${id}`, {
     method: 'DELETE',

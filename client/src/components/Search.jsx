@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { search } from '../api.js';
+import ThoughtBody from './ThoughtBody.jsx';
+import ChunkAnatomyModal from './ChunkAnatomyModal.jsx';
 
 export default function Search() {
   const [query, setQuery] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [anatomyId, setAnatomyId] = useState(null);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -14,6 +17,7 @@ export default function Search() {
     try {
       const data = await search(query);
       setResults(data);
+      setSubmittedQuery(query);
     } catch (err) {
       setResults([]);
     }
@@ -41,14 +45,23 @@ export default function Search() {
         {results.map((r) => (
           <div key={r.id} className="py-6 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
             <div className="mb-3">
-              {r.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide text-txt">{r.title}</h3>}
+              <div className="flex justify-between items-start gap-2">
+                {r.title && <h3 className="text-base font-bold mb-1 uppercase tracking-wide text-txt flex-1 min-w-0">{r.title}</h3>}
+                <button
+                  onClick={() => setAnatomyId(r.id)}
+                  className="anatomy-btn shrink-0 inline-flex items-center gap-1 text-xs text-txt-ter hover:text-accent border border-subtle px-2 py-1"
+                  title="Vektor-anatómia: hány vektor, milyen chunkok, mi alapján találta meg"
+                >
+                  ⊞ Anatómia
+                </button>
+              </div>
               {r.matched_chunk_label && (
                 <p className="chunk-match-label text-xs text-txt-ter italic mb-2">
                   ↳ találat: <span className="not-italic font-medium text-txt-sec">{r.matched_chunk_label}</span>
                   {r.matched_chunk_kind && <span className="ml-1 text-[10px] uppercase tracking-wider">({r.matched_chunk_kind})</span>}
                 </p>
               )}
-              <div className="text-sm text-txt-sec prose-sm"><ReactMarkdown>{r.text}</ReactMarkdown></div>
+              <ThoughtBody text={r.text} />
             </div>
 
             <div className="space-y-2 text-xs">
@@ -115,6 +128,7 @@ export default function Search() {
           </div>
         ))}
       </div>
+      <ChunkAnatomyModal thoughtId={anatomyId} query={submittedQuery} onClose={() => setAnatomyId(null)} />
     </div>
   );
 }

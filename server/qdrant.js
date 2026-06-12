@@ -200,6 +200,50 @@ export async function upsertChunks(points) {
   await qdrant.upsert(COLLECTION, { points });
 }
 
+// === Retrieval-transparency (P18 anatomy + explain) ===
+
+// Retrieve points by id WITH their named vectors (dense array + bm25 sparse).
+export async function getWithVectors(ids) {
+  if (!ids?.length) return [];
+  return (await qdrant.retrieve(COLLECTION, { ids, with_payload: true, with_vector: true })) || [];
+}
+
+// All chunk points for a parent thought, with vectors, ordered for display.
+export async function getChunksWithVectors(parentId) {
+  const res = await qdrant.scroll(COLLECTION, {
+    limit: 256,
+    with_payload: true,
+    with_vector: true,
+    filter: {
+      must: [
+        { key: 'kind', match: { value: 'chunk' } },
+        { key: 'parent_id', match: { value: parentId } },
+      ],
+    },
+  });
+  return res.points || [];
+}
+
+// Run the query on each leg separately (dense-only, bm25-only, RRF-fused) so the
+// caller can show how every point of a given thought scored and whether it
+// surfaced. Returns ranked {id, score} arrays per leg.
+export async function explainLegs(denseVector, sparseVector, limit = 100) {
+  const [dense, bm25, rrf] = await Promise.all([
+    qdrant.query(COLLECTION, { query: denseVector, using: 'dense', limit, with_payload: false }),
+    qdrant.query(COLLECTION, { query: sparseVector, using: 'bm25', limit, with_payload: false }),
+    qdrant.query(COLLECTION, {
+      prefetch: [
+        { query: denseVector, using: 'dense', limit },
+        { query: sparseVector, using: 'bm25', limit },
+      ],
+      query: { rrf: { k: 60 } },
+      limit,
+      with_payload: false,
+    }),
+  ]);
+  return { dense: dense.points, bm25: bm25.points, rrf: rrf.points };
+}
+
 export async function updatePayload(id, payload) {
   await qdrant.setPayload(COLLECTION, { points: [id], payload });
 }
