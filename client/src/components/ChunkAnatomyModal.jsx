@@ -5,6 +5,18 @@ import { thoughtAnatomy, searchExplain } from '../api.js';
 // thought. Shows how many vectors represent the thought (summary + chunks), and
 // — when opened from a search with a query — how each point scored on the
 // dense / bm25 / RRF legs and which one surfaced it.
+// Hover "?" with an explanation bubble. CSS-only (group-hover), no positioning JS.
+function HelpTip({ text }) {
+  return (
+    <span className="help-tip group relative inline-flex align-middle ml-1 cursor-help">
+      <span className="help-tip__icon w-3.5 h-3.5 inline-flex items-center justify-center rounded-full border border-subtle text-[9px] leading-none text-txt-ter">?</span>
+      <span className="help-tip__bubble pointer-events-none absolute left-0 bottom-full z-30 mb-1 hidden group-hover:block w-60 bg-surface border border-subtle shadow-lg p-2 text-[11px] leading-snug normal-case tracking-normal text-txt-sec">
+        {text}
+      </span>
+    </span>
+  );
+}
+
 function KindBadge({ kind }) {
   const map = {
     summary: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300',
@@ -100,6 +112,21 @@ export default function ChunkAnatomyModal({ thoughtId, query, onClose }) {
                   <span className="empty-state text-txt-ter">1 vektor · nincs chunk (egytémájú vagy &lt;1500 char)</span>
                 )}
                 <span className="text-txt-ter">forrás: {anatomy.source}</span>
+              </div>
+
+              <div className="anatomy-legend flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-txt-ter mb-4">
+                <span>
+                  dense 3072d
+                  <HelpTip text="A jelentést kódoló Gemini-embedding — fix 3072 számból (innen a '3072d'). Szemantikus hasonlóságra: 'ugyanazt jelenti', akkor is ha más szavakkal van leírva." />
+                </span>
+                <span>
+                  bm25 term
+                  <HelpTip text="Kulcsszó- (sparse) vektor. Pontos szó-egyezésre — nevek, rövidítések (pl. SZA), amiket a dense elmosna. A 'N term' = N egyedi szótő ebben a darabban (kisbetűsítés + stopszavak elhagyása + szótövezés után). Több term = szélesebb szókincs, több szóra található meg." />
+                </span>
+                <span>
+                  keresés
+                  <HelpTip text="A keresés a dense és a bm25 vektort RRF-fel fúzionálja. Keresésből nyitva itt látod pontonként a cosine-t, a rangot mindkét lábon, és melyik chunk vitte fel a thoughtot." />
+                </span>
               </div>
 
               {query && (

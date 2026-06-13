@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.30.1 — 2026-06-13
+
+**Anatomy dialog: inline `?` help tooltips.** Hover-explanations for `dense 3072d`, `bm25 N term`, and the search-explain scores in `ChunkAnatomyModal`, so the vector terminology is self-documenting. CSS-only tooltips (group-hover), no behavior change.
+
 ## 0.30.0 — 2026-06-12
 
 **P18 finish: index-richness badge + email-thread freshness/sender on cards.**
