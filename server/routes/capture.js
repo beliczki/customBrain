@@ -5,7 +5,7 @@ import { extractMetadata, checkContradiction } from '../metadata.js';
 import { upsertPoint, searchVector, updatePayload, findBySourceId, getById, deleteChunksByParent, upsertChunks } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
 import { computeEffectiveDate } from '../effective-date.js';
-import { reprocessToArtifacts, buildChunkPoints, CHUNK_THRESHOLD } from '../chunking.js';
+import { reprocessToArtifacts, buildChunkPoints } from '../chunking.js';
 
 const router = Router();
 
@@ -46,35 +46,17 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
 
   const vaultCtx = await getVaultContext();
 
-  // Long thoughts get the multi-vector treatment (Sonnet summary + topic
-  // chunks); short ones stay single-vector (one topic, one vector). The main
-  // point's vector is the summary embedding for long thoughts, the full-text
-  // embedding for short ones.
-  let isLong = false;
-  let vector, sparseVector, metadata, summary = null, chunkSpecs = null;
-  if (text.length > CHUNK_THRESHOLD) {
-    try {
-      const art = await reprocessToArtifacts(text, vaultCtx);
-      vector = art.mainVector;
-      sparseVector = art.mainSparse;
-      metadata = art.metadata;
-      summary = art.summary;
-      chunkSpecs = art.chunkSpecs;
-      isLong = true;
-    } catch (err) {
-      // Chunking is an enhancement, not a requirement. If Sonnet errors or
-      // yields 0 chunks, fall back to the single-vector path so the capture
-      // still succeeds (auto-intake must not fail on a transient model hiccup).
-      console.warn(`Chunking failed for long capture (${err.message}); single-vector fallback.`);
-    }
-  }
-  if (!isLong) {
-    [vector, metadata] = await Promise.all([
-      embedText(text, 'RETRIEVAL_DOCUMENT'),
-      extractMetadata(text, vaultCtx),
-    ]);
-    sparseVector = sparseEncodeDoc(text);
-  }
+  // Capture is always a FAST single-vector write (embedding + Haiku metadata).
+  // Multi-vector chunking (Sonnet summary + topic chunks) is too slow to run
+  // synchronously here — a long article would block the HTTP response past the
+  // nginx 60s gateway timeout and break the Chrome extension. Chunking is done
+  // asynchronously by cron/backfill-chunks.js (enrichWithChunks), which upgrades
+  // long single-vector thoughts to multi-vector within minutes.
+  const [vector, metadata] = await Promise.all([
+    embedText(text, 'RETRIEVAL_DOCUMENT'),
+    extractMetadata(text, vaultCtx),
+  ]);
+  const sparseVector = sparseEncodeDoc(text);
 
   // Check near-duplicates for contradictions (top 3, not just top 1).
   // Note: the new-thought vector is RETRIEVAL_DOCUMENT and stored vectors are
@@ -107,11 +89,8 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
     }
   }
 
-  const now = new Date().toISOString();
   const payload = {
-    // For long thoughts the stored text leads with the summary (UI shows it
-    // first), original below the delimiter — same shape v2 reprocess produced.
-    text: isLong ? `${summary}\n\n---\n\n${text}` : text,
+    text,
     title: metadata.title || '',
     people: metadata.people || [],
     topics: metadata.topics || [],
@@ -121,13 +100,7 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
     status: 'active',
     source,
     source_id: sourceId,
-    created_at: now,
-    ...(isLong && {
-      has_v2_summary: true,
-      pipeline_version: 'v2',
-      chunk_count: chunkSpecs.length,
-      summary_appended_at: now,
-    }),
+    created_at: new Date().toISOString(),
     ...(supersedes && { supersedes }),
     ...extraPayload,
   };
@@ -138,23 +111,54 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
   payload.effective_date = computeEffectiveDate(payload);
 
   const id = await upsertPoint(vector, sparseVector, payload);
-  if (isLong) {
-    await deleteChunksByParent(id); // belt-and-suspenders; a fresh id has none
-    await upsertChunks(
-      buildChunkPoints(id, chunkSpecs, {
-        parent_title: payload.title,
-        parent_source: source,
-        created_at: now,
-      })
-    );
-  }
-  return {
-    ok: true,
-    id,
-    metadata,
-    ...(isLong && { chunk_count: chunkSpecs.length }),
-    ...(supersedes && { supersedes, archived: supersedes }),
+  return { ok: true, id, metadata, ...(supersedes && { supersedes, archived: supersedes }) };
+}
+
+/**
+ * Background chunk enrichment — upgrades an existing single-vector thought to
+ * multi-vector (summary point + topic chunks). Called by the chunking cron, NOT
+ * at capture time: reprocessToArtifacts runs Sonnet, which is too slow to block
+ * an HTTP capture. Reads the thought's current (raw) text, so it must run before
+ * the thought is itself summary-wrapped (the cron only targets thoughts without
+ * has_v2_summary / has_auto_summary). Throws on model error / 0 chunks; the cron
+ * logs and moves on, leaving the thought single-vector.
+ */
+export async function enrichWithChunks(id) {
+  const existing = await getById(id);
+  if (!existing) return { ok: false, reason: 'not found' };
+  const original = existing.text || '';
+
+  const vaultCtx = await getVaultContext();
+  const art = await reprocessToArtifacts(original, vaultCtx);
+
+  const now = new Date().toISOString();
+  const { id: _omitId, ...prev } = existing;
+  const payload = {
+    ...prev,
+    text: `${art.summary}\n\n---\n\n${original}`,
+    title: art.metadata.title || existing.title || '',
+    people: art.metadata.people || [],
+    projects: art.metadata.projects || [],
+    topics: art.metadata.topics || [],
+    type: art.metadata.type || existing.type || 'note',
+    action_items: art.metadata.action_items || [],
+    has_v2_summary: true,
+    pipeline_version: 'v2',
+    chunk_count: art.chunkSpecs.length,
+    summary_appended_at: now,
   };
+  payload.effective_date = computeEffectiveDate(payload);
+
+  await upsertPoint(art.mainVector, art.mainSparse, payload, id);
+  await deleteChunksByParent(id);
+  await upsertChunks(
+    buildChunkPoints(id, art.chunkSpecs, {
+      parent_title: payload.title,
+      parent_source: payload.source,
+      created_at: payload.created_at,
+    })
+  );
+  return { ok: true, id, chunk_count: art.chunkSpecs.length };
 }
 
 /**
@@ -174,42 +178,23 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
  * NOT strip the existing summary from the text on refresh — leaving it in
  * place avoids burning a subscription call on every Gmail thread refresh.
  */
-// `chunk` (default true) — when false, the caller manages its own text
-// representation and we must NOT re-summarize/re-chunk (e.g. the coworker
-// summary path in summary.js passes already-summary-wrapped text). The Gmail
-// intake passes raw thread text → chunk:true so long threads get the
-// multi-vector treatment.
-export async function refreshCapture(id, newText, { extraPayload = {}, chunk = true } = {}) {
+// Like captureThought, this is a FAST single-vector write. Multi-vector
+// chunking is handled asynchronously by the chunking cron, not here. The text
+// changed, so existing chunks are purged; the cron re-chunks if the new text is
+// long (the new payload carries no has_v2_summary, so it's re-eligible).
+export async function refreshCapture(id, newText, { extraPayload = {} } = {}) {
   const existing = await getById(id);
   if (!existing) throw new Error(`Thought ${id} not found`);
 
   const vaultCtx = await getVaultContext();
-  let isLong = false;
-  let vector, sparseVector, metadata, summary = null, chunkSpecs = null;
-  if (chunk && newText.length > CHUNK_THRESHOLD) {
-    try {
-      const art = await reprocessToArtifacts(newText, vaultCtx);
-      vector = art.mainVector;
-      sparseVector = art.mainSparse;
-      metadata = art.metadata;
-      summary = art.summary;
-      chunkSpecs = art.chunkSpecs;
-      isLong = true;
-    } catch (err) {
-      console.warn(`Chunking failed for refresh ${id} (${err.message}); single-vector fallback.`);
-    }
-  }
-  if (!isLong) {
-    [vector, metadata] = await Promise.all([
-      embedText(newText, 'RETRIEVAL_DOCUMENT'),
-      extractMetadata(newText, vaultCtx),
-    ]);
-    sparseVector = sparseEncodeDoc(newText);
-  }
+  const [vector, metadata] = await Promise.all([
+    embedText(newText, 'RETRIEVAL_DOCUMENT'),
+    extractMetadata(newText, vaultCtx),
+  ]);
+  const sparseVector = sparseEncodeDoc(newText);
 
-  const now = new Date().toISOString();
   const payload = {
-    text: isLong ? `${summary}\n\n---\n\n${newText}` : newText,
+    text: newText,
     title: metadata.title || '',
     people: metadata.people || [],
     topics: metadata.topics || [],
@@ -220,38 +205,13 @@ export async function refreshCapture(id, newText, { extraPayload = {}, chunk = t
     source: existing.source,
     source_id: existing.source_id,
     created_at: existing.created_at,
-    updated_at: now,
+    updated_at: new Date().toISOString(),
     refresh_count: (existing.refresh_count || 0) + 1,
-    ...(isLong && {
-      has_v2_summary: true,
-      pipeline_version: 'v2',
-      chunk_count: chunkSpecs.length,
-      summary_appended_at: now,
-    }),
     ...extraPayload,
   };
   payload.effective_date = computeEffectiveDate(payload);
 
   await upsertPoint(vector, sparseVector, payload, id);
-  // Keep the chunk set consistent with the new text. Only when we own chunking
-  // (chunk:true): purge stale chunks, then re-add if the new text is long.
-  if (chunk) {
-    await deleteChunksByParent(id);
-    if (isLong) {
-      await upsertChunks(
-        buildChunkPoints(id, chunkSpecs, {
-          parent_title: payload.title,
-          parent_source: payload.source,
-          created_at: payload.created_at,
-        })
-      );
-    }
-  }
-  return {
-    ok: true,
-    id,
-    refreshed: true,
-    refresh_count: payload.refresh_count,
-    ...(isLong && { chunk_count: chunkSpecs.length }),
-  };
+  await deleteChunksByParent(id); // stale chunks; cron re-chunks if long
+  return { ok: true, id, refreshed: true, refresh_count: payload.refresh_count };
 }

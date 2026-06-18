@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.31.0 — 2026-06-18
+
+**Fix: Chrome extension "Save to Brain" failed on long articles (504 → "Unexpected token '<'").**
+
+- **Root cause:** 0.28.0 made `/capture` run the Sonnet multi-vector reprocess *synchronously*. A full-length article (~15k chars) took >60s, hit nginx's gateway timeout, and returned a 504 **HTML** page — which the extension tried to `JSON.parse`.
+- **Fix:** `captureThought` and `refreshCapture` are fast single-vector writes again (embedding + Haiku metadata, ~5–15s, well under the timeout). Chunking moved to the background: new `enrichWithChunks` (in `capture.js`) upgrades a thought to summary + topic chunks, called only by the chunking cron (`scripts/backfill-chunks.js`, now every 10 min, permanent). Long thoughts are searchable immediately and gain chunks within minutes.
+- The cron skips coworker-summarized thoughts (`has_auto_summary`) and marks deterministically-failing ones (`chunk_skipped`) so it never retries a 0-chunk thought forever. `refreshCapture` purges stale chunks so updated threads get re-chunked.
+
 ## 0.30.1 — 2026-06-13
 
 **Anatomy dialog: inline `?` help tooltips.** Hover-explanations for `dense 3072d`, `bm25 N term`, and the search-explain scores in `ChunkAnatomyModal`, so the vector terminology is self-documenting. CSS-only tooltips (group-hover), no behavior change.

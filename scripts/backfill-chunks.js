@@ -1,11 +1,12 @@
-// One-time migration (runs hourly via crontab over ~24h): backfill the
-// multi-vector treatment onto existing LONG single-vector thoughts. Each run
-// reprocesses the next N (default 10) thoughts with text > CHUNK_THRESHOLD and
-// no has_v2_summary, via refreshCapture (Sonnet summary + topic chunks). The
-// !has_v2_summary filter makes it self-terminating: once every long thought is
-// v2, runs become no-ops. Remove the crontab entry when "remaining=0".
+// Background chunking cron — the multi-vector treatment runs HERE, not at
+// capture time (Sonnet is too slow to block an HTTP capture; doing it inline
+// times out the nginx gateway and breaks the Chrome extension). Each run finds
+// long single-vector thoughts (text > CHUNK_THRESHOLD, no has_v2_summary, no
+// has_auto_summary coworker summary) and upgrades them to summary + topic chunks
+// via enrichWithChunks. Idempotent and self-limiting: once a thought is chunked
+// it carries has_v2_summary and is skipped. Permanent (runs every ~10 min):
 //
-//   0 * * * * cd /root/customBrain && /usr/bin/node scripts/backfill-chunks.js 10 >> /var/log/brain-backfill.log 2>&1
+//   */10 * * * * cd /root/customBrain && /usr/bin/node scripts/backfill-chunks.js 10 >> /var/log/brain-backfill.log 2>&1
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -13,8 +14,9 @@ dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env'
 import { applySettingsToEnv } from '../server/config.js';
 applySettingsToEnv();
 
-import { getById } from '../server/qdrant.js';
-import { refreshCapture } from '../server/routes/capture.js';
+import { enrichWithChunks } from '../server/routes/capture.js';
+import { CHUNK_THRESHOLD } from '../server/chunking.js';
+import { updatePayload } from '../server/qdrant.js';
 import { QdrantClient } from '@qdrant/js-client-rest';
 
 const q = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' });
@@ -40,27 +42,29 @@ async function scrollThoughts() {
 
 const stamp = new Date().toISOString();
 const pts = await scrollThoughts();
-const remaining = pts
-  .filter((p) => (p.payload.text || '').length > 1500 && !p.payload.has_v2_summary)
+const pending = pts
+  .filter((p) => (p.payload.text || '').length > CHUNK_THRESHOLD && !p.payload.has_v2_summary && !p.payload.has_auto_summary && !p.payload.chunk_skipped)
   .sort((a, b) => new Date(b.payload.effective_date || b.payload.created_at) - new Date(a.payload.effective_date || a.payload.created_at));
 
-console.log(`[${stamp}] backfill: ${remaining.length} long single-vector thoughts remain; processing ${Math.min(N, remaining.length)}`);
-if (remaining.length === 0) {
-  console.log(`[${stamp}] nothing to do — backfill complete. Safe to remove the crontab entry.`);
+if (pending.length === 0) {
+  console.log(`[${stamp}] chunking: nothing pending.`);
   process.exit(0);
 }
+console.log(`[${stamp}] chunking: ${pending.length} long single-vector thoughts pending; processing ${Math.min(N, pending.length)}`);
 
-const batch = remaining.slice(0, N);
 let ok = 0, fail = 0;
-for (const t of batch) {
+for (const t of pending.slice(0, N)) {
   try {
-    const r = await refreshCapture(t.id, t.payload.text);
-    const after = await getById(t.id);
-    console.log(`  OK  chunks=${r.chunk_count ?? '-'}  ${after.source}  "${(after.title || '').slice(0, 50)}"`);
+    const r = await enrichWithChunks(t.id);
+    console.log(`  OK  chunks=${r.chunk_count ?? '-'}  ${t.payload.source}  "${(t.payload.title || '').slice(0, 50)}"`);
     ok++;
   } catch (e) {
+    // Deterministic model failure (Sonnet yields 0 chunks / malformed JSON for
+    // this content). Mark it so we don't burn a Sonnet call retrying it every
+    // run forever — it stays single-vector, still fully searchable.
     console.log(`  FAIL ${t.id} ${e.message.slice(0, 90)} | "${(t.payload.title || '').slice(0, 40)}"`);
+    await updatePayload(t.id, { chunk_skipped: true, chunk_skip_reason: e.message.slice(0, 200) });
     fail++;
   }
 }
-console.log(`[${stamp}] batch done: ok=${ok} fail=${fail} | remaining after this run: ~${remaining.length - ok}`);
+console.log(`[${stamp}] chunking done: ok=${ok} fail=${fail} | pending after run: ~${pending.length - ok}`);
