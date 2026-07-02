@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAgentTools } from '../agent/register.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -207,9 +208,13 @@ export async function handleMcpHttp(req, res) {
     return;
   }
 
-  // New session
+  // New session — stateful: the SDK issues an Mcp-Session-Id on initialize and
+  // routes subsequent tools/call requests back to this same initialized transport.
   const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
+    sessionIdGenerator: () => randomUUID(),
+    onsessioninitialized: (sid) => {
+      httpTransports.set(sid, transport);
+    },
   });
 
   const server = createMcpServer();
@@ -220,10 +225,5 @@ export async function handleMcpHttp(req, res) {
   };
 
   await server.connect(transport);
-
-  if (transport.sessionId) {
-    httpTransports.set(transport.sessionId, transport);
-  }
-
   await transport.handleRequest(req, res);
 }

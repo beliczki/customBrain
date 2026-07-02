@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.32.0 — 2026-07-02
+
+**Fix: MCP `tools/call` failed from claude.ai ("not connected") — server ran the Streamable HTTP transport statelessly.**
+
+- **Root cause:** `handleMcpHttp` created the `StreamableHTTPServerTransport` with `sessionIdGenerator: undefined` (stateless mode). No `Mcp-Session-Id` was ever issued, so `transport.sessionId` stayed undefined and the `httpTransports` map was never populated — dead code despite the map/`onclose`/lookup all being written for stateful use. Every POST spun up a fresh, uninitialized transport. `initialize` + `tools/list` still succeeded statelessly (so the connector listed all 19 tools and the handshake looked healthy), but an actual `tools/call` landed on a brand-new uninitialized transport and was rejected as "not connected." Symptom was identical across every claude.ai surface (web chat, Claude Code, Desktop); nginx logs showed a full day of handshakes with zero `tools/call` reaching the server.
+- **Diagnosis:** curl against `/mcp/http` confirmed `initialize` returned HTTP 200 with **no `Mcp-Session-Id` header**. Token, reconnect, and per-chat toggle were all red herrings — the server-side session model was the fault.
+- **Fix:** proper stateful transport — `sessionIdGenerator: () => randomUUID()` + `onsessioninitialized` stores the transport in `httpTransports` keyed by the issued session id. Subsequent `tools/call` requests carry the `Mcp-Session-Id` and route back to the same initialized transport. Spec-compliant; does not affect `mcp-stdio.js` (no HTTP transport).
+
 ## 0.31.0 — 2026-06-18
 
 **Fix: Chrome extension "Save to Brain" failed on long articles (504 → "Unexpected token '<'").**
