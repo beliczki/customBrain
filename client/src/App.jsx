@@ -1,15 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import Capture from './components/Capture.jsx';
 import Search from './components/Search.jsx';
 import Recent from './components/Recent.jsx';
 import Agenda from './components/Agenda.jsx';
+// Lazy: sigma + graphology (~400 kB) load only when the Graph tab is opened,
+// keeping the initial SPA bundle small and the Hetzner build under memory.
+const Graph = lazy(() => import('./components/Graph.jsx'));
 import Stats from './components/Stats.jsx';
 import Export from './components/Export.jsx';
 import Settings from './components/Settings.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import pkg from '../package.json';
 
-const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Stats', 'Export', 'Settings'];
+const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Graph', 'Stats', 'Export', 'Settings'];
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'customBrain';
 const APP_VERSION = pkg.version;
 
@@ -175,6 +178,11 @@ export default function App() {
             {active === 'Search' && <Search />}
             {active === 'Recent' && <Recent />}
             {active === 'Agenda' && <Agenda />}
+            {active === 'Graph' && (
+              <Suspense fallback={<p className="text-txt-ter text-sm">Loading graph…</p>}>
+                <Graph />
+              </Suspense>
+            )}
             {active === 'Stats' && <Stats />}
             {active === 'Export' && <Export />}
             {active === 'Settings' && <Settings />}

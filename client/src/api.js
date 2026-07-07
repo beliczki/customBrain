@@ -71,6 +71,12 @@ export async function stats() {
   return res.json();
 }
 
+export async function getGraph() {
+  const res = await fetch(`${BASE}/graph`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`graph HTTP ${res.status}`);
+  return res.json();
+}
+
 export async function healthCheck() {
   const res = await fetch(`${BASE}/health-check`, { headers: authHeaders() });
   return res.json();
