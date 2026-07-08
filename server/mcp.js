@@ -26,7 +26,7 @@ export function createMcpServer() {
 
   server.tool(
     'capture_thought',
-    'Capture a new thought into the brain — extracts metadata (people, topics, projects, type, action items) automatically. If a near-duplicate exists and contradicts, the old thought is archived.',
+    'Capture a new thought into the brain — extracts metadata (people, topics, projects, type, action items) automatically. If a near-duplicate exists and contradicts, the old thought is archived. WRITE-BACK CONVENTION: when a search-and-synthesize session produces a genuinely useful answer, file it back — capture the answer with a leading "Synthesis: <question>" line so it gets type=synthesis; the next session hits the pre-digested answer instead of re-deriving it from raw thoughts (compounding memory).',
     { text: z.string(), conflict_threshold: z.number().min(0).max(1).optional().describe('Cosine similarity threshold for conflict detection (default 0.85)') },
     async ({ text, conflict_threshold }) => {
       const opts = conflict_threshold != null ? { conflictThreshold: conflict_threshold } : {};

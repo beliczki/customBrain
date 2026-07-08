@@ -81,7 +81,7 @@ function buildPrompt(text, localCtx, vaultCtx) {
 - people: string[] (names of REAL people actually discussed; exclude AI assistants, chatbots, virtual characters, and people mentioned only in cc/quotes/passing)
 - topics: string[] (3-8 key topics/themes that capture what the thought is actually about)
 - projects: string[] — see rule below
-- type: string (one of: idea, note, task, meeting, reflection, reference, conversation)
+- type: string (one of: idea, note, task, meeting, reflection, reference, conversation, synthesis — use "synthesis" ONLY when the text explicitly presents itself as an answer/conclusion distilled from multiple earlier thoughts, e.g. starts with "Synthesis:" or "Összegzés:")
 - action_items: string[] (any concrete action items or todos)
 
 RULE FOR \`projects\` — IMPORTANT:

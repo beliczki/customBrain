@@ -7,9 +7,28 @@
 // "Run health check" button under the Stats tab in the UI. All three call
 // `runHealthCheck()` here.
 
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getAllWithVectors, getConnectionStats } from './qdrant.js';
 import { getVaultContext } from './drive-context.js';
 import { findOverconnected } from './brain-hygiene.js';
+
+const HISTORY_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'state', 'health-history.jsonl');
+
+// Severity per check (gbrain doctor steal): warn = a real retrieval-quality
+// issue worth acting on; info = cosmetic/awareness. Fixed classification so
+// a pile of cosmetic findings can never visually bury the real ones.
+const CHECK_SEVERITY = {
+  duplicate_candidates: 'warn',
+  over_tagged: 'warn',
+  stale_summaries: 'info',
+  oversized_no_summary: 'warn',
+  unknown_projects: 'warn',
+  unknown_people: 'warn',
+  orphan_project_files: 'info',
+  orphan_people_files: 'info',
+};
 
 const DUPLICATE_THRESHOLD = 0.92;
 const OVERSIZED_CHARS = 6000;          // matches the Gemini embedding window guard
@@ -180,7 +199,23 @@ export async function runHealthCheck() {
   const total = withVectors.length;
   const totalActive = withVectors.filter((p) => p.payload.status !== 'archived').length;
 
-  return {
+  // metadata_anomalies has a documented degraded shape ({unavailable: true})
+  // when Drive vault context is unreachable — count those categories as 0
+  // explicitly rather than reading through a missing .totals.
+  const anomalyTotals = metadataAnomalies.unavailable
+    ? { unknown_projects: 0, unknown_people: 0, orphan_project_files: 0, orphan_people_files: 0 }
+    : metadataAnomalies.totals;
+  const counts = {
+    duplicate_candidates: duplicates.length,
+    over_tagged: overTagged.length,
+    stale_summaries: staleSummaries.length,
+    oversized_no_summary: oversizedNoSummary.length,
+    ...anomalyTotals,
+  };
+  const severitySummary = { warn: 0, info: 0 };
+  for (const [check, n] of Object.entries(counts)) severitySummary[CHECK_SEVERITY[check]] += n;
+
+  const report = {
     generated_at: new Date().toISOString(),
     duration_ms: Date.now() - startTime,
     totals: {
@@ -188,21 +223,27 @@ export async function runHealthCheck() {
       thoughts_active: totalActive,
       thoughts_archived: total - totalActive,
     },
+    // warn items deserve action; info items are awareness-only. Read warn first.
+    severity_summary: severitySummary,
     checks: {
       duplicate_candidates: {
+        severity: CHECK_SEVERITY.duplicate_candidates,
         count: duplicates.length,
         threshold: DUPLICATE_THRESHOLD,
         pairs: duplicates.slice(0, MAX_ITEMS_PER_CATEGORY),
       },
       over_tagged: {
+        severity: CHECK_SEVERITY.over_tagged,
         count: overTagged.length,
         items: overTagged,
       },
       stale_summaries: {
+        severity: CHECK_SEVERITY.stale_summaries,
         count: staleSummaries.length,
         items: staleSummaries.slice(0, MAX_ITEMS_PER_CATEGORY),
       },
       oversized_no_summary: {
+        severity: CHECK_SEVERITY.oversized_no_summary,
         count: oversizedNoSummary.length,
         threshold_chars: OVERSIZED_CHARS,
         items: oversizedNoSummary.slice(0, MAX_ITEMS_PER_CATEGORY),
@@ -210,4 +251,16 @@ export async function runHealthCheck() {
       metadata_anomalies: metadataAnomalies,
     },
   };
+
+  // Score-delta history (gbrain doctor-history steal): one JSONL line per run
+  // so "is the brain getting healthier?" is answerable over time. Best-effort —
+  // a read-only health check must never fail on a logging problem.
+  try {
+    mkdirSync(dirname(HISTORY_PATH), { recursive: true });
+    appendFileSync(HISTORY_PATH, JSON.stringify({ ts: report.generated_at, active: totalActive, ...counts }) + '\n');
+  } catch (err) {
+    console.warn(`[health-check] history append failed: ${err.message}`);
+  }
+
+  return report;
 }

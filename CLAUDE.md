@@ -108,6 +108,10 @@ Cheapest tool first — climb only when the rung below can't answer:
 3. **`get_thought` with `from_line`/`max_lines`** — page through long thoughts (Fireflies transcripts, refreshed Gmail threads) instead of loading full text.
 4. Vault-side (Obsidian/Drive sessions): check `index.md` first — one line per thought, regenerated on every rebuild — then open files second.
 
+**Write-back (compounding memory):** when a search-and-synthesize session produces a genuinely useful answer, capture it with a leading `Synthesis: <question>` line → `type=synthesis`. Next session hits the pre-digested answer instead of re-deriving from raw thoughts. Don't file trivia — only answers that took real work to assemble.
+
+**Contradiction probe:** `node scripts/contradiction-probe.js [--max-pairs N]` — read-only Haiku judge over semantically-close pairs (cosine 0.70–0.92, below the capture-time dedup band). Six-verdict enum incl. `temporal_supersession`; content-hash cache in `tasks/contradiction-cache.json`; snapshots to `tasks/contradiction-probe-<date>.json`; Wilson-CI gate decides whether deeper lint tooling is ever worth building. Never mutates.
+
 ## One backend, two interfaces
 
 Route files export an Express router (default) and a named function for core logic. MCP tools in `server/mcp.js` call these functions directly — no HTTP hop. React UI calls routes via fetch.
