@@ -67,6 +67,20 @@ export async function searchVector(vector, limit = 5) {
 }
 
 /**
+ * Pure-BM25 lexical search. Used by the typed-sub-query search path where the
+ * calling agent explicitly asks for an exact-words leg (type: "lex").
+ */
+export async function searchSparse(sparseVector, limit = 5) {
+  const results = await qdrant.query(COLLECTION, {
+    query: sparseVector,
+    using: 'bm25',
+    limit,
+    with_payload: true,
+  });
+  return results.points.map(mapHit);
+}
+
+/**
  * Hybrid search: dense (Gemini cosine) + sparse (BM25 with server-side IDF)
  * fused via Reciprocal Rank Fusion. Used by the user-facing search route.
  * Each leg over-fetches 4× so RRF has room to fuse meaningfully.
@@ -239,21 +253,26 @@ export async function getChunksWithVectors(parentId) {
 // Run the query on each leg separately (dense-only, bm25-only, RRF-fused) so the
 // caller can show how every point of a given thought scored and whether it
 // surfaced. Returns ranked {id, score} arrays per leg.
-export async function explainLegs(denseVector, sparseVector, limit = 100) {
+export async function explainLegs(denseVector, sparseVector, limit = 100, { includeRrf = true } = {}) {
+  // includeRrf: false skips the fused query — the evidence-tag derivation in
+  // searchThoughts already has the fused list from hybridSearch and only needs
+  // the two raw legs, so it shouldn't pay for a third Qdrant query per search.
   const [dense, bm25, rrf] = await Promise.all([
     qdrant.query(COLLECTION, { query: denseVector, using: 'dense', limit, with_payload: false }),
     qdrant.query(COLLECTION, { query: sparseVector, using: 'bm25', limit, with_payload: false }),
-    qdrant.query(COLLECTION, {
-      prefetch: [
-        { query: denseVector, using: 'dense', limit },
-        { query: sparseVector, using: 'bm25', limit },
-      ],
-      query: { rrf: { k: 60 } },
-      limit,
-      with_payload: false,
-    }),
+    includeRrf
+      ? qdrant.query(COLLECTION, {
+          prefetch: [
+            { query: denseVector, using: 'dense', limit },
+            { query: sparseVector, using: 'bm25', limit },
+          ],
+          query: { rrf: { k: 60 } },
+          limit,
+          with_payload: false,
+        })
+      : Promise.resolve(null),
   ]);
-  return { dense: dense.points, bm25: bm25.points, rrf: rrf.points };
+  return { dense: dense.points, bm25: bm25.points, rrf: rrf ? rrf.points : null };
 }
 
 export async function updatePayload(id, payload) {

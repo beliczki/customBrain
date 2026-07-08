@@ -22,7 +22,11 @@ router.get('/recent', async (req, res) => {
 
 router.get('/thoughts/:id', async (req, res) => {
   try {
-    const thought = await getById(req.params.id);
+    const fromLine = req.query.from_line ? parseInt(req.query.from_line) : null;
+    const maxLines = req.query.max_lines ? parseInt(req.query.max_lines) : null;
+    const thought = (fromLine || maxLines)
+      ? await getThoughtSlice(req.params.id, fromLine || 1, maxLines)
+      : await getById(req.params.id);
     if (!thought) return res.status(404).json({ error: 'Not found' });
     res.json(thought);
   } catch (err) {
@@ -117,6 +121,30 @@ export default router;
 
 export async function getRecent(limit = 10) {
   return scrollRecent(limit);
+}
+
+/**
+ * Fetch a thought with its text windowed to a line range (qmd `get` steal).
+ * Long thoughts (Fireflies transcripts, refreshed Gmail threads) are tens of
+ * thousands of chars — an agent paging through with from_line/max_lines pulls
+ * exactly the slice it needs instead of the whole payload. 1-indexed.
+ */
+export async function getThoughtSlice(id, fromLine = 1, maxLines = null) {
+  const thought = await getById(id);
+  if (!thought) return null;
+  const lines = (thought.text || '').split('\n');
+  const start = Math.max(1, fromLine);
+  const slice = maxLines != null ? lines.slice(start - 1, start - 1 + maxLines) : lines.slice(start - 1);
+  return {
+    ...thought,
+    text: slice.join('\n'),
+    text_slice: {
+      from_line: start,
+      lines_returned: slice.length,
+      total_lines: lines.length,
+      truncated: start - 1 + slice.length < lines.length,
+    },
+  };
 }
 
 export async function updateThought(id, delta) {

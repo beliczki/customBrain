@@ -121,6 +121,14 @@ export default function Search() {
             <ThoughtFacts item={r} />
 
             <p className="text-xs text-txt-ter mt-3">
+              {r.evidence && (
+                <span
+                  className="evidence-badge inline-block mr-2 px-1.5 py-0.5 border border-subtle text-[10px] uppercase tracking-wider"
+                  title="Miért találta meg: exact_title = a cím tartalmazza a keresést · bm25_exact = top lexikális találat · high_dense = erős szemantikus egyezés (cosine ≥ 0.8) · weak_semantic = csak a fúzió hozta fel"
+                >
+                  {r.evidence.replace('_', ' ')}
+                </span>
+              )}
               Score: {r.score?.toFixed(3)}{r.cosine_score ? ` (cosine: ${r.cosine_score.toFixed(3)})` : ''}
               {r.effective_date && r.effective_date.slice(0, 10) !== r.created_at?.slice(0, 10) ? (
                 <> · <span title="when the content happened">{new Date(r.effective_date).toLocaleString()}</span> <span className="text-[10px] uppercase tracking-wider">captured {new Date(r.created_at).toLocaleDateString()}</span></>

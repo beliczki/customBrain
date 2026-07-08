@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { embedText } from '../embeddings.js';
 import { sparseEncodeQuery } from '../sparse.js';
-import { hybridSearch, getByIds, explainLegs, getChunksWithVectors } from '../qdrant.js';
+import { hybridSearch, getByIds, explainLegs, getChunksWithVectors, searchVector, searchSparse } from '../qdrant.js';
 
 const router = Router();
 
@@ -138,6 +138,8 @@ async function rollupChunkHits(rawHits) {
           action_items: parent.action_items,
         },
         score: hit.score,
+        evidence: hit.evidence,
+        sub_hits: hit.sub_hits,
         matched_chunk_label: hit.chunk_label,
         matched_chunk_kind: hit.chunk_kind,
         matched_chunk_text: hit.chunk_text,
@@ -157,10 +159,33 @@ async function rollupChunkHits(rawHits) {
         last_message_from: hit.last_message_from,
         metadata: hit.metadata,
         score: hit.score,
+        evidence: hit.evidence,
+        sub_hits: hit.sub_hits,
       });
     }
   }
   return out;
+}
+
+// === Evidence tags (gbrain steal): categorical, human/agent-readable answer
+// to "WHY did this hit surface?", derived from the per-leg ranks the search
+// already computes — no extra scoring model, no raw-blended-score guessing.
+// Priority ladder: exact_title > bm25_exact > high_dense > weak_semantic.
+const HIGH_DENSE_COSINE = 0.8;
+const BM25_TOP_RANK = 3;
+
+function deriveEvidence(hit, queryTexts, denseHit, bm25Hit) {
+  const title = ((hit.kind === 'chunk' ? hit.parent_title : hit.title) || '').toLowerCase();
+  if (title && queryTexts.some((q) => title.includes(q.trim().toLowerCase()))) return 'exact_title';
+  if (bm25Hit && bm25Hit.rank <= BM25_TOP_RANK) return 'bm25_exact';
+  if (denseHit && denseHit.score >= HIGH_DENSE_COSINE) return 'high_dense';
+  return 'weak_semantic';
+}
+
+function rankMapOf(points) {
+  const m = new Map();
+  points.forEach((p, i) => m.set(String(p.id), { rank: i + 1, score: p.score }));
+  return m;
 }
 
 export async function searchThoughts(query, limit = 5) {
@@ -168,7 +193,69 @@ export async function searchThoughts(query, limit = 5) {
   const sparseVector = sparseEncodeQuery(query);
   // Over-fetch so rollup can collapse chunk-clusters and still leave us with N
   const overfetchLimit = Math.max(limit * 6, 30);
-  const rawHits = await hybridSearch(denseVector, sparseVector, overfetchLimit);
+  const [rawHits, legs] = await Promise.all([
+    hybridSearch(denseVector, sparseVector, overfetchLimit),
+    explainLegs(denseVector, sparseVector, overfetchLimit, { includeRrf: false }),
+  ]);
+  const denseRanks = rankMapOf(legs.dense);
+  const bm25Ranks = rankMapOf(legs.bm25);
+  for (const hit of rawHits) {
+    hit.evidence = deriveEvidence(hit, [query], denseRanks.get(String(hit.id)), bm25Ranks.get(String(hit.id)));
+  }
+  const rolled = await rollupChunkHits(rawHits);
+  const decayed = applyTimeDecay(rolled);
+  return decayed.slice(0, limit);
+}
+
+/**
+ * Typed sub-query search (qmd steal, agent-as-reranker compatible): the CALLING
+ * agent composes its own retrieval legs — e.g. [{type:'lex', q:'Pityesz invoice'},
+ * {type:'vec', q:'unpaid supplier bills'}] — each leg runs standalone (lex =
+ * BM25-only, vec = dense-only) and the lists are fused server-side with the
+ * same RRF k=60 as the hybrid path. No query rewriting, no HyDE — the agent
+ * controls the strategy, the server only executes and fuses.
+ */
+export async function searchThoughtsMulti(subQueries, limit = 5) {
+  const RRF_K = 60;
+  const overfetchLimit = Math.max(limit * 6, 30);
+  const lists = await Promise.all(
+    subQueries.map(async (sq) => {
+      if (sq.type === 'lex') return searchSparse(sparseEncodeQuery(sq.q), overfetchLimit);
+      return searchVector(await embedText(sq.q, 'RETRIEVAL_QUERY'), overfetchLimit);
+    }),
+  );
+
+  const fused = new Map(); // pointId -> { hit, rrfScore, sub_hits }
+  lists.forEach((list, li) => {
+    list.forEach((hit, idx) => {
+      const key = String(hit.id);
+      const entry = fused.get(key) || { hit, rrfScore: 0, sub_hits: [] };
+      entry.rrfScore += 1 / (RRF_K + idx + 1);
+      entry.sub_hits.push({ sub_query: li, type: subQueries[li].type, rank: idx + 1, score: hit.score });
+      fused.set(key, entry);
+    });
+  });
+
+  const queryTexts = subQueries.map((sq) => sq.q);
+  const rawHits = [...fused.values()]
+    .sort((a, b) => b.rrfScore - a.rrfScore)
+    .slice(0, overfetchLimit)
+    .map(({ hit, rrfScore, sub_hits }) => {
+      const bestLex = sub_hits.filter((s) => s.type === 'lex').sort((a, b) => a.rank - b.rank)[0];
+      const bestVec = sub_hits.filter((s) => s.type === 'vec').sort((a, b) => b.score - a.score)[0];
+      return {
+        ...hit,
+        score: rrfScore,
+        sub_hits,
+        evidence: deriveEvidence(
+          hit,
+          queryTexts,
+          bestVec ? { rank: bestVec.rank, score: bestVec.score } : null,
+          bestLex ? { rank: bestLex.rank, score: bestLex.score } : null,
+        ),
+      };
+    });
+
   const rolled = await rollupChunkHits(rawHits);
   const decayed = applyTimeDecay(rolled);
   return decayed.slice(0, limit);

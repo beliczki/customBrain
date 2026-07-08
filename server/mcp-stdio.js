@@ -2,8 +2,8 @@ import 'dotenv/config';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { searchThoughts } from './routes/search.js';
-import { getRecent, updateThought } from './routes/recent.js';
+import { searchThoughts, searchThoughtsMulti } from './routes/search.js';
+import { getRecent, updateThought, getThoughtSlice } from './routes/recent.js';
 import { getStats } from './routes/stats.js';
 import { exportThoughts } from './routes/export.js';
 import { captureThought } from './routes/capture.js';
@@ -35,11 +35,42 @@ server.tool(
 
 server.tool(
   'search_brain',
-  'Semantically search your brain for thoughts matching a query',
-  { query: z.string(), limit: z.number().optional() },
-  async ({ query, limit }) => {
-    const results = await searchThoughts(query, limit ?? 5);
+  'Search your brain. Simple: pass query (hybrid dense+BM25, RRF-fused). Advanced: pass queries=[{type:"lex"|"vec",q}] to compose your own retrieval legs — lex is BM25-only (exact words, names, IDs), vec is dense-only (meaning, paraphrase) — fused server-side (RRF k=60). Every hit carries an evidence tag: exact_title | bm25_exact | high_dense | weak_semantic — WHY it surfaced, so you can weigh hits categorically instead of by raw score.',
+  {
+    query: z.string().optional().describe('Simple-mode query (required unless queries is set)'),
+    limit: z.number().optional(),
+    queries: z.array(z.object({
+      type: z.enum(['lex', 'vec']).describe('lex = BM25 exact-words leg, vec = dense semantic leg'),
+      q: z.string(),
+    })).optional().describe('Typed sub-queries composed by you, fused via RRF. Overrides query.'),
+  },
+  async ({ query, limit, queries }) => {
+    if (!queries?.length && !query) {
+      return { content: [{ type: 'text', text: JSON.stringify({ error: 'Provide query or queries' }) }] };
+    }
+    const results = queries?.length
+      ? await searchThoughtsMulti(queries, limit ?? 5)
+      : await searchThoughts(query, limit ?? 5);
     return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+  }
+);
+
+server.tool(
+  'get_thought',
+  'Fetch a single thought by id. For long thoughts (Fireflies transcripts, refreshed email threads) pass from_line/max_lines to pull only a window of the text — the response includes text_slice.total_lines so you can page through instead of loading tens of thousands of chars at once.',
+  {
+    thought_id: z.string(),
+    from_line: z.number().optional().describe('1-indexed first line of the text window (default 1)'),
+    max_lines: z.number().optional().describe('How many lines to return (default: all remaining)'),
+  },
+  async ({ thought_id, from_line, max_lines }) => {
+    const result = (from_line || max_lines)
+      ? await getThoughtSlice(thought_id, from_line ?? 1, max_lines ?? null)
+      : await getById(thought_id);
+    if (!result) {
+      return { content: [{ type: 'text', text: JSON.stringify({ error: `Thought ${thought_id} not found` }) }] };
+    }
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );
 
