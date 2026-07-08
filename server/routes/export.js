@@ -281,6 +281,42 @@ export async function rebuildVault(onLog) {
     }));
   }
 
+  // Step 4b: index.md — one line per thought (P7e revived, new rationale: the
+  // original P7e died as a HUMAN-facing catalogue; this one is the AGENT-facing
+  // routing map from the second-brain playbook — "check the index first, open
+  // files second". Regenerated inside the atomic full rebuild, so it can never
+  // drift from the vault. Zero model calls: title IS the one-liner (Haiku wrote
+  // it at capture time).
+  emit(`[${ts()}] Writing index.md (${thoughts.length} entries)...`);
+  const indexLines = thoughts
+    .slice()
+    .sort((a, b) => String(b.payload.effective_date || b.payload.created_at || '')
+      .localeCompare(String(a.payload.effective_date || a.payload.created_at || '')))
+    .map((p) => {
+      const t = p.payload;
+      const stem = p.filename.replace('.md', '');
+      const date = String(t.effective_date || t.created_at || '').slice(0, 10);
+      const tags = [
+        ...(t.people || []).map((x) => `@${x}`),
+        ...(t.projects || []).map((x) => `#${x}`),
+      ].join(' ');
+      return `- [[${stem}]] — ${t.title || '(untitled)'} · ${t.type || 'unknown'} · ${date}${tags ? ` · ${tags}` : ''}`;
+    });
+  const indexContent = [
+    '# Index — customBrain',
+    '',
+    '> Agent routing map: one line per thought (newest first). Check here first, open files second.',
+    `> Regenerated on every vault rebuild (${new Date().toISOString().slice(0, 10)}) — cannot drift from the vault.`,
+    '',
+    ...indexLines,
+    '',
+  ].join('\n');
+  await drive.files.create({
+    requestBody: { name: 'index.md', mimeType: 'text/markdown', parents: [folderId] },
+    media: { mimeType: 'text/markdown', body: indexContent },
+  });
+  emit(`[${ts()}]   ✓ index.md`);
+
   // Step 5: People & Projects
   const allPeople = new Set();
   const allProjects = new Set();

@@ -14,6 +14,7 @@ import { getVaultContext } from './drive-context.js';
 import { listThoughtsNeedingSummary, setThoughtTextWithSummary } from './routes/summary.js';
 import { getAgenda } from './routes/agenda.js';
 import { runHealthCheck } from './brain-health.js';
+import { quickLookup } from './quick-lookup.js';
 import { registerAgentTools } from '../agent/register.js';
 
 const server = new McpServer({
@@ -70,6 +71,26 @@ server.tool(
     if (!result) {
       return { content: [{ type: 'text', text: JSON.stringify({ error: `Thought ${thought_id} not found` }) }] };
     }
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  'quick_lookup',
+  'Deterministic metadata lookup — zero model calls, zero embeddings. Answers counts / who / when / list-by questions from payload filters alone: thoughts by person, project, topic, type, source, or date range. Use this INSTEAD of search_brain when the question is about metadata ("how many meetings with X?", "what did I capture about project Y in June?") — it is exact and instant. Filters are case-insensitive substrings; combine freely.',
+  {
+    person: z.string().optional(),
+    project: z.string().optional(),
+    topic: z.string().optional(),
+    type: z.string().optional().describe('Exact type: meeting | note | idea | decision | …'),
+    source: z.string().optional().describe('manual | gmail | youtube | fireflies'),
+    since: z.string().optional().describe('ISO date lower bound on effective_date (inclusive)'),
+    until: z.string().optional().describe('ISO date upper bound on effective_date (inclusive)'),
+    limit: z.number().optional().describe('Max rows returned (default 50); count is always exact'),
+    count_only: z.boolean().optional().describe('Return only the count'),
+  },
+  async (args) => {
+    const result = await quickLookup(args);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );

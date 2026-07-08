@@ -90,6 +90,7 @@ All routes behind auth middleware. Route files in `server/routes/`:
 |----------|--------|------|---------------|
 | `/capture` | POST | `capture.js` | `captureThought` |
 | `/search` | POST | `search.js` | `searchThoughts` |
+| `/graph` | GET | `graph.js` | `buildGraph` (nodes + metadata/semantic/supersedes edges + Louvain communities) |
 | `/recent` | GET | `recent.js` | `getRecent` |
 | `/thoughts/:id` | DELETE | `recent.js` | — |
 | `/thoughts/:id` | PATCH | `recent.js` | — (metadata edits; backs `update_thought`) |
@@ -97,6 +98,15 @@ All routes behind auth middleware. Route files in `server/routes/`:
 | `/export` | POST | `export.js` | `exportThoughts` |
 | `/mcp/http` | ALL | `mcp.js` | `handleMcpHttp` |
 | `/fireflies-webhook` | POST | `fireflies-webhook.js` | — (HMAC secret, **not** Bearer; mounted above the Bearer middleware in `server/index.js`) |
+
+## Retrieval routing (for any session answering questions from the brain)
+
+Cheapest tool first — climb only when the rung below can't answer:
+
+1. **`quick_lookup`** — metadata questions (counts, who/when, list by person/project/topic/type/source/date range). Zero model calls, exact answers. Never use search_brain for "how many…" / "list my…" questions.
+2. **`search_brain`** — content questions. Simple `query` for hybrid dense+BM25; typed `queries=[{type:'lex'|'vec',q}]` when you want to compose exact-words + meaning legs yourself. Read the `evidence` tag on every hit (`exact_title | bm25_exact | high_dense | weak_semantic`) to weigh results categorically.
+3. **`get_thought` with `from_line`/`max_lines`** — page through long thoughts (Fireflies transcripts, refreshed Gmail threads) instead of loading full text.
+4. Vault-side (Obsidian/Drive sessions): check `index.md` first — one line per thought, regenerated on every rebuild — then open files second.
 
 ## One backend, two interfaces
 
