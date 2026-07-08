@@ -1,5 +1,17 @@
 # customBrain — Roadmap
-## Last updated: 2026-06-12 (v0.28.x — YouTube intake cat-24 fix shipped; P18 retrieval-transparency UI queued as TOP)
+## Last updated: 2026-07-08 (v0.33.0 — second-brain upgrade shipped: Graph tab, evidence tags, typed sub-queries, quick_lookup, vault index.md, contradiction probe, prove-it harness)
+
+---
+
+## SHIPPED 2026-07-08 — Second-brain upgrade (0.33.0)
+
+Full plan + repo-research verdicts (Karpathy wiki / qmd / gbrain / Graphify): `tasks/second-brain-upgrade-plan.md`. Per-feature detail: `CHANGELOG.md` 0.33.0.
+
+- **Graph tab** (`/graph` + sigma.js): 3-edge-kind brain graph (metadata / semantic-kNN / supersedes) with categorical provenance, deterministic Louvain clusters, two-level cluster-map UX, hub/orphan panel. The "beat Obsidian graph" deliverable.
+- **Retrieval**: evidence tags on every hit; typed `lex`/`vec` sub-queries (agent-composed, RRF-fused); `get_thought` line slices; `quick_lookup` zero-model metadata rung.
+- **P7e REVIVED** (was killed 2026-05-16): `index.md` now ships in the vault export — the kill-rationale targeted a *human-facing* catalog; the revival is the *agent-facing* routing map (index-first retrieval per the second-brain playbook), regenerated inside the atomic rebuild so it cannot drift.
+- **Self-cleaning**: read-only contradiction probe (Haiku judge, `temporal_supersession` verdict enum, Wilson-CI build-more gate); health-check severity levels + history JSONL; `synthesis` write-back convention.
+- **Verification pending on Hetzner**: `scripts/prove-brain.js` run + Graph-tab perf check against production data (see CHANGELOG).
 
 Historical build plans archived in `docs/archive/`. Per-release detail in `CHANGELOG.md`.
 
@@ -79,7 +91,7 @@ After 6 weeks of daily use (0.3.0 → 0.13.0) the actual capture pattern, fricti
 ### Killed
 - **P1 Telegram bot / mobile capture** — mobilon like / bookmark / label workflow van, nem text capture. P12 (X bookmarks) lefedi a mobil-keletkezésű X-tartalmat; Gmail label + YouTube likes a többit.
 - **P1c People/Projects summary evolution** — felülírná user-edit .md fájlokat (kockázatos), és az értéke kétséges.
-- **P7e index.md flat catalog** — marginal érték; Obsidian Graph + Drive lista már eléri amit ez adna.
+- **P7e index.md flat catalog** — marginal érték; Obsidian Graph + Drive lista már eléri amit ez adna. **REVIVED 0.33.0** más rationale-lal: agent-facing routing map az exportban (lásd fent).
 - **P9 Thinking tools (challenge_idea, emerge_patterns, ...)** — Claude Desktop-ban `search_brain` + szabad prompt már megoldja amit ezek strukturáltan adnának; nem éri meg tool-felületet építeni fix promptra.
 
 ### Deferred (nincs jelenleg signal)

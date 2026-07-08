@@ -2,6 +2,22 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.33.0 — 2026-07-08
+
+**Second-brain upgrade: Graph tab (beat Obsidian at connections), retrieval evidence + typed legs, agent-facing index, self-cleaning probes.** Built from the RoboNuggets second-brain playbook, merged with ideas mined from Karpathy's LLM wiki, qmd, gbrain, and Graphify — plan in `tasks/second-brain-upgrade-plan.md`.
+
+- **Graph tab** — `GET /graph` + lazy-loaded sigma.js client. Nodes = active thoughts; three edge kinds with categorical provenance: `metadata` (shared people/projects/topics, fan-out-capped at 20 to prevent clique hairballs), `semantic` (cosine kNN, k=3 ≥ 0.75 — same tunables as the Related-thoughts export), `supersedes` (directed, archived targets appear as ghost nodes). Deterministic Louvain communities (randomWalk off) labeled by highest-degree member. Two-level UX: cluster meta-graph → drill into a community; edge legend toggles + cosine threshold slider; hub/orphan panel; search-focus; ThoughtModal on click. Obsidian's graph only knows hand-authored links — this one computes connections from embeddings + metadata.
+- **Evidence tags** — every `/search` + `search_brain` hit carries `evidence: exact_title | bm25_exact | high_dense | weak_semantic`, derived from per-leg ranks (no extra scoring); micro-badge in Search UI.
+- **Typed sub-queries** — `search_brain` accepts `queries=[{type:'lex'|'vec',q}]`: agent-composed BM25-only/dense-only legs, fused server-side (RRF k=60, `searchThoughtsMulti`). No rewriting/HyDE — agent stays the reranker.
+- **`get_thought` + line slices** — new MCP tool; `GET /thoughts/:id?from_line&max_lines` pages long transcripts (`text_slice` metadata).
+- **`quick_lookup`** — zero-model metadata queries (person/project/topic/type/source/date-range, `count_only`); the deterministic rung of the retrieval ladder.
+- **`index.md` in the vault export** — one line per thought (wikilink · title · type · date · @people #projects), newest first. P7e revived with a new rationale: agent-facing routing map, regenerated inside the atomic rebuild (cannot drift).
+- **Contradiction probe** — `scripts/contradiction-probe.js`: read-only Haiku judge over the cosine 0.70–0.92 band (below capture-time dedup), 6-verdict enum incl. `temporal_supersession`, content-hash cache, Wilson-CI build-more gate, paste-ready review output.
+- **Health-check severity** — warn/info per check + `severity_summary`; score-delta history at `state/health-history.jsonl`.
+- **Synthesis write-back** — `synthesis` type (guarded prompt rule) + capture_thought convention: file good search-session answers back so memory compounds.
+- **Prove-it harness** — `scripts/prove-brain.js`: hybrid vs typed-multi vs quick_lookup on the p8.2 gold set (wall time, hit@5, payload bytes) + manual in-session token-test prompts.
+- CLAUDE.md: "Retrieval routing" ladder section (quick_lookup → search_brain → get_thought slices → vault index.md).
+
 ## 0.32.0 — 2026-07-02
 
 **Fix: MCP `tools/call` failed from claude.ai ("not connected") — server ran the Streamable HTTP transport statelessly.**
