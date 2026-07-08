@@ -67,6 +67,20 @@ The PDF's ladder targets markdown brains; our hybrid pipeline IS the ladder (key
 - Bump 4 manifests + CHANGELOG at ship: `0.32.0 → 0.33.0` (minor — new tab, new routes, new MCP tools).
 - ROADMAP.md: stub the phases; note P7e revival rationale.
 
-## Review
+## Review (2026-07-08 — all five phases code-complete on `worktree-second-brain-upgrade`)
 
-_(fill at completion)_
+Commits: Phase A `c08a713` · B `d31eb09` · C `3fd0bec` · D `e120da4` · E `44bb316`. Version 0.33.0.
+
+**Verified locally (no .env on Mac — static only):**
+- All server files pass `node --check`; client builds clean (Graph tab code-split into its own 181 kB chunk, lazy-loaded).
+- `buildGraph` unit-tested via test seam with synthetic points: metadata edge carries shared tags, semantic kNN edge carries cosine, supersedes pulls archived ghost node, Louvain deterministic across runs, orphan degree-0, hub-titled cluster labels.
+- RRF fusion math, line-slice windowing, quick_lookup filter predicates, Wilson CI — all pass inline tests.
+
+**Pending on Hetzner (needs deploy):**
+1. `GET /graph` against real ~300 thoughts + Graph tab feel (drag/zoom/level-switch smoothness — PDF /goal criterion).
+2. `node scripts/prove-brain.js` — hit@5 / timing / payload table on the p8.2 gold set.
+3. `node scripts/contradiction-probe.js --max-pairs 20` — first probe + Wilson gate reading.
+4. One vault rebuild to see `index.md` appear.
+5. Manual in-session token test (prompts printed by prove-brain.js).
+
+**Deviations from plan:** edge provenance rendered by color+arrow instead of dashed lines (sigma v3 default programs don't dash; legend decodes). Evidence tag `alias_hit` dropped (no alias data at search time). `searchThoughtsMulti` exposed via MCP only — no new HTTP route needed.
