@@ -210,8 +210,8 @@ export default function Graph() {
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(node.r, 24, 16), mat);
         group.add(mesh);
 
-        const label = new SpriteText(truncate(node.title, 46), Math.max(3.2, node.r * 0.75));
-        label.color = '#f1f5f9';
+        const label = new SpriteText(truncate(node.title, 46), Math.max(3, Math.min(5, node.r * 0.4)));
+        label.color = '#dbe4ee';
         label.backgroundColor = 'rgba(4, 7, 16, 0.82)';
         label.padding = 2;
         label.borderRadius = 2;
@@ -274,8 +274,9 @@ export default function Graph() {
     graph.d3Force('charge').strength(-110);
     graph.d3VelocityDecay(0.25);
 
-    // Bloom — the glow that makes it feel alive.
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1024, 1024), 1.1, 0.55, 0.05);
+    // Bloom — subtle glow only on the bright emissive spheres. Threshold must
+    // stay well above 0 or the white label sprites flare and wash the scene.
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1024, 1024), 0.7, 0.4, 0.35);
     graph.postProcessingComposer().addPass(bloom);
 
     // Slow idle orbit until the user grabs the scene.
