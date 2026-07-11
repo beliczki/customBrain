@@ -323,7 +323,7 @@ export default function Graph() {
         const cached = cache.get(id) || {};
         const n = Object.assign(cached, {
           id, title: label, sub: `${size} thoughts`, color, communityIds,
-          r: 5 + Math.sqrt(size) * 1.7,
+          r: 4 + Math.sqrt(size) * 1.2,
         });
         cache.set(id, n);
         return n;
@@ -383,15 +383,25 @@ export default function Graph() {
       }).map((e) => ({ source: e.source, target: e.target, kind: e.kind, weight: e.weight, score: e.score }));
     }
 
+    // Per-view physics: cluster meta-spheres are huge (r up to ~16), they need
+    // far more elbow room than thought nodes or their labels stack.
+    graph.d3Force('charge').strength(view === 'clusters' ? -900 : -110);
+    graph.d3Force('link').distance(view === 'clusters' ? 130 : 30);
+    graph.warmupTicks(view === 'clusters' ? 100 : 40);
+
     graph.graphData({ nodes, links });
     applyHighlight();
+
+    // Frame the settled layout (positions are near-final thanks to warmup).
+    const fitTimer = setTimeout(() => graph.zoomToFit(800, 60), 700);
 
     // Deferred fly-to from search (waits for the new view's data to exist).
     if (pendingFocusRef.current && view === 'thoughts') {
       const id = pendingFocusRef.current;
       pendingFocusRef.current = null;
-      setTimeout(() => selectNode(id), 700);
+      setTimeout(() => selectNode(id), 900);
     }
+    return () => clearTimeout(fitTimer);
   }, [data, view, focusCommunities, activeEdges, applyHighlight, selectNode]);
 
   const focusOnNode = useCallback((id) => {
