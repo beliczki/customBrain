@@ -16,8 +16,10 @@ const PALETTE = [
 const communityColor = (c) => (c < 0 ? '#94a3b8' : PALETTE[c % PALETTE.length]);
 
 // The 3D scene is always a dark "deep space" viewport regardless of app theme
-// (bloom glow needs a near-black background to read).
-const SCENE_BG = '#04060f';
+// (bloom glow needs a near-black background to read). Pure black on purpose:
+// the postprocessing chain applies an extra linear→sRGB lift to any non-zero
+// background (#04060f displayed as washed-out navy) — black is invariant.
+const SCENE_BG = '#000000';
 const DIM_LINK = '#0a0e1a';
 
 // Edge provenance colors (every edge says WHY it exists; legend decodes).
