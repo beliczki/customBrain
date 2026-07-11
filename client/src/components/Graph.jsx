@@ -3,6 +3,7 @@ import ForceGraph3D from '3d-force-graph';
 import SpriteText from 'three-spritetext';
 import * as THREE from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { getGraph } from '../api.js';
 import ThoughtModal from './ThoughtModal.jsx';
 
@@ -57,6 +58,7 @@ export default function Graph() {
   const viewRef = useRef(view);
   const hoverRef = useRef(null);
   const pendingFocusRef = useRef(null);
+  const fitPendingRef = useRef(false);
 
   useEffect(() => {
     getGraph().then(setData).catch((err) => setError(err.message));
@@ -269,15 +271,37 @@ export default function Graph() {
         }
       });
 
-    // Gravity: stronger repulsion + a gentle pull to the origin so the brain
-    // settles as one breathing organism instead of drifting apart.
-    graph.d3Force('charge').strength(-110);
+    // Gravity: a real pull toward the origin. Repulsion alone flings every
+    // unlinked node to infinity (isolated clusters have no link to hold them),
+    // which broke zoom-to-fit framing.
+    let simNodes = [];
+    const gravity = (alpha) => {
+      const k = 0.06 * alpha;
+      for (const n of simNodes) {
+        n.vx -= n.x * k;
+        n.vy -= n.y * k;
+        n.vz -= (n.z || 0) * k;
+      }
+    };
+    gravity.initialize = (ns) => { simNodes = ns; };
+    graph.d3Force('gravity', gravity);
     graph.d3VelocityDecay(0.25);
+
+    // Final camera fit once the physics settles (once per data load — a flag,
+    // so later engine stops after user drags don't yank the camera).
+    graph.onEngineStop(() => {
+      if (!fitPendingRef.current) return;
+      fitPendingRef.current = false;
+      graph.zoomToFit(700, 50);
+    });
 
     // Bloom — subtle glow only on the bright emissive spheres. Threshold must
     // stay well above 0 or the white label sprites flare and wash the scene.
     const bloom = new UnrealBloomPass(new THREE.Vector2(1024, 1024), 0.7, 0.4, 0.35);
     graph.postProcessingComposer().addPass(bloom);
+    // Custom passes bypass three's default sRGB output — without OutputPass the
+    // frame stays linear and the near-black background washes out to gray-blue.
+    graph.postProcessingComposer().addPass(new OutputPass());
 
     // Slow idle orbit until the user grabs the scene.
     const controls = graph.controls();
@@ -385,15 +409,17 @@ export default function Graph() {
 
     // Per-view physics: cluster meta-spheres are huge (r up to ~16), they need
     // far more elbow room than thought nodes or their labels stack.
-    graph.d3Force('charge').strength(view === 'clusters' ? -900 : -110);
-    graph.d3Force('link').distance(view === 'clusters' ? 130 : 30);
+    graph.d3Force('charge').strength(view === 'clusters' ? -400 : -120);
+    graph.d3Force('link').distance(view === 'clusters' ? 120 : 30);
     graph.warmupTicks(view === 'clusters' ? 100 : 40);
 
+    fitPendingRef.current = true;
     graph.graphData({ nodes, links });
     applyHighlight();
 
-    // Frame the settled layout (positions are near-final thanks to warmup).
-    const fitTimer = setTimeout(() => graph.zoomToFit(800, 60), 700);
+    // Early approximate framing (positions are near-final thanks to warmup);
+    // onEngineStop does the precise fit when the simulation settles.
+    const fitTimer = setTimeout(() => graph.zoomToFit(800, 50), 600);
 
     // Deferred fly-to from search (waits for the new view's data to exist).
     if (pendingFocusRef.current && view === 'thoughts') {
