@@ -212,7 +212,10 @@ export default function Graph() {
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(node.r, 24, 16), mat);
         group.add(mesh);
 
-        const label = new SpriteText(truncate(node.title, 46), Math.max(3, Math.min(5, node.r * 0.4)));
+        const labelSize = node.big
+          ? Math.min(9, Math.max(5, node.r * 0.5))
+          : Math.max(3, Math.min(5, node.r * 0.4));
+        const label = new SpriteText(truncate(node.title, 46), labelSize);
         label.color = '#dbe4ee';
         label.backgroundColor = 'rgba(4, 7, 16, 0.82)';
         label.padding = 2;
@@ -297,7 +300,7 @@ export default function Graph() {
 
     // Bloom — subtle glow only on the bright emissive spheres. Threshold must
     // stay well above 0 or the white label sprites flare and wash the scene.
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1024, 1024), 0.7, 0.4, 0.35);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1024, 1024), 0.5, 0.2, 0.5);
     graph.postProcessingComposer().addPass(bloom);
     // Custom passes bypass three's default sRGB output — without OutputPass the
     // frame stays linear and the near-black background washes out to gray-blue.
@@ -347,7 +350,7 @@ export default function Graph() {
         const cached = cache.get(id) || {};
         const n = Object.assign(cached, {
           id, title: label, sub: `${size} thoughts`, color, communityIds,
-          r: 4 + Math.sqrt(size) * 1.2,
+          r: 4 + Math.sqrt(size) * 1.2, big: true,
         });
         cache.set(id, n);
         return n;
