@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import GraphologyGraph from 'graphology';
-import forceAtlas2 from 'graphology-layout-forceatlas2';
-import Sigma from 'sigma';
+import ForceGraph3D from '3d-force-graph';
+import SpriteText from 'three-spritetext';
+import * as THREE from 'three';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { getGraph } from '../api.js';
 import ThoughtModal from './ThoughtModal.jsx';
 
@@ -11,15 +12,16 @@ const PALETTE = [
   '#6366f1', '#10b981', '#a855f7', '#f59e0b', '#f43f5e', '#06b6d4',
   '#84cc16', '#d946ef', '#0ea5e9', '#f97316', '#14b8a6', '#8b5cf6',
 ];
-const communityColor = (c) => (c < 0 ? '#999999' : PALETTE[c % PALETTE.length]);
+const communityColor = (c) => (c < 0 ? '#94a3b8' : PALETTE[c % PALETTE.length]);
 
-// Edge provenance colors (the gbrain/Graphify steal: every edge says WHY).
-// Sigma's default programs don't do dashed lines, so provenance is encoded
-// by color + arrow instead; the legend is the decoder ring.
-const EDGE_STYLE = {
-  light: { metadata: 'rgba(0,0,0,0.16)', semantic: 'rgba(0,0,255,0.35)', supersedes: 'rgba(217,119,6,0.8)' },
-  dark: { metadata: 'rgba(255,255,255,0.14)', semantic: 'rgba(80,120,255,0.5)', supersedes: 'rgba(245,158,11,0.8)' },
-};
+// The 3D scene is always a dark "deep space" viewport regardless of app theme
+// (bloom glow needs a near-black background to read).
+const SCENE_BG = '#04060f';
+const DIM_LINK = '#0a0e1a';
+
+// Edge provenance colors (every edge says WHY it exists; legend decodes).
+const LINK_COLOR = { metadata: '#333c50', semantic: '#3b5bdb', supersedes: '#b45309' };
+const LINK_HL = { metadata: '#94a3b8', semantic: '#60a5fa', supersedes: '#fbbf24' };
 
 const EDGE_KIND_LABELS = {
   metadata: 'shared tag (deterministic)',
@@ -27,31 +29,9 @@ const EDGE_KIND_LABELS = {
   supersedes: 'supersedes (archive chain)',
 };
 
-function isDark() {
-  return document.documentElement.classList.contains('dark');
-}
-
-/** Deterministic ring positions as ForceAtlas2 seed — no Math.random so the
- *  layout is identical on every load (nodes never "jump" between visits). */
-function seedPositions(g) {
-  const n = g.order;
-  let i = 0;
-  g.forEachNode((node) => {
-    const angle = (2 * Math.PI * i) / Math.max(1, n);
-    // Second golden-angle term de-rings the seed so FA2 converges faster.
-    const r = 1 + 0.3 * ((i * 137.5) % 360) / 360;
-    g.setNodeAttribute(node, 'x', r * Math.cos(angle));
-    g.setNodeAttribute(node, 'y', r * Math.sin(angle));
-    i++;
-  });
-}
-
-function runLayout(g, iterations = 200) {
-  if (g.order === 0) return;
-  seedPositions(g);
-  const settings = forceAtlas2.inferSettings(g);
-  forceAtlas2.assign(g, { iterations, settings });
-}
+const endId = (v) => (typeof v === 'object' && v !== null ? v.id : v);
+const truncate = (s, n) => ((s || '').length > n ? `${s.slice(0, n - 1)}…` : s || '');
+const escapeHtml = (s) => (s || '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 export default function Graph() {
   const [data, setData] = useState(null);
@@ -63,8 +43,20 @@ export default function Graph() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [modalThoughtId, setModalThoughtId] = useState(null);
   const [query, setQuery] = useState('');
+
+  const wrapRef = useRef(null);
   const containerRef = useRef(null);
-  const sigmaRef = useRef(null);
+  const graphRef = useRef(null);
+  // Per-node three.js handles so highlight changes mutate materials in place
+  // (no scene rebuild, no dropped frames).
+  const nodeObjsRef = useRef(new Map());
+  // Node objects are cached per id so d3 positions survive filter changes —
+  // toggling an edge kind re-settles gently instead of exploding the layout.
+  const nodeCacheRef = useRef(new Map());
+  const selectedRef = useRef(null);
+  const viewRef = useRef(view);
+  const hoverRef = useRef(null);
+  const pendingFocusRef = useRef(null);
 
   useEffect(() => {
     getGraph().then(setData).catch((err) => setError(err.message));
@@ -73,11 +65,6 @@ export default function Graph() {
   const nodeById = useMemo(() => {
     if (!data) return new Map();
     return new Map(data.nodes.map((n) => [n.id, n]));
-  }, [data]);
-
-  const communityLabel = useMemo(() => {
-    if (!data) return new Map();
-    return new Map(data.communities.map((c) => [c.id, c.label]));
   }, [data]);
 
   // Active edges under the current legend toggles + semantic threshold.
@@ -122,138 +109,298 @@ export default function Graph() {
     return data.nodes.filter((n) => (n.title || '').toLowerCase().includes(q)).slice(0, 8);
   }, [data, query]);
 
+  // === Highlight: selected node + neighbors stay lit and labeled, the rest
+  // of the scene fades to near-invisible and loses its labels entirely. ===
+  const applyHighlight = useCallback(() => {
+    const graph = graphRef.current;
+    if (!graph) return;
+    const sel = selectedRef.current;
+    const inClusterView = viewRef.current === 'clusters';
+
+    const neighborhood = new Set();
+    const labeled = new Set();
+    if (sel) {
+      neighborhood.add(sel);
+      labeled.add(sel);
+      const weighted = [];
+      for (const l of graph.graphData().links) {
+        const a = endId(l.source); const b = endId(l.target);
+        if (a !== sel && b !== sel) continue;
+        const other = a === sel ? b : a;
+        neighborhood.add(other);
+        weighted.push({ other, w: l.weight || 0 });
+      }
+      // Label only the strongest neighbors — a 48-degree hub must not become
+      // a word cloud. Everything else stays lit but unlabeled.
+      weighted.sort((x, y) => y.w - x.w).slice(0, 8).forEach(({ other }) => labeled.add(other));
+    }
+
+    for (const [id, o] of nodeObjsRef.current) {
+      if (!sel) {
+        o.mat.opacity = 0.95;
+        o.mat.emissiveIntensity = o.archived ? 0.15 : 0.5;
+        o.label.visible = inClusterView;
+      } else if (neighborhood.has(id)) {
+        o.mat.opacity = 1;
+        o.mat.emissiveIntensity = id === sel ? 1.1 : 0.75;
+        o.label.visible = labeled.has(id);
+      } else {
+        o.mat.opacity = 0.05;
+        o.mat.emissiveIntensity = 0.02;
+        o.label.visible = false;
+      }
+    }
+    // Re-trigger link accessors (they read selectedRef).
+    graph.linkColor(graph.linkColor());
+    graph.linkDirectionalParticles(graph.linkDirectionalParticles());
+  }, []);
+
+  const selectNode = useCallback((id, { fly = true } = {}) => {
+    selectedRef.current = id;
+    setSelectedNode(id);
+    applyHighlight();
+    const graph = graphRef.current;
+    if (!graph || !id || !fly) return;
+    const node = graph.graphData().nodes.find((n) => n.id === id);
+    if (!node) return;
+    const dist = 130;
+    const len = Math.hypot(node.x || 0, node.y || 0, node.z || 0) || 1;
+    const ratio = 1 + dist / len;
+    graph.cameraPosition(
+      { x: node.x * ratio, y: node.y * ratio, z: node.z * ratio },
+      node,
+      1000,
+    );
+  }, [applyHighlight]);
+
   const drillInto = useCallback((communityIds) => {
     setFocusCommunities(communityIds ? new Set(communityIds) : null);
     setView('thoughts');
+    selectedRef.current = null;
     setSelectedNode(null);
   }, []);
 
-  // === Sigma instance ===
+  // === One ForceGraph3D instance for the lifetime of the tab ===
   useEffect(() => {
-    if (!data || !containerRef.current) return;
-    const dark = isDark();
-    const edgeColors = dark ? EDGE_STYLE.dark : EDGE_STYLE.light;
-    const labelColor = dark ? '#E0E0E0' : '#000000';
-    const g = new GraphologyGraph({ multi: false, type: 'mixed' });
+    if (!containerRef.current) return;
+
+    const graph = new ForceGraph3D(containerRef.current, { controlType: 'orbit' });
+    graphRef.current = graph;
+
+    graph
+      .backgroundColor(SCENE_BG)
+      .showNavInfo(false)
+      .nodeLabel((n) => `
+        <div class="graph-tooltip3d">
+          <span class="graph-tooltip3d__title">${escapeHtml(n.title)}</span>
+          <span class="graph-tooltip3d__meta">${escapeHtml(n.sub || '')}</span>
+        </div>`)
+      .nodeThreeObject((node) => {
+        const group = new THREE.Group();
+        const mat = new THREE.MeshPhongMaterial({
+          color: node.color,
+          emissive: node.color,
+          emissiveIntensity: node.archived ? 0.15 : 0.5,
+          shininess: 40,
+          transparent: true,
+          opacity: 0.95,
+        });
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(node.r, 24, 16), mat);
+        group.add(mesh);
+
+        const label = new SpriteText(truncate(node.title, 46), Math.max(3.2, node.r * 0.75));
+        label.color = '#f1f5f9';
+        label.backgroundColor = 'rgba(4, 7, 16, 0.82)';
+        label.padding = 2;
+        label.borderRadius = 2;
+        label.position.y = node.r + Math.max(3.5, node.r * 0.9);
+        // Labels always render on top — a label you can't read is worse than
+        // no label (the exact bug this rewrite kills).
+        label.material.depthTest = false;
+        label.material.depthWrite = false;
+        label.renderOrder = 999;
+        label.visible = viewRef.current === 'clusters';
+        group.add(label);
+
+        nodeObjsRef.current.set(node.id, { mat, label, archived: !!node.archived });
+        return group;
+      })
+      .linkColor((l) => {
+        const sel = selectedRef.current;
+        if (!sel) return LINK_COLOR[l.kind] || LINK_COLOR.metadata;
+        const hl = endId(l.source) === sel || endId(l.target) === sel;
+        return hl ? LINK_HL[l.kind] : DIM_LINK;
+      })
+      .linkWidth((l) => {
+        const sel = selectedRef.current;
+        const hl = sel && (endId(l.source) === sel || endId(l.target) === sel);
+        return hl ? 1.2 : l.kind === 'supersedes' ? 0.8 : 0.3;
+      })
+      .linkOpacity(0.5)
+      .linkDirectionalArrowLength((l) => (l.kind === 'supersedes' ? 3.5 : 0))
+      .linkDirectionalArrowRelPos(0.9)
+      .linkDirectionalParticles((l) => {
+        const sel = selectedRef.current;
+        return sel && (endId(l.source) === sel || endId(l.target) === sel) ? 3 : 0;
+      })
+      .linkDirectionalParticleWidth(1.4)
+      .linkDirectionalParticleSpeed(0.006)
+      .onNodeClick((node) => {
+        if (viewRef.current === 'clusters') {
+          drillInto(node.communityIds);
+        } else {
+          selectNode(node.id);
+        }
+      })
+      .onBackgroundClick(() => selectNode(null))
+      .onNodeHover((node) => {
+        containerRef.current.style.cursor = node ? 'pointer' : null;
+        const prev = hoverRef.current;
+        if (prev && prev !== selectedRef.current) {
+          const o = nodeObjsRef.current.get(prev);
+          if (o && o.mat.opacity > 0.5) o.mat.emissiveIntensity = o.archived ? 0.15 : 0.5;
+        }
+        hoverRef.current = node ? node.id : null;
+        if (node) {
+          const o = nodeObjsRef.current.get(node.id);
+          if (o && o.mat.opacity > 0.5) o.mat.emissiveIntensity = 0.95;
+        }
+      });
+
+    // Gravity: stronger repulsion + a gentle pull to the origin so the brain
+    // settles as one breathing organism instead of drifting apart.
+    graph.d3Force('charge').strength(-110);
+    graph.d3VelocityDecay(0.25);
+
+    // Bloom — the glow that makes it feel alive.
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1024, 1024), 1.1, 0.55, 0.05);
+    graph.postProcessingComposer().addPass(bloom);
+
+    // Slow idle orbit until the user grabs the scene.
+    const controls = graph.controls();
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.45;
+    const stopSpin = () => { controls.autoRotate = false; };
+    controls.addEventListener('start', stopSpin);
+
+    const ro = new ResizeObserver(() => {
+      if (!wrapRef.current) return;
+      graph.width(wrapRef.current.clientWidth).height(640);
+    });
+    ro.observe(wrapRef.current);
+
+    return () => {
+      ro.disconnect();
+      controls.removeEventListener('start', stopSpin);
+      graph._destructor();
+      graphRef.current = null;
+      nodeObjsRef.current.clear();
+    };
+  }, [drillInto, selectNode]);
+
+  // === Feed data into the scene on view / filter changes ===
+  useEffect(() => {
+    const graph = graphRef.current;
+    if (!graph || !data) return;
+    viewRef.current = view;
+    selectedRef.current = null;
+    setSelectedNode(null);
+    nodeObjsRef.current.clear();
+
+    let nodes = [];
+    let links = [];
 
     if (view === 'clusters') {
       // Level 0 — community meta-graph. Size-1 communities aggregate into one
       // "Unclustered" node so 40 singleton dots don't drown the map.
       const singles = data.communities.filter((c) => c.size === 1);
       const clusters = data.communities.filter((c) => c.size > 1);
-      for (const c of clusters) {
-        g.addNode(`c${c.id}`, {
-          label: `${c.label} (${c.size})`,
-          size: 8 + Math.sqrt(c.size) * 2.5,
-          color: communityColor(c.id),
-          communityIds: [c.id],
+      const cache = nodeCacheRef.current;
+      const metaNode = (id, label, size, color, communityIds) => {
+        const cached = cache.get(id) || {};
+        const n = Object.assign(cached, {
+          id, title: label, sub: `${size} thoughts`, color, communityIds,
+          r: 5 + Math.sqrt(size) * 1.7,
         });
-      }
+        cache.set(id, n);
+        return n;
+      };
+      nodes = clusters.map((c) =>
+        metaNode(`c${c.id}`, `${c.label} (${c.size})`, c.size, communityColor(c.id), [c.id]));
       if (singles.length > 0) {
-        g.addNode('c_unclustered', {
-          label: `Unclustered (${singles.length})`,
-          size: 8 + Math.sqrt(singles.length) * 2.5,
-          color: '#999999',
-          communityIds: singles.map((c) => c.id),
-        });
+        nodes.push(metaNode('c_unclustered', `Unclustered (${singles.length})`,
+          singles.length, '#64748b', singles.map((c) => c.id)));
       }
       // Meta edges = cross-community edge counts over the active edge set.
       const crossCounts = new Map();
       const nodeCommunity = new Map(data.nodes.map((n) => [n.id, n.community]));
       const singleIds = new Set(singles.map((c) => c.id));
       const metaId = (c) => (singleIds.has(c) ? 'c_unclustered' : `c${c}`);
+      const present = new Set(nodes.map((n) => n.id));
       for (const e of activeEdges) {
         const ca = nodeCommunity.get(e.source);
         const cb = nodeCommunity.get(e.target);
         if (ca === undefined || cb === undefined || ca === cb) continue;
         const a = metaId(ca); const b = metaId(cb);
-        if (a === b || !g.hasNode(a) || !g.hasNode(b)) continue;
+        if (a === b || !present.has(a) || !present.has(b)) continue;
         const key = a < b ? `${a}|${b}` : `${b}|${a}`;
         crossCounts.set(key, (crossCounts.get(key) || 0) + 1);
       }
-      for (const [key, count] of crossCounts) {
+      links = [...crossCounts].map(([key, count]) => {
         const [a, b] = key.split('|');
-        g.addEdge(a, b, { size: Math.min(6, 0.5 + Math.log2(1 + count)), color: edgeColors.metadata });
-      }
-      runLayout(g, 150);
+        return { source: a, target: b, kind: 'metadata', weight: count };
+      });
     } else {
       // Level 1 — thoughts (all, or the drilled-into communities).
       const visible = data.nodes.filter(
         (n) => !focusCommunities || focusCommunities.has(n.community),
       );
-      for (const n of visible) {
-        g.addNode(n.id, {
-          label: n.title,
-          size: n.archived ? 3 : 4 + Math.min(10, Math.sqrt(n.degree) * 1.6),
-          color: n.archived ? (dark ? '#555555' : '#cccccc') : communityColor(n.community),
+      const cache = nodeCacheRef.current;
+      nodes = visible.map((n) => {
+        const cached = cache.get(n.id) || {};
+        const obj = Object.assign(cached, {
+          id: n.id,
+          title: n.title,
+          sub: `${n.type} · ${n.source} · ${n.degree} links${n.archived ? ' · archived' : ''}`,
+          color: n.archived ? '#475569' : communityColor(n.community),
+          archived: n.archived,
+          r: n.archived ? 1.6 : 2.2 + Math.min(6.5, Math.sqrt(n.degree) * 1.1),
         });
-      }
-      for (const e of activeEdges) {
-        if (!g.hasNode(e.source) || !g.hasNode(e.target) || g.hasEdge(e.source, e.target)) continue;
-        if (e.kind === 'supersedes') {
-          g.addDirectedEdge(e.source, e.target, { size: 1.5, color: edgeColors.supersedes, type: 'arrow' });
-        } else {
-          g.addEdge(e.source, e.target, {
-            size: e.kind === 'semantic' ? 1.2 : Math.min(3, 0.6 + e.weight * 0.4),
-            color: edgeColors[e.kind],
-          });
-        }
-      }
-      runLayout(g, 200);
+        cache.set(n.id, obj);
+        return obj;
+      });
+      const present = new Set(nodes.map((n) => n.id));
+      const seen = new Set();
+      links = activeEdges.filter((e) => {
+        if (!present.has(e.source) || !present.has(e.target)) return false;
+        const key = e.source < e.target ? `${e.source}|${e.target}` : `${e.target}|${e.source}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).map((e) => ({ source: e.source, target: e.target, kind: e.kind, weight: e.weight, score: e.score }));
     }
 
-    const sigma = new Sigma(g, containerRef.current, {
-      renderLabels: true,
-      labelSize: 11,
-      labelColor: { color: labelColor },
-      labelRenderedSizeThreshold: view === 'clusters' ? 0 : 7,
-      defaultEdgeType: 'line',
-      minCameraRatio: 0.05,
-      maxCameraRatio: 4,
-    });
-    sigmaRef.current = sigma;
+    graph.graphData({ nodes, links });
+    applyHighlight();
 
-    // Hover: dim everything outside the hovered node's neighborhood.
-    let hovered = null;
-    sigma.setSetting('nodeReducer', (node, attrs) => {
-      if (!hovered || node === hovered || g.areNeighbors(node, hovered)) return attrs;
-      return { ...attrs, color: dark ? '#333333' : '#eeeeee', label: '' };
-    });
-    sigma.setSetting('edgeReducer', (edge, attrs) => {
-      if (!hovered || g.hasExtremity(edge, hovered)) return attrs;
-      return { ...attrs, hidden: true };
-    });
-    sigma.on('enterNode', ({ node }) => { hovered = node; sigma.refresh(); });
-    sigma.on('leaveNode', () => { hovered = null; sigma.refresh(); });
-
-    sigma.on('clickNode', ({ node }) => {
-      if (view === 'clusters') {
-        drillInto(g.getNodeAttribute(node, 'communityIds'));
-      } else {
-        setSelectedNode(node);
-      }
-    });
-    sigma.on('clickStage', () => setSelectedNode(null));
-
-    return () => {
-      sigma.kill();
-      sigmaRef.current = null;
-    };
-  }, [data, view, focusCommunities, activeEdges, drillInto]);
+    // Deferred fly-to from search (waits for the new view's data to exist).
+    if (pendingFocusRef.current && view === 'thoughts') {
+      const id = pendingFocusRef.current;
+      pendingFocusRef.current = null;
+      setTimeout(() => selectNode(id), 700);
+    }
+  }, [data, view, focusCommunities, activeEdges, applyHighlight, selectNode]);
 
   const focusOnNode = useCallback((id) => {
-    setView('thoughts');
-    setFocusCommunities(null);
-    setSelectedNode(id);
     setQuery('');
-    // Camera move happens after the effect above rebuilds sigma for the new view.
-    setTimeout(() => {
-      const sigma = sigmaRef.current;
-      if (!sigma || !sigma.getGraph().hasNode(id)) return;
-      const pos = sigma.getNodeDisplayData(id);
-      if (pos) sigma.getCamera().animate({ x: pos.x, y: pos.y, ratio: 0.25 }, { duration: 400 });
-    }, 100);
-  }, []);
+    if (viewRef.current === 'thoughts' && !focusCommunities) {
+      selectNode(id);
+    } else {
+      pendingFocusRef.current = id;
+      setFocusCommunities(null);
+      setView('thoughts');
+    }
+  }, [focusCommunities, selectNode]);
 
   if (error) return <p className="text-red-600 dark:text-red-400 text-sm">Graph error: {error}</p>;
   if (!data) return <p className="text-txt-ter text-sm">Building graph…</p>;
@@ -268,7 +415,7 @@ export default function Graph() {
           {['clusters', 'thoughts'].map((v) => (
             <button
               key={v}
-              onClick={() => { setView(v); setFocusCommunities(null); setSelectedNode(null); }}
+              onClick={() => { setView(v); setFocusCommunities(null); }}
               className={`graph-view-btn px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
                 view === v && !focusCommunities ? 'bg-accent text-white' : 'text-txt-sec hover:text-txt'
               }`}
@@ -279,12 +426,15 @@ export default function Graph() {
         </div>
         {focusCommunities && (
           <button
-            onClick={() => { setView('clusters'); setFocusCommunities(null); setSelectedNode(null); }}
+            onClick={() => { setView('clusters'); setFocusCommunities(null); }}
             className="graph-back-btn px-3 py-1.5 text-xs text-txt-sec border border-subtle hover:text-txt transition-colors"
           >
             ← back to map
           </button>
         )}
+        <p className="graph-hint text-[10px] uppercase tracking-wider text-txt-ter hidden md:block">
+          drag to orbit · scroll to zoom · click a node to focus
+        </p>
         <div className="graph-search relative ml-auto">
           <input
             value={query}
@@ -311,11 +461,11 @@ export default function Graph() {
 
       <div className="flex gap-4 items-start">
         {/* Canvas */}
-        <div className="graph-canvas-wrap flex-1 min-w-0">
+        <div className="graph-canvas-wrap flex-1 min-w-0" ref={wrapRef}>
           <div
             ref={containerRef}
-            className="graph-canvas border border-subtle bg-surface"
-            style={{ height: '560px' }}
+            className="graph-canvas graph-canvas--3d border border-subtle overflow-hidden"
+            style={{ height: '640px' }}
           />
           {/* Legend */}
           <div className="graph-legend flex flex-wrap items-center gap-4 mt-2 text-[10px] uppercase tracking-wider text-txt-ter">
@@ -329,7 +479,7 @@ export default function Graph() {
                 />
                 <span
                   className="inline-block w-4 h-0.5"
-                  style={{ backgroundColor: (isDark() ? EDGE_STYLE.dark : EDGE_STYLE.light)[kind] }}
+                  style={{ backgroundColor: LINK_HL[kind] }}
                 />
                 {EDGE_KIND_LABELS[kind]}
               </label>

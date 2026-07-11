@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.34.0 — 2026-07-11
+
+**Graph tab v2 — 3D rewrite.** sigma.js/graphology replaced with `3d-force-graph` (three.js WebGL): live d3-force-3d gravity (nodes visibly settle on load), bloom-glow spheres colored by community and sized by degree, slow idle auto-orbit until first grab. Labels are no longer always-on: hover shows a readable pill tooltip; clicking a node flies the camera to it, lights its links with animated directional particles, fades everything outside the neighborhood to ~5% opacity, and labels only the selected node + its 8 strongest neighbors (in-scene sprite labels, dark backdrop, always on top — fixes the unreadable white-on-white highlight labels). Cluster map, drill-down, edge-kind toggles, cosine slider, search fly-to, side panel, and the `/graph` endpoint are unchanged. Graph chunk grows to ~381 kB gzip (three.js), still lazy-loaded.
+
 ## 0.33.0 — 2026-07-08
 
 **Second-brain upgrade: Graph tab (beat Obsidian at connections), retrieval evidence + typed legs, agent-facing index, self-cleaning probes.** Built from the RoboNuggets second-brain playbook, merged with ideas mined from Karpathy's LLM wiki, qmd, gbrain, and Graphify — plan in `tasks/second-brain-upgrade-plan.md`.
