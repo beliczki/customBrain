@@ -181,8 +181,10 @@ export default function Graph() {
   }, []);
 
   // === One ForceGraph3D instance for the lifetime of the tab ===
+  // Gated on `data`: before the fetch resolves the component renders the
+  // loading placeholder, so the container div doesn't exist yet.
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!data || !containerRef.current) return;
 
     const graph = new ForceGraph3D(containerRef.current, { controlType: 'orbit' });
     graphRef.current = graph;
@@ -296,7 +298,7 @@ export default function Graph() {
       graphRef.current = null;
       nodeObjsRef.current.clear();
     };
-  }, [drillInto, selectNode]);
+  }, [data, drillInto, selectNode]);
 
   // === Feed data into the scene on view / filter changes ===
   useEffect(() => {
