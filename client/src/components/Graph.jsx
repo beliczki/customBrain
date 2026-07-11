@@ -43,6 +43,9 @@ export default function Graph() {
   const [focusCommunities, setFocusCommunities] = useState(null); // null = all, Set = drill-down
   const [edgeKinds, setEdgeKinds] = useState({ metadata: true, semantic: true, supersedes: true });
   const [semThreshold, setSemThreshold] = useState(0.75);
+  const [sizeMult, setSizeMult] = useState(1);
+  const [gravityMult, setGravityMult] = useState(1);
+  const [repelMult, setRepelMult] = useState(1);
   const [selectedNode, setSelectedNode] = useState(null);
   const [modalThoughtId, setModalThoughtId] = useState(null);
   const [query, setQuery] = useState('');
@@ -61,6 +64,9 @@ export default function Graph() {
   const hoverRef = useRef(null);
   const pendingFocusRef = useRef(null);
   const fitPendingRef = useRef(false);
+  const sizeMultRef = useRef(1);
+  const gravityMultRef = useRef(1);
+  const repelMultRef = useRef(1);
 
   useEffect(() => {
     getGraph().then(setData).catch((err) => setError(err.message));
@@ -212,6 +218,7 @@ export default function Graph() {
           opacity: 0.95,
         });
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(node.r, 24, 16), mat);
+        mesh.scale.setScalar(sizeMultRef.current);
         group.add(mesh);
 
         const labelSize = node.big
@@ -222,7 +229,7 @@ export default function Graph() {
         label.backgroundColor = 'rgba(4, 7, 16, 0.82)';
         label.padding = 2;
         label.borderRadius = 2;
-        label.position.y = node.r + Math.max(3.5, node.r * 0.9);
+        label.position.y = node.r * sizeMultRef.current + Math.max(3.5, node.r * 0.9);
         // Labels always render on top — a label you can't read is worse than
         // no label (the exact bug this rewrite kills).
         label.material.depthTest = false;
@@ -231,7 +238,7 @@ export default function Graph() {
         label.visible = viewRef.current === 'clusters';
         group.add(label);
 
-        nodeObjsRef.current.set(node.id, { mat, label, archived: !!node.archived });
+        nodeObjsRef.current.set(node.id, { mat, label, mesh, baseR: node.r, archived: !!node.archived });
         return group;
       })
       .linkColor((l) => {
@@ -281,7 +288,7 @@ export default function Graph() {
     // which broke zoom-to-fit framing.
     let simNodes = [];
     const gravity = (alpha) => {
-      const k = 0.06 * alpha;
+      const k = 0.06 * gravityMultRef.current * alpha;
       for (const n of simNodes) {
         n.vx -= n.x * k;
         n.vy -= n.y * k;
@@ -396,7 +403,7 @@ export default function Graph() {
           sub: `${n.type} · ${n.source} · ${n.degree} links${n.archived ? ' · archived' : ''}`,
           color: n.archived ? '#475569' : communityColor(n.community),
           archived: n.archived,
-          r: n.archived ? 1.6 : 2.2 + Math.min(6.5, Math.sqrt(n.degree) * 1.1),
+          r: n.archived ? 1.5 : 1.8 + Math.min(10, Math.sqrt(n.degree) * 1.6),
         });
         cache.set(n.id, obj);
         return obj;
@@ -414,7 +421,7 @@ export default function Graph() {
 
     // Per-view physics: cluster meta-spheres are huge (r up to ~16), they need
     // far more elbow room than thought nodes or their labels stack.
-    graph.d3Force('charge').strength(view === 'clusters' ? -400 : -120);
+    graph.d3Force('charge').strength((view === 'clusters' ? -400 : -120) * repelMultRef.current);
     graph.d3Force('link').distance(view === 'clusters' ? 120 : 30);
     graph.warmupTicks(view === 'clusters' ? 100 : 40);
 
@@ -434,6 +441,24 @@ export default function Graph() {
     }
     return () => clearTimeout(fitTimer);
   }, [data, view, focusCommunities, activeEdges, applyHighlight, selectNode]);
+
+  // === Live physics/size sliders — mutate in place, no scene rebuild ===
+  useEffect(() => {
+    sizeMultRef.current = sizeMult;
+    for (const o of nodeObjsRef.current.values()) {
+      o.mesh.scale.setScalar(sizeMult);
+      o.label.position.y = o.baseR * sizeMult + Math.max(3.5, o.baseR * 0.9);
+    }
+  }, [sizeMult]);
+
+  useEffect(() => {
+    gravityMultRef.current = gravityMult;
+    repelMultRef.current = repelMult;
+    const graph = graphRef.current;
+    if (!graph) return;
+    graph.d3Force('charge').strength((viewRef.current === 'clusters' ? -400 : -120) * repelMult);
+    graph.d3ReheatSimulation();
+  }, [gravityMult, repelMult]);
 
   const focusOnNode = useCallback((id) => {
     setQuery('');
@@ -538,6 +563,33 @@ export default function Graph() {
                 value={semThreshold}
                 onChange={(e) => setSemThreshold(parseFloat(e.target.value))}
                 className="w-24 accent-[var(--accent-blue)]"
+              />
+            </label>
+          </div>
+          {/* Physics controls */}
+          <div className="graph-physics flex flex-wrap items-center gap-4 mt-1.5 text-[10px] uppercase tracking-wider text-txt-ter">
+            <label className="graph-physics__slider flex items-center gap-1.5">
+              node size ×{sizeMult.toFixed(1)}
+              <input
+                type="range" min="0.4" max="2.5" step="0.1" value={sizeMult}
+                onChange={(e) => setSizeMult(parseFloat(e.target.value))}
+                className="w-20 accent-[var(--accent-blue)]"
+              />
+            </label>
+            <label className="graph-physics__slider flex items-center gap-1.5">
+              gravity ×{gravityMult.toFixed(1)}
+              <input
+                type="range" min="0" max="3" step="0.1" value={gravityMult}
+                onChange={(e) => setGravityMult(parseFloat(e.target.value))}
+                className="w-20 accent-[var(--accent-blue)]"
+              />
+            </label>
+            <label className="graph-physics__slider flex items-center gap-1.5">
+              repel ×{repelMult.toFixed(1)}
+              <input
+                type="range" min="0.2" max="3" step="0.1" value={repelMult}
+                onChange={(e) => setRepelMult(parseFloat(e.target.value))}
+                className="w-20 accent-[var(--accent-blue)]"
               />
             </label>
           </div>
