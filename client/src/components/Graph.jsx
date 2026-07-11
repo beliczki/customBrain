@@ -173,7 +173,8 @@ export default function Graph() {
     if (!graph || !id || !fly) return;
     const node = graph.graphData().nodes.find((n) => n.id === id);
     if (!node) return;
-    const dist = 130;
+    // Bigger spheres need a longer approach or the camera lands inside them.
+    const dist = 140 + (node.r || 4) * 12 * sizeMultRef.current;
     const len = Math.hypot(node.x || 0, node.y || 0, node.z || 0) || 1;
     const ratio = 1 + dist / len;
     graph.cameraPosition(
