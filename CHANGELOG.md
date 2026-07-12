@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.36.3 — 2026-07-12
+
+Graph panel: collapsible accordion sections (Layout / Groups / Edges / Appearance / Hubs & orphans), Edges split from Appearance, groups list no longer scrolls internally, whole panel collapsible to a "☰ controls" pill — all collapse states + panel visibility persisted in `graph_prefs`. Orbit ring pulled tight (margin 45→30, pull 0.08→0.3 — charge repulsion was smearing it outward).
+
 ## 0.36.2 — 2026-07-12
 
 Graph: BRAIN node pinned at the origin (fx/fy/fz=0). High gravity compressed the system below the spoke rest length and the springs expelled the brain outside the blob.

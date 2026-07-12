@@ -175,6 +175,9 @@ export default function Graph() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [modalThoughtId, setModalThoughtId] = useState(null);
   const [query, setQuery] = useState('');
+  const [panelOpen, setPanelOpen] = useState(prefs.panelOpen ?? true);
+  const [collapsed, setCollapsed] = useState(prefs.collapsed || { edges: true, appearance: true, insights: true });
+  const toggleSection = (key) => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const containerRef = useRef(null);
   const graphRef = useRef(null);
@@ -203,8 +206,9 @@ export default function Graph() {
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity,
+      panelOpen, collapsed,
     }));
-  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity]);
+  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity, panelOpen, collapsed]);
 
   const nodeById = useMemo(() => {
     if (!data) return new Map();
@@ -429,8 +433,10 @@ export default function Graph() {
         ds.push(Math.hypot(n.x || 0, n.y || 0, n.z || 0));
       }
       ds.sort((a, b) => a - b);
-      const R = (ds.length ? ds[Math.floor(ds.length * 0.92)] : 0) + 45;
-      const k = 0.08 * alpha;
+      const R = (ds.length ? ds[Math.floor(ds.length * 0.92)] : 0) + 30;
+      // Strong pull: charge repulsion from ~300 core nodes otherwise wins and
+      // smears the ring outward into a diffuse cloud.
+      const k = 0.3 * alpha;
       for (const n of simNodes) {
         if (!n.orbit) continue;
         const d = Math.hypot(n.x || 0, n.y || 0, n.z || 0) || 1;
@@ -772,7 +778,25 @@ export default function Graph() {
       </p>
 
       {/* Controls overlay panel */}
-      <div className="graph-controls-panel fixed top-[104px] right-4 z-40 w-72 max-h-[calc(100vh-120px)] overflow-y-auto space-y-3">
+      {!panelOpen && (
+        <button
+          onClick={() => setPanelOpen(true)}
+          className="graph-controls-panel__reopen fixed top-[104px] right-4 z-40 px-3 py-1.5 text-[10px] uppercase tracking-wider bg-[rgba(6,9,16,0.72)] border border-white/10 text-slate-300 hover:text-white backdrop-blur transition-colors"
+        >
+          ☰ controls
+        </button>
+      )}
+      <div className={`graph-controls-panel fixed top-[104px] right-4 z-40 w-72 max-h-[calc(100vh-120px)] overflow-y-auto space-y-3 ${panelOpen ? '' : 'hidden'}`}>
+        <div className="graph-controls-panel__header flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-wider text-slate-500">Controls</span>
+          <button
+            onClick={() => setPanelOpen(false)}
+            className="text-slate-500 hover:text-white text-xs px-1 transition-colors"
+            title="Hide panel"
+          >
+            ✕
+          </button>
+        </div>
         {/* Search */}
         <div className="graph-search relative">
           <input
@@ -799,7 +823,11 @@ export default function Graph() {
 
         {/* Renderer + grouping */}
         <div className="graph-controls-panel__section">
-          <p className="graph-controls-panel__label">Layout</p>
+          <button onClick={() => toggleSection('layout')} className="graph-accordion__header flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors mb-1.5">
+            Layout <span>{collapsed.layout ? '+' : '−'}</span>
+          </button>
+          {!collapsed.layout && (
+          <>
           <div className="flex gap-2 mb-2">
             <div className="graph-mode-switch flex border border-white/10">
               {['2d', '3d'].map((m) => (
@@ -840,12 +868,17 @@ export default function Graph() {
               </button>
             ))}
           </div>
+          </>
+          )}
         </div>
 
         {/* Groups list */}
         <div className="graph-controls-panel__section">
-          <p className="graph-controls-panel__label">Groups</p>
-          <div className="max-h-40 overflow-y-auto space-y-0.5">
+          <button onClick={() => toggleSection('groups')} className="graph-accordion__header flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors mb-1.5">
+            Groups <span>{collapsed.groups ? '+' : '−'}</span>
+          </button>
+          {!collapsed.groups && (
+          <div className="space-y-0.5">
             {grouping.groups.map((grp) => (
               <button
                 key={grp.key}
@@ -870,11 +903,17 @@ export default function Graph() {
               </button>
             )}
           </div>
+          )}
         </div>
 
-        {/* Edges + physics */}
+        {/* Edge kinds + threshold */}
         <div className="graph-controls-panel__section">
-          <p className="graph-controls-panel__label">Edges</p>
+          <button onClick={() => toggleSection('edges')} className="graph-accordion__header flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors mb-1.5">
+            Edges <span>{collapsed.edges ? '+' : '−'}</span>
+          </button>
+          {!collapsed.edges && (
+          <>
+
           {Object.keys(EDGE_KIND_LABELS).map((kind) => (
             <label key={kind} className="graph-legend__item flex items-center gap-1.5 cursor-pointer select-none text-[10px] uppercase tracking-wider text-slate-400 mb-1">
               <input
@@ -895,6 +934,17 @@ export default function Graph() {
               className="flex-1 accent-[var(--accent-blue)]"
             />
           </label>
+          </>
+          )}
+        </div>
+
+        {/* Appearance + physics sliders */}
+        <div className="graph-controls-panel__section">
+          <button onClick={() => toggleSection('appearance')} className="graph-accordion__header flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors mb-1.5">
+            Appearance <span>{collapsed.appearance ? '+' : '−'}</span>
+          </button>
+          {!collapsed.appearance && (
+          <>
           <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
             edge opacity ×{edgeOpacity.toFixed(2)}
             <input
@@ -935,6 +985,8 @@ export default function Graph() {
               className="flex-1 accent-[var(--accent-blue)]"
             />
           </label>
+          </>
+          )}
         </div>
 
         {/* Selection / hubs */}
@@ -981,6 +1033,11 @@ export default function Graph() {
           </div>
         ) : (
           <div className="graph-health-panel graph-controls-panel__section">
+            <button onClick={() => toggleSection('insights')} className="graph-accordion__header flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors mb-1.5">
+              Hubs & orphans <span>{collapsed.insights ? '+' : '−'}</span>
+            </button>
+            {!collapsed.insights && (
+            <>
             <p className="graph-controls-panel__label">
               Hubs <span className="normal-case">(most connected)</span>
             </p>
@@ -1004,6 +1061,8 @@ export default function Graph() {
                   ))}
                 </div>
               </>
+            )}
+            </>
             )}
           </div>
         )}
