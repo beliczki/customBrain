@@ -49,7 +49,11 @@ const GROUP_MODES = [
 // everything collapses into one blob.
 const SELF_ALIASES = new Set(['Me', 'Beliczki Róbert', 'Robert Beliczki', 'Róbert Beliczki', 'Robi']);
 
-const MAX_NAMED_GROUPS = 12;
+// A project/person needs at least this many thoughts to earn an anchor.
+const MIN_ANCHOR_SIZE = 3;
+
+// Orbit = thoughts with no anchored group; they ring the whole system.
+const ORBIT_LABEL = { project: 'no project', person: 'solo', clusters: 'unclustered' };
 
 const PREFS_KEY = 'graph_prefs';
 function loadPrefs() {
@@ -65,27 +69,32 @@ const endId = (v) => (typeof v === 'object' && v !== null ? v.id : v);
 const truncate = (s, n) => ((s || '').length > n ? `${s.slice(0, n - 1)}…` : s || '');
 const escapeHtml = (s) => (s || '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-/** Assign every thought exactly one "home" group under the chosen mode.
- *  Multi-valued fields (projects, people) pick the RAREST value — the most
- *  specific home — so groups stay tight instead of overlapping mush. */
+/** Group membership under the chosen mode. Multi-valued fields (projects,
+ *  people) give a thought ONE membership PER anchored value — physics places
+ *  it between its clusters. `primary` (the rarest membership) drives color.
+ *  Thoughts with no anchored membership are "orbit" nodes: no fake cluster,
+ *  they ring the whole system. */
 function deriveGroups(nodes, groupBy, communities) {
-  const assign = new Map();
+  const memberships = new Map();
+  const primary = new Map();
 
   if (groupBy === 'clusters') {
     const commLabel = new Map(communities.map((c) => [c.id, c.label]));
     const singles = new Set(communities.filter((c) => c.size === 1).map((c) => c.id));
     for (const n of nodes) {
-      assign.set(n.id, singles.has(n.community) || n.community < 0 ? '__misc' : `c${n.community}`);
+      const isOrbit = singles.has(n.community) || n.community < 0;
+      memberships.set(n.id, isOrbit ? [] : [`c${n.community}`]);
+      if (!isOrbit) primary.set(n.id, `c${n.community}`);
     }
-    const counts = countBy(assign);
+    const counts = countMemberships(memberships);
     const groups = [...counts.entries()].map(([key, count]) => ({
       key,
-      label: key === '__misc' ? 'Unclustered' : commLabel.get(parseInt(key.slice(1), 10)) || key,
-      color: key === '__misc' ? MISC_COLOR : communityColor(parseInt(key.slice(1), 10)),
+      label: commLabel.get(parseInt(key.slice(1), 10)) || key,
+      color: communityColor(parseInt(key.slice(1), 10)),
       count,
     }));
     groups.sort((a, b) => b.count - a.count);
-    return { assign, groups };
+    return { memberships, primary, groups, orbitCount: orbitTotal(memberships) };
   }
 
   if (groupBy === 'project' || groupBy === 'person') {
@@ -97,46 +106,49 @@ function deriveGroups(nodes, groupBy, communities) {
         freq.set(v, (freq.get(v) || 0) + 1);
       }
     }
-    const noneKey = groupBy === 'project' ? '__unfiled' : '__solo';
-    for (const n of nodes) {
-      const vals = (n[field] || []).filter((v) => !(groupBy === 'person' && SELF_ALIASES.has(v)));
-      if (vals.length === 0) { assign.set(n.id, noneKey); continue; }
-      vals.sort((a, b) => freq.get(a) - freq.get(b));
-      assign.set(n.id, vals[0]);
-    }
-    // Keep the top N named groups, fold the tail into "Other".
-    const counts = countBy(assign);
-    const named = [...counts.entries()].filter(([k]) => k !== noneKey).sort((a, b) => b[1] - a[1]);
-    const keep = new Set(named.slice(0, MAX_NAMED_GROUPS).map(([k]) => k));
-    for (const [id, key] of assign) {
-      if (key !== noneKey && !keep.has(key)) assign.set(id, '__other');
-    }
-    const finalCounts = countBy(assign);
-    const labelOf = (key) => (
-      key === '__unfiled' ? 'Unfiled' : key === '__solo' ? 'Solo'
-        : key === '__other' ? (groupBy === 'project' ? 'Other projects' : 'Others') : key
+    const anchored = new Set(
+      [...freq.entries()].filter(([, c]) => c >= MIN_ANCHOR_SIZE).map(([k]) => k),
     );
-    const groups = [...finalCounts.entries()].map(([key, count]) => ({ key, label: labelOf(key), count }));
+    for (const n of nodes) {
+      const vals = [...new Set((n[field] || []).filter(
+        (v) => anchored.has(v) && !(groupBy === 'person' && SELF_ALIASES.has(v)),
+      ))];
+      vals.sort((a, b) => freq.get(a) - freq.get(b)); // rarest first
+      memberships.set(n.id, vals);
+      if (vals.length) primary.set(n.id, vals[0]);
+    }
+    const counts = countMemberships(memberships);
+    const groups = [...counts.entries()].map(([key, count]) => ({ key, label: key, count }));
     groups.sort((a, b) => b.count - a.count);
-    groups.forEach((grp, i) => {
-      grp.color = grp.key.startsWith('__') ? MISC_COLOR : PALETTE[i % PALETTE.length];
-    });
-    return { assign, groups };
+    groups.forEach((grp, i) => { grp.color = PALETTE[i % PALETTE.length]; });
+    return { memberships, primary, groups, orbitCount: orbitTotal(memberships) };
   }
 
-  // type | source — direct payload fields, small fixed sets.
-  for (const n of nodes) assign.set(n.id, n[groupBy] || 'unknown');
-  const counts = countBy(assign);
+  // type | source — direct payload fields, single-valued, never orbit.
+  for (const n of nodes) {
+    const key = n[groupBy] || 'unknown';
+    memberships.set(n.id, [key]);
+    primary.set(n.id, key);
+  }
+  const counts = countMemberships(memberships);
   const groups = [...counts.entries()].map(([key, count]) => ({ key, label: key, count }));
   groups.sort((a, b) => b.count - a.count);
   groups.forEach((grp, i) => { grp.color = PALETTE[i % PALETTE.length]; });
-  return { assign, groups };
+  return { memberships, primary, groups, orbitCount: 0 };
 }
 
-function countBy(assign) {
+function countMemberships(memberships) {
   const counts = new Map();
-  for (const key of assign.values()) counts.set(key, (counts.get(key) || 0) + 1);
+  for (const vals of memberships.values()) {
+    for (const key of vals) counts.set(key, (counts.get(key) || 0) + 1);
+  }
   return counts;
+}
+
+function orbitTotal(memberships) {
+  let n = 0;
+  for (const vals of memberships.values()) if (vals.length === 0) n++;
+  return n;
 }
 
 export default function Graph() {
@@ -191,7 +203,7 @@ export default function Graph() {
   }, [data]);
 
   const grouping = useMemo(() => {
-    if (!data) return { assign: new Map(), groups: [] };
+    if (!data) return { memberships: new Map(), primary: new Map(), groups: [], orbitCount: 0 };
     const active = data.nodes.filter((n) => !n.archived);
     return deriveGroups(active, groupBy, data.communities);
   }, [data, groupBy]);
@@ -378,11 +390,13 @@ export default function Graph() {
       });
 
     // Gravity: a real pull toward the origin. Repulsion alone flings every
-    // unlinked node to infinity, which breaks zoom-to-fit framing.
+    // unlinked node to infinity, which breaks zoom-to-fit framing. Orbit
+    // nodes are exempt — the orbit force owns them.
     let simNodes = [];
     const gravity = (alpha) => {
       const k = 0.06 * gravityMultRef.current * alpha;
       for (const n of simNodes) {
+        if (n.orbit) continue;
         n.vx -= n.x * k;
         n.vy -= n.y * k;
         if (n.vz !== undefined) n.vz -= (n.z || 0) * k;
@@ -390,12 +404,35 @@ export default function Graph() {
     };
     gravity.initialize = (ns) => { simNodes = ns; };
     graph.d3Force('gravity', gravity);
+    // Orbit ring: park no-group thoughts on a ring (2D) / shell (3D) just
+    // outside the outermost cluster — visually "belongs to nothing".
+    const orbitForce = (alpha) => {
+      let maxR = 0;
+      for (const n of simNodes) {
+        if (n.orbit) continue;
+        const d = Math.hypot(n.x || 0, n.y || 0, n.z || 0);
+        if (d > maxR) maxR = d;
+      }
+      const R = maxR + 70;
+      const k = 0.08 * alpha;
+      for (const n of simNodes) {
+        if (!n.orbit) continue;
+        const d = Math.hypot(n.x || 0, n.y || 0, n.z || 0) || 1;
+        const f = k * (d - R) / d;
+        n.vx -= n.x * f;
+        n.vy -= n.y * f;
+        if (n.vz !== undefined) n.vz -= (n.z || 0) * f;
+      }
+    };
+    orbitForce.initialize = (ns) => { simNodes = ns; };
+    graph.d3Force('orbit', orbitForce);
     graph.d3VelocityDecay(0.25);
-    // Satellite layout: per-link distances precomputed on link objects; real
-    // edges pull only weakly so home-group membership wins the tug of war.
+    // Satellite layout: per-link distances/strengths precomputed on link
+    // objects (anchor strength divides by membership count); real edges pull
+    // only weakly so group membership wins the tug of war.
     graph.d3Force('link')
       .distance((l) => l.dist ?? 60)
-      .strength((l) => (l.kind === 'anchor' ? 0.7 : l.kind === 'spoke' ? 0.35 : 0.03));
+      .strength((l) => l.strength ?? (l.kind === 'anchor' ? 0.7 : l.kind === 'spoke' ? 0.35 : 0.03));
     graph.d3Force('charge').strength((n) => {
       const base = n.kind === 'anchor' ? -500 : n.kind === 'brain' ? -700 : -35;
       return base * repelMultRef.current;
@@ -557,25 +594,35 @@ export default function Graph() {
     setSelectedNode(null);
     nodeObjsRef.current.clear();
 
-    const { assign, groups } = grouping;
+    const { memberships, primary, groups } = grouping;
     groupsRef.current = groups;
-    const groupOf = (key) => groups.find((grp) => grp.key === key);
-    const visibleGroups = isolatedGroup ? groups.filter((grp) => grp.key === isolatedGroup) : groups;
-    const visibleKeys = new Set(visibleGroups.map((grp) => grp.key));
+    const groupColor = new Map(groups.map((grp) => [grp.key, grp.color]));
+    const groupCount = new Map(groups.map((grp) => [grp.key, grp.count]));
+    const visibleGroups = isolatedGroup
+      ? groups.filter((grp) => grp.key === isolatedGroup)
+      : groups;
     const cache = nodeCacheRef.current;
+    const orbitTag = ORBIT_LABEL[groupBy];
 
     const thoughts = data.nodes
-      .filter((n) => !n.archived && visibleKeys.has(assign.get(n.id)))
+      .filter((n) => {
+        if (n.archived) return false;
+        const mems = memberships.get(n.id) || [];
+        if (isolatedGroup === '__orbit') return mems.length === 0;
+        if (isolatedGroup) return mems.includes(isolatedGroup);
+        return true;
+      })
       .map((n) => {
-        const key = assign.get(n.id);
+        const mems = memberships.get(n.id) || [];
+        const isOrbit = mems.length === 0;
         const cached = cache.get(n.id) || {};
         const obj = Object.assign(cached, {
           id: n.id,
           kind: 'thought',
           title: n.title,
-          sub: `${n.type} · ${n.source} · ${n.degree} links`,
-          color: groupOf(key)?.color || MISC_COLOR,
-          groupKey: key,
+          sub: `${n.type} · ${n.source} · ${n.degree} links${isOrbit && orbitTag ? ` · ${orbitTag}` : ''}`,
+          color: isOrbit ? MISC_COLOR : groupColor.get(primary.get(n.id)) || MISC_COLOR,
+          orbit: isOrbit,
           degree: n.degree,
           r: thoughtRadius(n.degree, 1),
         });
@@ -613,12 +660,19 @@ export default function Graph() {
       }
     }
 
+    // One anchor link PER membership: multi-project thoughts get pulled by all
+    // their anchors and settle between the clusters. Strength divides by the
+    // membership count so they balance instead of being crushed.
+    const anchorPresent = new Set(visibleGroups.map((grp) => grp.key));
     for (const t of thoughts) {
-      const grp = groupOf(t.groupKey);
-      links.push({
-        source: t.id, target: `g:${t.groupKey}`, kind: 'anchor',
-        dist: 18 + Math.sqrt(grp?.count || 1) * 3.2,
-      });
+      const mems = (memberships.get(t.id) || []).filter((key) => anchorPresent.has(key));
+      for (const key of mems) {
+        links.push({
+          source: t.id, target: `g:${key}`, kind: 'anchor',
+          dist: 18 + Math.sqrt(groupCount.get(key) || 1) * 3.2,
+          strength: 0.7 / mems.length,
+        });
+      }
     }
 
     const present = new Set(nodes.map((n) => n.id));
@@ -636,7 +690,7 @@ export default function Graph() {
     applyHighlight();
     const fitTimer = setTimeout(() => graph.zoomToFit(800, 60), 700);
     return () => clearTimeout(fitTimer);
-  }, [data, mode, grouping, isolatedGroup, activeEdges, applyHighlight]);
+  }, [data, mode, grouping, groupBy, isolatedGroup, activeEdges, applyHighlight]);
 
   // === Live physics/size sliders — mutate in place, no scene rebuild ===
   useEffect(() => {
@@ -672,7 +726,11 @@ export default function Graph() {
   }
 
   const selected = selectedNode ? nodeById.get(selectedNode) : null;
-  const isolated = isolatedGroup ? grouping.groups.find((grp) => grp.key === isolatedGroup) : null;
+  const isolated = isolatedGroup
+    ? (isolatedGroup === '__orbit'
+      ? { label: 'In orbit' }
+      : grouping.groups.find((grp) => grp.key === isolatedGroup))
+    : null;
 
   return (
     <div className="graph-tab">
@@ -771,6 +829,17 @@ export default function Graph() {
                 {grp.label} <span className="text-slate-600">({grp.count})</span>
               </button>
             ))}
+            {grouping.orbitCount > 0 && (
+              <button
+                onClick={() => setIsolatedGroup((cur) => (cur === '__orbit' ? null : '__orbit'))}
+                className={`graph-orbit-row block w-full text-left text-xs transition-colors ${
+                  isolatedGroup === '__orbit' ? 'text-white' : 'text-slate-500 hover:text-slate-200'
+                }`}
+              >
+                <span className="inline-block w-2 h-2 mr-2 rounded-full border border-slate-500" />
+                In orbit <span className="text-slate-600">({grouping.orbitCount} · {ORBIT_LABEL[groupBy] || 'ungrouped'})</span>
+              </button>
+            )}
           </div>
         </div>
 

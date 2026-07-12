@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.36.0 — 2026-07-12
+
+**Graph: multi-membership satellites + orbit ring.** In project/person grouping a thought now links to the anchor of EVERY project/person it carries (link strength split across memberships) — multi-project thoughts settle *between* their clusters instead of hiding in one; color stays the rarest (most specific) group's. The top-12 + "Other projects" cap is gone: every project/person with ≥3 thoughts gets its own anchor. "Unfiled"/"Solo"/"Unclustered" no longer render as fake clusters — thoughts with no anchored group become gray **orbit** nodes parked by a radial force on a ring (2D) / shell (3D) just outside the whole system; a new "In orbit (N)" row in the Groups panel isolates them. Also: **size contrast ×** slider (exponent on the degree→radius curve — separates hubs from loners visually; shipped earlier today unbumped).
+
 ## 0.35.0 — 2026-07-12
 
 **Graph v3 — 2D/3D switch, satellite grouping, full-screen overlay UI** (the Rubric-Second-Brain look). Default view is now a 2D canvas (`force-graph`) with the 3D deep-space renderer one click away. Every thought gets one "home" group rendered as a satellite cloud around an always-labeled anchor node, all anchors spoked to a central brain node. Group-by selector: semantic clusters (Louvain, default) · project (rarest-project assignment, top 12 + Other/Unfiled) · person (self-aliases excluded, rarest person, top 12 + Others/Solo) · type · source. Clicking an anchor isolates its group (replaces the old Cluster map / All thoughts two-level UX); background click restores. The graph fills the whole viewport; app nav becomes a translucent overlay bar and all controls (search, 2D/3D, group-by, edge toggles, cosine + node-size/gravity/repel sliders, stats, selection info) live in a floating right-side panel. View prefs persist in localStorage (`graph_prefs`).
