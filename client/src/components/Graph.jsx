@@ -65,6 +65,13 @@ function loadPrefs() {
 const thoughtRadius = (degree, spread) =>
   1.8 + 10 * Math.pow(Math.min(1, (degree || 0) / 40), 0.5 * spread);
 
+const withAlpha = (hex, a) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+};
+
 const endId = (v) => (typeof v === 'object' && v !== null ? v.id : v);
 const truncate = (s, n) => ((s || '').length > n ? `${s.slice(0, n - 1)}…` : s || '');
 const escapeHtml = (s) => (s || '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -160,6 +167,7 @@ export default function Graph() {
   const [isolatedGroup, setIsolatedGroup] = useState(null);
   const [edgeKinds, setEdgeKinds] = useState(prefs.edgeKinds || { metadata: true, semantic: true, supersedes: true });
   const [semThreshold, setSemThreshold] = useState(prefs.semThreshold ?? 0.75);
+  const [edgeOpacity, setEdgeOpacity] = useState(prefs.edgeOpacity ?? 0.6);
   const [sizeMult, setSizeMult] = useState(prefs.sizeMult ?? 1);
   const [sizeSpread, setSizeSpread] = useState(prefs.sizeSpread ?? 1);
   const [gravityMult, setGravityMult] = useState(prefs.gravityMult ?? 1);
@@ -182,6 +190,7 @@ export default function Graph() {
   const fitPendingRef = useRef(false);
   const sizeMultRef = useRef(sizeMult);
   const sizeSpreadRef = useRef(sizeSpread);
+  const edgeOpacityRef = useRef(edgeOpacity);
   const gravityMultRef = useRef(gravityMult);
   const repelMultRef = useRef(repelMult);
   const groupsRef = useRef([]);
@@ -193,9 +202,9 @@ export default function Graph() {
   // Persist view prefs.
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
-      mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds,
+      mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity,
     }));
-  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds]);
+  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity]);
 
   const nodeById = useMemo(() => {
     if (!data) return new Map();
@@ -344,11 +353,16 @@ export default function Graph() {
           <span class="graph-tooltip3d__meta">${escapeHtml(n.sub || '')}</span>
         </div>` : ''))
       .linkColor((l) => {
-        if (l.kind === 'anchor' || l.kind === 'spoke') return LINK_COLOR[l.kind];
-        const sel = selectedRef.current;
-        if (!sel) return LINK_COLOR[l.kind] || LINK_COLOR.metadata;
-        const hl = endId(l.source) === sel || endId(l.target) === sel;
-        return hl ? LINK_HL[l.kind] : DIM_LINK;
+        let base;
+        if (l.kind === 'anchor' || l.kind === 'spoke') {
+          base = LINK_COLOR[l.kind];
+        } else {
+          const sel = selectedRef.current;
+          const hl = sel && (endId(l.source) === sel || endId(l.target) === sel);
+          base = !sel ? (LINK_COLOR[l.kind] || LINK_COLOR.metadata) : hl ? LINK_HL[l.kind] : DIM_LINK;
+        }
+        // 2D honors alpha in the color; 3D uses the global linkOpacity uniform.
+        return mode === '3d' ? base : withAlpha(base, edgeOpacityRef.current);
       })
       .linkWidth((l) => {
         if (l.kind === 'anchor') return 0.2;
@@ -407,13 +421,15 @@ export default function Graph() {
     // Orbit ring: park no-group thoughts on a ring (2D) / shell (3D) just
     // outside the outermost cluster — visually "belongs to nothing".
     const orbitForce = (alpha) => {
-      let maxR = 0;
+      // Ring radius from the 92nd-percentile cluster extent, not the max —
+      // one flung-out node must not push the ring into deep space.
+      const ds = [];
       for (const n of simNodes) {
         if (n.orbit) continue;
-        const d = Math.hypot(n.x || 0, n.y || 0, n.z || 0);
-        if (d > maxR) maxR = d;
+        ds.push(Math.hypot(n.x || 0, n.y || 0, n.z || 0));
       }
-      const R = maxR + 70;
+      ds.sort((a, b) => a - b);
+      const R = (ds.length ? ds[Math.floor(ds.length * 0.92)] : 0) + 45;
       const k = 0.08 * alpha;
       for (const n of simNodes) {
         if (!n.orbit) continue;
@@ -449,6 +465,7 @@ export default function Graph() {
 
     if (mode === '3d') {
       graph.showNavInfo(false);
+      graph.linkOpacity(edgeOpacityRef.current);
       graph.nodeThreeObject((node) => {
         const group = new THREE.Group();
         const mat = new THREE.MeshPhongMaterial({
@@ -705,6 +722,14 @@ export default function Graph() {
   }, [sizeMult, sizeSpread]);
 
   useEffect(() => {
+    edgeOpacityRef.current = edgeOpacity;
+    const graph = graphRef.current;
+    if (!graph) return;
+    if (graph.linkOpacity) graph.linkOpacity(edgeOpacity); // 3D global uniform
+    graph.linkColor(graph.linkColor()); // 2D re-derives rgba colors
+  }, [edgeOpacity]);
+
+  useEffect(() => {
     gravityMultRef.current = gravityMult;
     repelMultRef.current = repelMult;
     const graph = graphRef.current;
@@ -867,6 +892,14 @@ export default function Graph() {
             />
           </label>
           <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
+            edge opacity ×{edgeOpacity.toFixed(2)}
+            <input
+              type="range" min="0.05" max="1" step="0.05" value={edgeOpacity}
+              onChange={(e) => setEdgeOpacity(parseFloat(e.target.value))}
+              className="flex-1 accent-[var(--accent-blue)]"
+            />
+          </label>
+          <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
             node size ×{sizeMult.toFixed(1)}
             <input
               type="range" min="0.4" max="2.5" step="0.1" value={sizeMult}
@@ -877,7 +910,7 @@ export default function Graph() {
           <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
             size contrast ×{sizeSpread.toFixed(1)}
             <input
-              type="range" min="0.3" max="3" step="0.1" value={sizeSpread}
+              type="range" min="0.3" max="5" step="0.1" value={sizeSpread}
               onChange={(e) => setSizeSpread(parseFloat(e.target.value))}
               className="flex-1 accent-[var(--accent-blue)]"
             />
