@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.37.1 — 2026-07-12
+
+Timeline scrub: camera no longer re-fits while dragging, and appearing nodes animate in from their group anchor under live physics (no sync warmup teleport) — feels like a gravity change.
+
 ## 0.37.0 — 2026-07-12
 
 Graph: timeline scrubber at the bottom — slider spans first thought → last thought (day steps); dragging replays the brain as of that date (grouping, anchors, ring all recompute; debounced 180ms). ✕ or sliding to the end restores everything. Undated thoughts always visible.

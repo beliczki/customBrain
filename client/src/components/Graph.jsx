@@ -224,6 +224,9 @@ export default function Graph() {
   const gravityMultRef = useRef(gravityMult);
   const repelMultRef = useRef(repelMult);
   const groupsRef = useRef([]);
+  // Detects timeline-only rebuilds: same data/mode/group/filters, different
+  // time cap → gentle path (no warmup teleport, no camera re-fit).
+  const prevStructRef = useRef({});
 
   useEffect(() => {
     getGraph().then(setData).catch((err) => setError(err.message));
@@ -672,6 +675,10 @@ export default function Graph() {
     setSelectedNode(null);
     nodeObjsRef.current.clear();
 
+    const struct = { data, mode, groupBy, isolatedGroup, activeEdges };
+    const isScrub = Object.keys(struct).every((k) => prevStructRef.current[k] === struct[k]);
+    prevStructRef.current = struct;
+
     const { memberships, primary, groups } = grouping;
     groupsRef.current = groups;
     const groupColor = new Map(groups.map((grp) => [grp.key, grp.color]));
@@ -704,6 +711,16 @@ export default function Graph() {
           degree: n.degree,
           r: thoughtRadius(n.degree, 1),
         });
+        // New node (no position yet): spawn at its home anchor so it visibly
+        // emerges from its group and glides into place instead of teleporting.
+        if (obj.x === undefined) {
+          const home = cache.get(isOrbit ? 'brain' : `g:${primary.get(n.id)}`);
+          if (home && home.x !== undefined) {
+            obj.x = home.x + (Math.random() - 0.5) * 12;
+            obj.y = home.y + (Math.random() - 0.5) * 12;
+            if (mode === '3d') obj.z = (home.z || 0) + (Math.random() - 0.5) * 12;
+          }
+        }
         cache.set(n.id, obj);
         return obj;
       });
@@ -767,11 +784,15 @@ export default function Graph() {
       links.push({ source: e.source, target: e.target, kind: e.kind, weight: e.weight, score: e.score, dist: 60 });
     }
 
-    fitPendingRef.current = true;
+    // Timeline scrubs skip the warmup (new nodes animate in from their
+    // anchors under live physics, like a gravity change) and never move the
+    // camera; structural changes keep the settle-then-fit behavior.
+    graph.warmupTicks(isScrub ? 0 : 80);
+    if (!isScrub) fitPendingRef.current = true;
     graph.graphData({ nodes, links });
     applyHighlight();
-    const fitTimer = setTimeout(() => graph.zoomToFit(800, 60), 700);
-    return () => clearTimeout(fitTimer);
+    const fitTimer = isScrub ? null : setTimeout(() => graph.zoomToFit(800, 60), 700);
+    return () => { if (fitTimer) clearTimeout(fitTimer); };
   }, [data, mode, grouping, groupBy, isolatedGroup, activeEdges, inTimeWindow, applyHighlight]);
 
   // === Live physics/size sliders — mutate in place, no scene rebuild ===
