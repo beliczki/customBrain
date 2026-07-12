@@ -65,6 +65,28 @@ function loadPrefs() {
 const thoughtRadius = (degree, spread) =>
   1.8 + 10 * Math.pow(Math.min(1, (degree || 0) / 40), 0.5 * spread);
 
+// Pre-rendered radial-gradient glow sprites, one per color. ctx.shadowBlur on
+// every node froze the 2D renderer (hundreds of ms per frame at retina DPR);
+// drawImage of a cached sprite is 10-50x cheaper.
+const glowCache = new Map();
+function glowSprite(color) {
+  let c = glowCache.get(color);
+  if (c) return c;
+  const size = 64;
+  c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, withAlpha(color, 0.55));
+  grad.addColorStop(0.3, withAlpha(color, 0.22));
+  grad.addColorStop(1, withAlpha(color, 0));
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  glowCache.set(color, c);
+  return c;
+}
+
 const withAlpha = (hex, a) => {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -448,7 +470,10 @@ export default function Graph() {
     };
     orbitForce.initialize = (ns) => { simNodes = ns; };
     graph.d3Force('orbit', orbitForce);
-    graph.d3VelocityDecay(0.25);
+    graph.d3VelocityDecay(0.3);
+    // Faster cooldown: rearrangement settles in ~1/3 the time (default 0.0228
+    // keeps the sim ticking — and repainting — for ~15s per change).
+    graph.d3AlphaDecay(0.06);
     // Satellite layout: per-link distances/strengths precomputed on link
     // objects (anchor strength divides by membership count); real edges pull
     // only weakly so group membership wins the tug of war.
@@ -539,13 +564,12 @@ export default function Graph() {
             ? (inHood ? (node.archived ? 0.5 : 0.95) : 0.06)
             : (inHood || node.kind === 'brain' ? 0.95 : 0.15);
 
-          ctx.save();
           ctx.globalAlpha = alpha;
           if (node.kind === 'anchor') {
+            const gs = r * 4;
+            ctx.drawImage(glowSprite(node.color), node.x - gs / 2, node.y - gs / 2, gs, gs);
             ctx.strokeStyle = node.color;
             ctx.lineWidth = 1.2;
-            ctx.shadowColor = node.color;
-            ctx.shadowBlur = 12;
             ctx.beginPath();
             ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
             ctx.stroke();
@@ -554,14 +578,15 @@ export default function Graph() {
             ctx.arc(node.x, node.y, Math.max(1.6, r * 0.28), 0, 2 * Math.PI);
             ctx.fill();
           } else {
+            if (inHood) {
+              const gs = r * 5;
+              ctx.drawImage(glowSprite(node.color), node.x - gs / 2, node.y - gs / 2, gs, gs);
+            }
             ctx.fillStyle = node.color;
-            ctx.shadowColor = node.color;
-            ctx.shadowBlur = inHood ? 10 : 0;
             ctx.beginPath();
             ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
             ctx.fill();
           }
-          ctx.shadowBlur = 0;
 
           const showLabel = node.kind !== 'thought'
             ? true
@@ -584,7 +609,7 @@ export default function Graph() {
             ctx.textBaseline = 'alphabetic';
             ctx.fillText(text, node.x, ty);
           }
-          ctx.restore();
+          ctx.globalAlpha = 1;
         })
         .nodePointerAreaPaint((node, color, ctx) => {
           const r = (node.kind === 'thought'

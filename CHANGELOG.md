@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.36.5 — 2026-07-12
+
+Graph 2D render perf: per-node ctx.shadowBlur glow (froze frames for hundreds of ms at retina DPR with ~2500 links) replaced with cached radial-gradient glow sprites (drawImage); save/restore dropped; dimmed nodes skip glow. Physics cooldown 3x faster (alphaDecay 0.06, velocityDecay 0.3) so rearrangement settles quickly.
+
 ## 0.36.4 — 2026-07-12
 
 Graph sliders: gravity max ×3 → ×6, size contrast max ×5 → ×10.
