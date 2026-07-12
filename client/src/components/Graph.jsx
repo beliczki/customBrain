@@ -198,6 +198,11 @@ export default function Graph() {
   const [modalThoughtId, setModalThoughtId] = useState(null);
   const [query, setQuery] = useState('');
   const [panelOpen, setPanelOpen] = useState(prefs.panelOpen ?? true);
+  // Timeline scrubber: show the brain as of this date (epoch ms). null = all.
+  // `timeCap` follows the slider live; `appliedCap` is debounced — every change
+  // rebuilds the scene, so raw drag events would thrash the simulation.
+  const [timeCap, setTimeCap] = useState(null);
+  const [appliedCap, setAppliedCap] = useState(null);
   const [collapsed, setCollapsed] = useState(prefs.collapsed || { edges: true, appearance: true, insights: true });
   const toggleSection = (key) => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -237,11 +242,36 @@ export default function Graph() {
     return new Map(data.nodes.map((n) => [n.id, n]));
   }, [data]);
 
+  // First-thought .. last-thought bounds for the timeline (epoch ms, day step).
+  const timeBounds = useMemo(() => {
+    if (!data) return null;
+    let min = Infinity; let max = -Infinity;
+    for (const n of data.nodes) {
+      const t = n.created_at ? Date.parse(n.created_at) : NaN;
+      if (Number.isNaN(t)) continue;
+      if (t < min) min = t;
+      if (t > max) max = t;
+    }
+    return min === Infinity ? null : { min, max };
+  }, [data]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setAppliedCap(timeCap), 180);
+    return () => clearTimeout(t);
+  }, [timeCap]);
+
+  // Undated thoughts count as oldest — they never disappear when scrubbing.
+  const inTimeWindow = useCallback((n) => {
+    if (appliedCap == null) return true;
+    const t = n.created_at ? Date.parse(n.created_at) : NaN;
+    return Number.isNaN(t) ? true : t <= appliedCap;
+  }, [appliedCap]);
+
   const grouping = useMemo(() => {
     if (!data) return { memberships: new Map(), primary: new Map(), groups: [], orbitCount: 0 };
-    const active = data.nodes.filter((n) => !n.archived);
+    const active = data.nodes.filter((n) => !n.archived && inTimeWindow(n));
     return deriveGroups(active, groupBy, data.communities);
-  }, [data, groupBy]);
+  }, [data, groupBy, inTimeWindow]);
 
   // Active edges under the current legend toggles + semantic threshold.
   const activeEdges = useMemo(() => {
@@ -654,7 +684,7 @@ export default function Graph() {
 
     const thoughts = data.nodes
       .filter((n) => {
-        if (n.archived) return false;
+        if (n.archived || !inTimeWindow(n)) return false;
         const mems = memberships.get(n.id) || [];
         if (isolatedGroup === '__orbit') return mems.length === 0;
         if (isolatedGroup) return mems.includes(isolatedGroup);
@@ -742,7 +772,7 @@ export default function Graph() {
     applyHighlight();
     const fitTimer = setTimeout(() => graph.zoomToFit(800, 60), 700);
     return () => clearTimeout(fitTimer);
-  }, [data, mode, grouping, groupBy, isolatedGroup, activeEdges, applyHighlight]);
+  }, [data, mode, grouping, groupBy, isolatedGroup, activeEdges, inTimeWindow, applyHighlight]);
 
   // === Live physics/size sliders — mutate in place, no scene rebuild ===
   useEffect(() => {
@@ -801,6 +831,39 @@ export default function Graph() {
       <p className="graph-hint fixed bottom-3 left-4 z-40 text-[10px] uppercase tracking-wider text-slate-600 pointer-events-none">
         {mode === '3d' ? 'drag to orbit' : 'drag to pan'} · scroll to zoom · click thought to focus · click group to isolate
       </p>
+
+      {/* Timeline scrubber — replay the brain from first thought to last */}
+      {timeBounds && (
+        <div className="graph-timeline fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-[min(720px,60vw)] px-4 py-2 flex items-center gap-3 bg-[rgba(6,9,16,0.72)] border border-white/10 backdrop-blur">
+          <span className="graph-timeline__start text-[10px] text-slate-500 whitespace-nowrap">
+            {new Date(timeBounds.min).toISOString().slice(0, 10)}
+          </span>
+          <input
+            type="range"
+            min={timeBounds.min}
+            max={timeBounds.max}
+            step={86400000}
+            value={timeCap ?? timeBounds.max}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              setTimeCap(v >= timeBounds.max ? null : v);
+            }}
+            className="graph-timeline__slider flex-1 accent-[var(--accent-blue)]"
+          />
+          <span className={`graph-timeline__cap text-[10px] whitespace-nowrap ${timeCap == null ? 'text-slate-500' : 'text-slate-200'}`}>
+            {new Date(timeCap ?? timeBounds.max).toISOString().slice(0, 10)}
+            {timeCap != null && (
+              <button
+                onClick={() => setTimeCap(null)}
+                className="ml-2 text-slate-500 hover:text-white transition-colors"
+                title="Show everything"
+              >
+                ✕
+              </button>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Controls overlay panel */}
       {!panelOpen && (
