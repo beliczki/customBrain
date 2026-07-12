@@ -964,7 +964,7 @@ export default function Graph() {
           <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
             size contrast ×{sizeSpread.toFixed(1)}
             <input
-              type="range" min="0.3" max="5" step="0.1" value={sizeSpread}
+              type="range" min="0.3" max="10" step="0.1" value={sizeSpread}
               onChange={(e) => setSizeSpread(parseFloat(e.target.value))}
               className="flex-1 accent-[var(--accent-blue)]"
             />
@@ -972,7 +972,7 @@ export default function Graph() {
           <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
             gravity ×{gravityMult.toFixed(1)}
             <input
-              type="range" min="0" max="3" step="0.1" value={gravityMult}
+              type="range" min="0" max="6" step="0.1" value={gravityMult}
               onChange={(e) => setGravityMult(parseFloat(e.target.value))}
               className="flex-1 accent-[var(--accent-blue)]"
             />
