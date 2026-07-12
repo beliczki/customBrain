@@ -188,3 +188,47 @@ body {
   font-family: inherit !important;
   color: inherit !important;
 }
+
+/* Graph full-screen overlays — the scene is always dark, so the chrome and
+   controls force dark-theme vars regardless of app theme */
+.graph-overlay-chrome {
+  background: rgba(4, 6, 12, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  --surface: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.15);
+  --text-primary: #E0E0E0;
+  --text-secondary: #999999;
+  --text-tertiary: #666666;
+}
+
+.graph-overlay-chrome .section-row {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.graph-controls-panel {
+  background: rgba(6, 9, 16, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+}
+
+.graph-controls-panel__section {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 10px;
+}
+
+.graph-controls-panel__section:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.graph-controls-panel__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 6px;
+}

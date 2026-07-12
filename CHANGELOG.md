@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.35.0 — 2026-07-12
+
+**Graph v3 — 2D/3D switch, satellite grouping, full-screen overlay UI** (the Rubric-Second-Brain look). Default view is now a 2D canvas (`force-graph`) with the 3D deep-space renderer one click away. Every thought gets one "home" group rendered as a satellite cloud around an always-labeled anchor node, all anchors spoked to a central brain node. Group-by selector: semantic clusters (Louvain, default) · project (rarest-project assignment, top 12 + Other/Unfiled) · person (self-aliases excluded, rarest person, top 12 + Others/Solo) · type · source. Clicking an anchor isolates its group (replaces the old Cluster map / All thoughts two-level UX); background click restores. The graph fills the whole viewport; app nav becomes a translucent overlay bar and all controls (search, 2D/3D, group-by, edge toggles, cosine + node-size/gravity/repel sliders, stats, selection info) live in a floating right-side panel. View prefs persist in localStorage (`graph_prefs`).
+
 ## 0.34.0 — 2026-07-11
 
 **Graph tab v2 — 3D rewrite.** sigma.js/graphology replaced with `3d-force-graph` (three.js WebGL): live d3-force-3d gravity (nodes visibly settle on load), bloom-glow spheres colored by community and sized by degree, slow idle auto-orbit until first grab. Labels are no longer always-on: hover shows a readable pill tooltip; clicking a node flies the camera to it, lights its links with animated directional particles, fades everything outside the neighborhood to ~5% opacity, and labels only the selected node + its 8 strongest neighbors (in-scene sprite labels, dark backdrop, always on top — fixes the unreadable white-on-white highlight labels). Cluster map, drill-down, edge-kind toggles, cosine slider, search fly-to, side panel, and the `/graph` endpoint are unchanged. Graph chunk grows to ~381 kB gzip (three.js), still lazy-loaded.

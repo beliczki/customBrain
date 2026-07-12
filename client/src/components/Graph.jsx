@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ForceGraph3D from '3d-force-graph';
+import ForceGraph2D from 'force-graph';
 import SpriteText from 'three-spritetext';
 import * as THREE from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -14,16 +15,20 @@ const PALETTE = [
   '#84cc16', '#d946ef', '#0ea5e9', '#f97316', '#14b8a6', '#8b5cf6',
 ];
 const communityColor = (c) => (c < 0 ? '#94a3b8' : PALETTE[c % PALETTE.length]);
+const MISC_COLOR = '#64748b';
 
-// The 3D scene is always a dark "deep space" viewport regardless of app theme
-// (bloom glow needs a near-black background to read). Pure black on purpose:
-// the postprocessing chain applies an extra linear→sRGB lift to any non-zero
-// background (#04060f displayed as washed-out navy) — black is invariant.
+// The scene is always a dark "deep space" viewport regardless of app theme.
+// Pure black on purpose: the 3D postprocessing chain applies an extra
+// linear→sRGB lift to any non-zero background — black is invariant.
 const SCENE_BG = '#000000';
 const DIM_LINK = '#0a0e1a';
 
 // Edge provenance colors (every edge says WHY it exists; legend decodes).
-const LINK_COLOR = { metadata: '#333c50', semantic: '#3b5bdb', supersedes: '#b45309' };
+// 'anchor'/'spoke' are layout links: member→group anchor and anchor→brain.
+const LINK_COLOR = {
+  metadata: '#333c50', semantic: '#3b5bdb', supersedes: '#b45309',
+  anchor: '#161d2e', spoke: '#232c44',
+};
 const LINK_HL = { metadata: '#94a3b8', semantic: '#60a5fa', supersedes: '#fbbf24' };
 
 const EDGE_KIND_LABELS = {
@@ -32,50 +37,157 @@ const EDGE_KIND_LABELS = {
   supersedes: 'supersedes (archive chain)',
 };
 
+const GROUP_MODES = [
+  { key: 'clusters', label: 'Clusters' },
+  { key: 'project', label: 'Project' },
+  { key: 'person', label: 'Person' },
+  { key: 'type', label: 'Type' },
+  { key: 'source', label: 'Source' },
+];
+
+// Every thought mentions the owner — grouping by person must exclude self or
+// everything collapses into one blob.
+const SELF_ALIASES = new Set(['Me', 'Beliczki Róbert', 'Robert Beliczki', 'Róbert Beliczki', 'Robi']);
+
+const MAX_NAMED_GROUPS = 12;
+
+const PREFS_KEY = 'graph_prefs';
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; }
+}
+
 const endId = (v) => (typeof v === 'object' && v !== null ? v.id : v);
 const truncate = (s, n) => ((s || '').length > n ? `${s.slice(0, n - 1)}…` : s || '');
 const escapeHtml = (s) => (s || '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
+/** Assign every thought exactly one "home" group under the chosen mode.
+ *  Multi-valued fields (projects, people) pick the RAREST value — the most
+ *  specific home — so groups stay tight instead of overlapping mush. */
+function deriveGroups(nodes, groupBy, communities) {
+  const assign = new Map();
+
+  if (groupBy === 'clusters') {
+    const commLabel = new Map(communities.map((c) => [c.id, c.label]));
+    const singles = new Set(communities.filter((c) => c.size === 1).map((c) => c.id));
+    for (const n of nodes) {
+      assign.set(n.id, singles.has(n.community) || n.community < 0 ? '__misc' : `c${n.community}`);
+    }
+    const counts = countBy(assign);
+    const groups = [...counts.entries()].map(([key, count]) => ({
+      key,
+      label: key === '__misc' ? 'Unclustered' : commLabel.get(parseInt(key.slice(1), 10)) || key,
+      color: key === '__misc' ? MISC_COLOR : communityColor(parseInt(key.slice(1), 10)),
+      count,
+    }));
+    groups.sort((a, b) => b.count - a.count);
+    return { assign, groups };
+  }
+
+  if (groupBy === 'project' || groupBy === 'person') {
+    const field = groupBy === 'project' ? 'projects' : 'people';
+    const freq = new Map();
+    for (const n of nodes) {
+      for (const v of n[field] || []) {
+        if (groupBy === 'person' && SELF_ALIASES.has(v)) continue;
+        freq.set(v, (freq.get(v) || 0) + 1);
+      }
+    }
+    const noneKey = groupBy === 'project' ? '__unfiled' : '__solo';
+    for (const n of nodes) {
+      const vals = (n[field] || []).filter((v) => !(groupBy === 'person' && SELF_ALIASES.has(v)));
+      if (vals.length === 0) { assign.set(n.id, noneKey); continue; }
+      vals.sort((a, b) => freq.get(a) - freq.get(b));
+      assign.set(n.id, vals[0]);
+    }
+    // Keep the top N named groups, fold the tail into "Other".
+    const counts = countBy(assign);
+    const named = [...counts.entries()].filter(([k]) => k !== noneKey).sort((a, b) => b[1] - a[1]);
+    const keep = new Set(named.slice(0, MAX_NAMED_GROUPS).map(([k]) => k));
+    for (const [id, key] of assign) {
+      if (key !== noneKey && !keep.has(key)) assign.set(id, '__other');
+    }
+    const finalCounts = countBy(assign);
+    const labelOf = (key) => (
+      key === '__unfiled' ? 'Unfiled' : key === '__solo' ? 'Solo'
+        : key === '__other' ? (groupBy === 'project' ? 'Other projects' : 'Others') : key
+    );
+    const groups = [...finalCounts.entries()].map(([key, count]) => ({ key, label: labelOf(key), count }));
+    groups.sort((a, b) => b.count - a.count);
+    groups.forEach((grp, i) => {
+      grp.color = grp.key.startsWith('__') ? MISC_COLOR : PALETTE[i % PALETTE.length];
+    });
+    return { assign, groups };
+  }
+
+  // type | source — direct payload fields, small fixed sets.
+  for (const n of nodes) assign.set(n.id, n[groupBy] || 'unknown');
+  const counts = countBy(assign);
+  const groups = [...counts.entries()].map(([key, count]) => ({ key, label: key, count }));
+  groups.sort((a, b) => b.count - a.count);
+  groups.forEach((grp, i) => { grp.color = PALETTE[i % PALETTE.length]; });
+  return { assign, groups };
+}
+
+function countBy(assign) {
+  const counts = new Map();
+  for (const key of assign.values()) counts.set(key, (counts.get(key) || 0) + 1);
+  return counts;
+}
+
 export default function Graph() {
+  const prefs = useRef(loadPrefs()).current;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [view, setView] = useState('clusters'); // 'clusters' | 'thoughts'
-  const [focusCommunities, setFocusCommunities] = useState(null); // null = all, Set = drill-down
-  const [edgeKinds, setEdgeKinds] = useState({ metadata: true, semantic: true, supersedes: true });
-  const [semThreshold, setSemThreshold] = useState(0.75);
-  const [sizeMult, setSizeMult] = useState(1);
-  const [gravityMult, setGravityMult] = useState(1);
-  const [repelMult, setRepelMult] = useState(1);
+  const [mode, setMode] = useState(prefs.mode === '3d' ? '3d' : '2d');
+  const [groupBy, setGroupBy] = useState(GROUP_MODES.some((m) => m.key === prefs.groupBy) ? prefs.groupBy : 'clusters');
+  const [isolatedGroup, setIsolatedGroup] = useState(null);
+  const [edgeKinds, setEdgeKinds] = useState(prefs.edgeKinds || { metadata: true, semantic: true, supersedes: true });
+  const [semThreshold, setSemThreshold] = useState(prefs.semThreshold ?? 0.75);
+  const [sizeMult, setSizeMult] = useState(prefs.sizeMult ?? 1);
+  const [gravityMult, setGravityMult] = useState(prefs.gravityMult ?? 1);
+  const [repelMult, setRepelMult] = useState(prefs.repelMult ?? 1);
   const [selectedNode, setSelectedNode] = useState(null);
   const [modalThoughtId, setModalThoughtId] = useState(null);
   const [query, setQuery] = useState('');
 
-  const wrapRef = useRef(null);
   const containerRef = useRef(null);
   const graphRef = useRef(null);
-  // Per-node three.js handles so highlight changes mutate materials in place
-  // (no scene rebuild, no dropped frames).
+  // Per-node three.js handles (3D only) so highlight changes mutate materials
+  // in place; 2D reads the highlight refs every canvas frame instead.
   const nodeObjsRef = useRef(new Map());
-  // Node objects are cached per id so d3 positions survive filter changes —
-  // toggling an edge kind re-settles gently instead of exploding the layout.
+  // Node objects cached per id so d3 positions survive filter changes.
   const nodeCacheRef = useRef(new Map());
   const selectedRef = useRef(null);
-  const viewRef = useRef(view);
+  const neighborhoodRef = useRef(new Set());
+  const labeledRef = useRef(new Set());
   const hoverRef = useRef(null);
-  const pendingFocusRef = useRef(null);
   const fitPendingRef = useRef(false);
-  const sizeMultRef = useRef(1);
-  const gravityMultRef = useRef(1);
-  const repelMultRef = useRef(1);
+  const sizeMultRef = useRef(sizeMult);
+  const gravityMultRef = useRef(gravityMult);
+  const repelMultRef = useRef(repelMult);
+  const groupsRef = useRef([]);
 
   useEffect(() => {
     getGraph().then(setData).catch((err) => setError(err.message));
   }, []);
 
+  // Persist view prefs.
+  useEffect(() => {
+    localStorage.setItem(PREFS_KEY, JSON.stringify({
+      mode, groupBy, sizeMult, gravityMult, repelMult, semThreshold, edgeKinds,
+    }));
+  }, [mode, groupBy, sizeMult, gravityMult, repelMult, semThreshold, edgeKinds]);
+
   const nodeById = useMemo(() => {
     if (!data) return new Map();
     return new Map(data.nodes.map((n) => [n.id, n]));
   }, [data]);
+
+  const grouping = useMemo(() => {
+    if (!data) return { assign: new Map(), groups: [] };
+    const active = data.nodes.filter((n) => !n.archived);
+    return deriveGroups(active, groupBy, data.communities);
+  }, [data, groupBy]);
 
   // Active edges under the current legend toggles + semantic threshold.
   const activeEdges = useMemo(() => {
@@ -87,7 +199,7 @@ export default function Graph() {
     });
   }, [data, edgeKinds, semThreshold]);
 
-  // Neighbor list of the selected node, with edge provenance.
+  // Neighbor list of the selected node, with edge provenance (side panel).
   const selectedNeighbors = useMemo(() => {
     if (!selectedNode || !data) return [];
     const out = [];
@@ -102,8 +214,6 @@ export default function Graph() {
     return out;
   }, [selectedNode, activeEdges, nodeById, data]);
 
-  // Orphans + hubs for the side panel (full-graph degrees from the server,
-  // independent of client-side edge toggles — matches find_overconnected).
   const orphans = useMemo(
     () => (data ? data.nodes.filter((n) => n.degree === 0 && !n.archived) : []),
     [data],
@@ -120,12 +230,11 @@ export default function Graph() {
   }, [data, query]);
 
   // === Highlight: selected node + neighbors stay lit and labeled, the rest
-  // of the scene fades to near-invisible and loses its labels entirely. ===
+  // fades and loses labels. 2D reads these refs per frame; 3D mutates mats. ===
   const applyHighlight = useCallback(() => {
     const graph = graphRef.current;
     if (!graph) return;
     const sel = selectedRef.current;
-    const inClusterView = viewRef.current === 'clusters';
 
     const neighborhood = new Set();
     const labeled = new Set();
@@ -134,6 +243,7 @@ export default function Graph() {
       labeled.add(sel);
       const weighted = [];
       for (const l of graph.graphData().links) {
+        if (l.kind === 'anchor' || l.kind === 'spoke') continue;
         const a = endId(l.source); const b = endId(l.target);
         if (a !== sel && b !== sel) continue;
         const other = a === sel ? b : a;
@@ -144,12 +254,14 @@ export default function Graph() {
       // a word cloud. Everything else stays lit but unlabeled.
       weighted.sort((x, y) => y.w - x.w).slice(0, 8).forEach(({ other }) => labeled.add(other));
     }
+    neighborhoodRef.current = neighborhood;
+    labeledRef.current = labeled;
 
     for (const [id, o] of nodeObjsRef.current) {
       if (!sel) {
         o.mat.opacity = 0.95;
         o.mat.emissiveIntensity = o.archived ? 0.15 : 0.5;
-        o.label.visible = inClusterView;
+        o.label.visible = !!o.always;
       } else if (neighborhood.has(id)) {
         o.mat.opacity = 1;
         o.mat.emissiveIntensity = id === sel ? 1.1 : 0.75;
@@ -173,42 +285,127 @@ export default function Graph() {
     if (!graph || !id || !fly) return;
     const node = graph.graphData().nodes.find((n) => n.id === id);
     if (!node) return;
-    // Bigger spheres need a longer approach or the camera lands inside them.
-    const dist = 140 + (node.r || 4) * 12 * sizeMultRef.current;
-    const len = Math.hypot(node.x || 0, node.y || 0, node.z || 0) || 1;
-    const ratio = 1 + dist / len;
-    graph.cameraPosition(
-      { x: node.x * ratio, y: node.y * ratio, z: node.z * ratio },
-      node,
-      1000,
-    );
+    if (graph.cameraPosition) {
+      // Bigger spheres need a longer approach or the camera lands inside them.
+      const dist = 140 + (node.r || 4) * 12 * sizeMultRef.current;
+      const len = Math.hypot(node.x || 0, node.y || 0, node.z || 0) || 1;
+      const ratio = 1 + dist / len;
+      graph.cameraPosition({ x: node.x * ratio, y: node.y * ratio, z: node.z * ratio }, node, 1000);
+    } else {
+      graph.centerAt(node.x, node.y, 800);
+      graph.zoom(Math.max(3, graph.zoom()), 800);
+    }
   }, [applyHighlight]);
 
-  const drillInto = useCallback((communityIds) => {
-    setFocusCommunities(communityIds ? new Set(communityIds) : null);
-    setView('thoughts');
-    selectedRef.current = null;
-    setSelectedNode(null);
-  }, []);
+  const focusOnNode = useCallback((id) => {
+    setQuery('');
+    setIsolatedGroup(null);
+    // If isolation was active the data effect rebuilds first; flying after a
+    // beat lets the node exist again before the camera chases it.
+    setTimeout(() => selectNode(id), 60);
+  }, [selectNode]);
 
-  // === One ForceGraph3D instance for the lifetime of the tab ===
-  // Gated on `data`: before the fetch resolves the component renders the
-  // loading placeholder, so the container div doesn't exist yet.
+  // === One graph instance per (data, mode) ===
   useEffect(() => {
     if (!data || !containerRef.current) return;
+    const el = containerRef.current;
 
-    const graph = new ForceGraph3D(containerRef.current, { controlType: 'orbit' });
+    const graph = mode === '3d'
+      ? new ForceGraph3D(el, { controlType: 'orbit' })
+      : new ForceGraph2D(el);
     graphRef.current = graph;
 
     graph
       .backgroundColor(SCENE_BG)
-      .showNavInfo(false)
-      .nodeLabel((n) => `
+      .width(window.innerWidth)
+      .height(window.innerHeight)
+      .nodeLabel((n) => (n.kind === 'thought' ? `
         <div class="graph-tooltip3d">
           <span class="graph-tooltip3d__title">${escapeHtml(n.title)}</span>
           <span class="graph-tooltip3d__meta">${escapeHtml(n.sub || '')}</span>
-        </div>`)
-      .nodeThreeObject((node) => {
+        </div>` : ''))
+      .linkColor((l) => {
+        if (l.kind === 'anchor' || l.kind === 'spoke') return LINK_COLOR[l.kind];
+        const sel = selectedRef.current;
+        if (!sel) return LINK_COLOR[l.kind] || LINK_COLOR.metadata;
+        const hl = endId(l.source) === sel || endId(l.target) === sel;
+        return hl ? LINK_HL[l.kind] : DIM_LINK;
+      })
+      .linkWidth((l) => {
+        if (l.kind === 'anchor') return 0.2;
+        if (l.kind === 'spoke') return 0.5;
+        const sel = selectedRef.current;
+        const hl = sel && (endId(l.source) === sel || endId(l.target) === sel);
+        return hl ? 1.4 : l.kind === 'supersedes' ? 0.8 : 0.3;
+      })
+      .linkDirectionalArrowLength((l) => (l.kind === 'supersedes' ? 3.5 : 0))
+      .linkDirectionalArrowRelPos(0.9)
+      .linkDirectionalParticles((l) => {
+        if (l.kind === 'anchor' || l.kind === 'spoke') return 0;
+        const sel = selectedRef.current;
+        return sel && (endId(l.source) === sel || endId(l.target) === sel) ? 3 : 0;
+      })
+      .linkDirectionalParticleWidth(1.6)
+      .linkDirectionalParticleSpeed(0.006)
+      .onNodeClick((node) => {
+        if (node.kind === 'anchor') {
+          setIsolatedGroup((cur) => (cur === node.groupKey ? null : node.groupKey));
+        } else if (node.kind === 'thought') {
+          selectNode(node.id);
+        } else {
+          selectNode(null);
+          setIsolatedGroup(null);
+        }
+      })
+      .onBackgroundClick(() => {
+        if (selectedRef.current) selectNode(null);
+        else setIsolatedGroup(null);
+      })
+      .onNodeHover((node) => {
+        el.style.cursor = node ? 'pointer' : null;
+        hoverRef.current = node ? node.id : null;
+        if (mode === '3d') {
+          const prev = nodeObjsRef.current.get(hoverRef.current);
+          void prev; // hover emphasis handled via emissive below
+        }
+      });
+
+    // Gravity: a real pull toward the origin. Repulsion alone flings every
+    // unlinked node to infinity, which breaks zoom-to-fit framing.
+    let simNodes = [];
+    const gravity = (alpha) => {
+      const k = 0.06 * gravityMultRef.current * alpha;
+      for (const n of simNodes) {
+        n.vx -= n.x * k;
+        n.vy -= n.y * k;
+        if (n.vz !== undefined) n.vz -= (n.z || 0) * k;
+      }
+    };
+    gravity.initialize = (ns) => { simNodes = ns; };
+    graph.d3Force('gravity', gravity);
+    graph.d3VelocityDecay(0.25);
+    // Satellite layout: per-link distances precomputed on link objects; real
+    // edges pull only weakly so home-group membership wins the tug of war.
+    graph.d3Force('link')
+      .distance((l) => l.dist ?? 60)
+      .strength((l) => (l.kind === 'anchor' ? 0.7 : l.kind === 'spoke' ? 0.35 : 0.03));
+    graph.d3Force('charge').strength((n) => {
+      const base = n.kind === 'anchor' ? -500 : n.kind === 'brain' ? -700 : -35;
+      return base * repelMultRef.current;
+    });
+    graph.warmupTicks(80);
+
+    // Final camera fit once physics settles (once per data load — a flag, so
+    // later engine stops after user drags don't yank the camera).
+    graph.onEngineStop(() => {
+      if (!fitPendingRef.current) return;
+      fitPendingRef.current = false;
+      graph.zoomToFit(700, 60);
+    });
+
+    if (mode === '3d') {
+      graph.showNavInfo(false);
+      graph.nodeThreeObject((node) => {
         const group = new THREE.Group();
         const mat = new THREE.MeshPhongMaterial({
           color: node.color,
@@ -217,9 +414,10 @@ export default function Graph() {
           shininess: 40,
           transparent: true,
           opacity: 0.95,
+          wireframe: node.kind === 'anchor',
         });
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(node.r, 24, 16), mat);
-        mesh.scale.setScalar(sizeMultRef.current);
+        mesh.scale.setScalar(node.kind === 'thought' ? sizeMultRef.current : 1);
         group.add(mesh);
 
         const labelSize = node.big
@@ -232,221 +430,204 @@ export default function Graph() {
         label.borderRadius = 2;
         label.position.y = node.r * sizeMultRef.current + Math.max(3.5, node.r * 0.9);
         // Labels always render on top — a label you can't read is worse than
-        // no label (the exact bug this rewrite kills).
+        // no label.
         label.material.depthTest = false;
         label.material.depthWrite = false;
         label.renderOrder = 999;
-        label.visible = viewRef.current === 'clusters';
+        label.visible = !!node.big;
         group.add(label);
 
-        nodeObjsRef.current.set(node.id, { mat, label, mesh, baseR: node.r, archived: !!node.archived });
+        nodeObjsRef.current.set(node.id, {
+          mat, label, mesh, baseR: node.r, archived: !!node.archived, always: !!node.big,
+        });
         return group;
-      })
-      .linkColor((l) => {
-        const sel = selectedRef.current;
-        if (!sel) return LINK_COLOR[l.kind] || LINK_COLOR.metadata;
-        const hl = endId(l.source) === sel || endId(l.target) === sel;
-        return hl ? LINK_HL[l.kind] : DIM_LINK;
-      })
-      .linkWidth((l) => {
-        const sel = selectedRef.current;
-        const hl = sel && (endId(l.source) === sel || endId(l.target) === sel);
-        return hl ? 1.2 : l.kind === 'supersedes' ? 0.8 : 0.3;
-      })
-      .linkOpacity(0.5)
-      .linkDirectionalArrowLength((l) => (l.kind === 'supersedes' ? 3.5 : 0))
-      .linkDirectionalArrowRelPos(0.9)
-      .linkDirectionalParticles((l) => {
-        const sel = selectedRef.current;
-        return sel && (endId(l.source) === sel || endId(l.target) === sel) ? 3 : 0;
-      })
-      .linkDirectionalParticleWidth(1.4)
-      .linkDirectionalParticleSpeed(0.006)
-      .onNodeClick((node) => {
-        if (viewRef.current === 'clusters') {
-          drillInto(node.communityIds);
-        } else {
-          selectNode(node.id);
-        }
-      })
-      .onBackgroundClick(() => selectNode(null))
-      .onNodeHover((node) => {
-        containerRef.current.style.cursor = node ? 'pointer' : null;
-        const prev = hoverRef.current;
-        if (prev && prev !== selectedRef.current) {
-          const o = nodeObjsRef.current.get(prev);
-          if (o && o.mat.opacity > 0.5) o.mat.emissiveIntensity = o.archived ? 0.15 : 0.5;
-        }
-        hoverRef.current = node ? node.id : null;
-        if (node) {
-          const o = nodeObjsRef.current.get(node.id);
-          if (o && o.mat.opacity > 0.5) o.mat.emissiveIntensity = 0.95;
-        }
       });
 
-    // Gravity: a real pull toward the origin. Repulsion alone flings every
-    // unlinked node to infinity (isolated clusters have no link to hold them),
-    // which broke zoom-to-fit framing.
-    let simNodes = [];
-    const gravity = (alpha) => {
-      const k = 0.06 * gravityMultRef.current * alpha;
-      for (const n of simNodes) {
-        n.vx -= n.x * k;
-        n.vy -= n.y * k;
-        n.vz -= (n.z || 0) * k;
-      }
-    };
-    gravity.initialize = (ns) => { simNodes = ns; };
-    graph.d3Force('gravity', gravity);
-    graph.d3VelocityDecay(0.25);
+      // Bloom — subtle glow on the bright emissive spheres only (threshold
+      // well above 0 or white label sprites flare and wash the scene), plus
+      // OutputPass so the frame converts back to sRGB.
+      const bloom = new UnrealBloomPass(new THREE.Vector2(1024, 1024), 0.5, 0.2, 0.5);
+      graph.postProcessingComposer().addPass(bloom);
+      graph.postProcessingComposer().addPass(new OutputPass());
 
-    // Final camera fit once the physics settles (once per data load — a flag,
-    // so later engine stops after user drags don't yank the camera).
-    graph.onEngineStop(() => {
-      if (!fitPendingRef.current) return;
-      fitPendingRef.current = false;
-      graph.zoomToFit(700, 50);
-    });
+      const controls = graph.controls();
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.45;
+      const stopSpin = () => { controls.autoRotate = false; };
+      controls.addEventListener('start', stopSpin);
+    } else {
+      // 2D canvas renderer — glow via shadowBlur, ring anchors, video-style
+      // always-on group labels; thought labels only for the highlight set.
+      graph
+        .nodeCanvasObject((node, ctx, globalScale) => {
+          const sel = selectedRef.current;
+          const inHood = !sel || neighborhoodRef.current.has(node.id);
+          const r = node.kind === 'thought' ? node.r * 0.55 * sizeMultRef.current : node.r * 0.55;
+          const alpha = node.kind === 'thought'
+            ? (inHood ? (node.archived ? 0.5 : 0.95) : 0.06)
+            : (inHood || node.kind === 'brain' ? 0.95 : 0.15);
 
-    // Bloom — subtle glow only on the bright emissive spheres. Threshold must
-    // stay well above 0 or the white label sprites flare and wash the scene.
-    const bloom = new UnrealBloomPass(new THREE.Vector2(1024, 1024), 0.5, 0.2, 0.5);
-    graph.postProcessingComposer().addPass(bloom);
-    // Custom passes bypass three's default sRGB output — without OutputPass the
-    // frame stays linear and the near-black background washes out to gray-blue.
-    graph.postProcessingComposer().addPass(new OutputPass());
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          if (node.kind === 'anchor') {
+            ctx.strokeStyle = node.color;
+            ctx.lineWidth = 1.2;
+            ctx.shadowColor = node.color;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.fillStyle = node.color;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, Math.max(1.6, r * 0.28), 0, 2 * Math.PI);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = node.color;
+            ctx.shadowColor = node.color;
+            ctx.shadowBlur = inHood ? 10 : 0;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+          ctx.shadowBlur = 0;
 
-    // Slow idle orbit until the user grabs the scene.
-    const controls = graph.controls();
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.45;
-    const stopSpin = () => { controls.autoRotate = false; };
-    controls.addEventListener('start', stopSpin);
+          const showLabel = node.kind !== 'thought'
+            ? true
+            : (sel ? labeledRef.current.has(node.id) : hoverRef.current === node.id);
+          if (showLabel && (node.kind !== 'thought' || inHood)) {
+            const fontPx = node.kind === 'thought'
+              ? Math.max(2.6, 10 / globalScale)
+              : Math.max(3.2, Math.min(7, node.r * 0.42));
+            ctx.font = `${node.kind === 'thought' ? '' : '600 '}${fontPx}px Inter, system-ui, sans-serif`;
+            const text = node.kind === 'anchor'
+              ? truncate(node.title, 38).toUpperCase()
+              : truncate(node.title, 46);
+            const w = ctx.measureText(text).width;
+            const ty = node.y + r + fontPx + 2;
+            ctx.globalAlpha = Math.min(1, alpha + 0.05);
+            ctx.fillStyle = 'rgba(3, 5, 12, 0.78)';
+            ctx.fillRect(node.x - w / 2 - 2, ty - fontPx, w + 4, fontPx + 3);
+            ctx.fillStyle = node.kind === 'thought' ? '#e6edf5' : '#dbe4ee';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText(text, node.x, ty);
+          }
+          ctx.restore();
+        })
+        .nodePointerAreaPaint((node, color, ctx) => {
+          const r = (node.kind === 'thought' ? node.r * 0.55 * sizeMultRef.current : node.r * 0.55) + 2;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+          ctx.fill();
+        })
+        .linkDirectionalArrowLength(0);
+    }
 
-    const ro = new ResizeObserver(() => {
-      if (!wrapRef.current) return;
-      graph.width(wrapRef.current.clientWidth).height(640);
-    });
-    ro.observe(wrapRef.current);
+    const onResize = () => graph.width(window.innerWidth).height(window.innerHeight);
+    window.addEventListener('resize', onResize);
 
     return () => {
-      ro.disconnect();
-      controls.removeEventListener('start', stopSpin);
+      window.removeEventListener('resize', onResize);
       graph._destructor();
       graphRef.current = null;
       nodeObjsRef.current.clear();
     };
-  }, [data, drillInto, selectNode]);
+  }, [data, mode, selectNode]);
 
-  // === Feed data into the scene on view / filter changes ===
+  // === Feed the satellite graph on grouping / filter changes ===
   useEffect(() => {
     const graph = graphRef.current;
     if (!graph || !data) return;
-    viewRef.current = view;
     selectedRef.current = null;
     setSelectedNode(null);
     nodeObjsRef.current.clear();
 
-    let nodes = [];
-    let links = [];
+    const { assign, groups } = grouping;
+    groupsRef.current = groups;
+    const groupOf = (key) => groups.find((grp) => grp.key === key);
+    const visibleGroups = isolatedGroup ? groups.filter((grp) => grp.key === isolatedGroup) : groups;
+    const visibleKeys = new Set(visibleGroups.map((grp) => grp.key));
+    const cache = nodeCacheRef.current;
 
-    if (view === 'clusters') {
-      // Level 0 — community meta-graph. Size-1 communities aggregate into one
-      // "Unclustered" node so 40 singleton dots don't drown the map.
-      const singles = data.communities.filter((c) => c.size === 1);
-      const clusters = data.communities.filter((c) => c.size > 1);
-      const cache = nodeCacheRef.current;
-      const metaNode = (id, label, size, color, communityIds) => {
-        const cached = cache.get(id) || {};
-        const n = Object.assign(cached, {
-          id, title: label, sub: `${size} thoughts`, color, communityIds,
-          r: 4 + Math.sqrt(size) * 1.2, big: true,
-        });
-        cache.set(id, n);
-        return n;
-      };
-      nodes = clusters.map((c) =>
-        metaNode(`c${c.id}`, `${c.label} (${c.size})`, c.size, communityColor(c.id), [c.id]));
-      if (singles.length > 0) {
-        nodes.push(metaNode('c_unclustered', `Unclustered (${singles.length})`,
-          singles.length, '#64748b', singles.map((c) => c.id)));
-      }
-      // Meta edges = cross-community edge counts over the active edge set.
-      const crossCounts = new Map();
-      const nodeCommunity = new Map(data.nodes.map((n) => [n.id, n.community]));
-      const singleIds = new Set(singles.map((c) => c.id));
-      const metaId = (c) => (singleIds.has(c) ? 'c_unclustered' : `c${c}`);
-      const present = new Set(nodes.map((n) => n.id));
-      for (const e of activeEdges) {
-        const ca = nodeCommunity.get(e.source);
-        const cb = nodeCommunity.get(e.target);
-        if (ca === undefined || cb === undefined || ca === cb) continue;
-        const a = metaId(ca); const b = metaId(cb);
-        if (a === b || !present.has(a) || !present.has(b)) continue;
-        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-        crossCounts.set(key, (crossCounts.get(key) || 0) + 1);
-      }
-      links = [...crossCounts].map(([key, count]) => {
-        const [a, b] = key.split('|');
-        return { source: a, target: b, kind: 'metadata', weight: count };
-      });
-    } else {
-      // Level 1 — thoughts (all, or the drilled-into communities).
-      const visible = data.nodes.filter(
-        (n) => !focusCommunities || focusCommunities.has(n.community),
-      );
-      const cache = nodeCacheRef.current;
-      nodes = visible.map((n) => {
+    const thoughts = data.nodes
+      .filter((n) => !n.archived && visibleKeys.has(assign.get(n.id)))
+      .map((n) => {
+        const key = assign.get(n.id);
         const cached = cache.get(n.id) || {};
         const obj = Object.assign(cached, {
           id: n.id,
+          kind: 'thought',
           title: n.title,
-          sub: `${n.type} · ${n.source} · ${n.degree} links${n.archived ? ' · archived' : ''}`,
-          color: n.archived ? '#475569' : communityColor(n.community),
-          archived: n.archived,
-          r: n.archived ? 1.5 : 1.8 + Math.min(10, Math.sqrt(n.degree) * 1.6),
+          sub: `${n.type} · ${n.source} · ${n.degree} links`,
+          color: groupOf(key)?.color || MISC_COLOR,
+          groupKey: key,
+          r: 1.8 + Math.min(10, Math.sqrt(n.degree) * 1.6),
         });
         cache.set(n.id, obj);
         return obj;
       });
-      const present = new Set(nodes.map((n) => n.id));
-      const seen = new Set();
-      links = activeEdges.filter((e) => {
-        if (!present.has(e.source) || !present.has(e.target)) return false;
-        const key = e.source < e.target ? `${e.source}|${e.target}` : `${e.target}|${e.source}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }).map((e) => ({ source: e.source, target: e.target, kind: e.kind, weight: e.weight, score: e.score }));
+
+    const anchors = visibleGroups.map((grp) => {
+      const id = `g:${grp.key}`;
+      const cached = cache.get(id) || {};
+      const obj = Object.assign(cached, {
+        id,
+        kind: 'anchor',
+        title: `${grp.label} (${grp.count})`,
+        color: grp.color,
+        groupKey: grp.key,
+        r: 6 + Math.sqrt(grp.count) * 1.4,
+        big: true,
+      });
+      cache.set(id, obj);
+      return obj;
+    });
+
+    const nodes = [...thoughts, ...anchors];
+    const links = [];
+
+    if (!isolatedGroup) {
+      const brainCached = cache.get('brain') || {};
+      nodes.push(Object.assign(brainCached, {
+        id: 'brain', kind: 'brain', title: 'BRAIN', color: '#e2e8f0', r: 7, big: true,
+      }));
+      cache.set('brain', nodes[nodes.length - 1]);
+      for (const grp of visibleGroups) {
+        links.push({ source: 'brain', target: `g:${grp.key}`, kind: 'spoke', dist: 190 + Math.sqrt(grp.count) * 6 });
+      }
     }
 
-    // Per-view physics: cluster meta-spheres are huge (r up to ~16), they need
-    // far more elbow room than thought nodes or their labels stack.
-    graph.d3Force('charge').strength((view === 'clusters' ? -400 : -120) * repelMultRef.current);
-    graph.d3Force('link').distance(view === 'clusters' ? 120 : 30);
-    graph.warmupTicks(view === 'clusters' ? 100 : 40);
+    for (const t of thoughts) {
+      const grp = groupOf(t.groupKey);
+      links.push({
+        source: t.id, target: `g:${t.groupKey}`, kind: 'anchor',
+        dist: 18 + Math.sqrt(grp?.count || 1) * 3.2,
+      });
+    }
+
+    const present = new Set(nodes.map((n) => n.id));
+    const seen = new Set();
+    for (const e of activeEdges) {
+      if (!present.has(e.source) || !present.has(e.target)) continue;
+      const key = e.source < e.target ? `${e.source}|${e.target}` : `${e.target}|${e.source}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      links.push({ source: e.source, target: e.target, kind: e.kind, weight: e.weight, score: e.score, dist: 60 });
+    }
 
     fitPendingRef.current = true;
     graph.graphData({ nodes, links });
     applyHighlight();
-
-    // Early approximate framing (positions are near-final thanks to warmup);
-    // onEngineStop does the precise fit when the simulation settles.
-    const fitTimer = setTimeout(() => graph.zoomToFit(800, 50), 600);
-
-    // Deferred fly-to from search (waits for the new view's data to exist).
-    if (pendingFocusRef.current && view === 'thoughts') {
-      const id = pendingFocusRef.current;
-      pendingFocusRef.current = null;
-      setTimeout(() => selectNode(id), 900);
-    }
+    const fitTimer = setTimeout(() => graph.zoomToFit(800, 60), 700);
     return () => clearTimeout(fitTimer);
-  }, [data, view, focusCommunities, activeEdges, applyHighlight, selectNode]);
+  }, [data, mode, grouping, isolatedGroup, activeEdges, applyHighlight]);
 
   // === Live physics/size sliders — mutate in place, no scene rebuild ===
   useEffect(() => {
     sizeMultRef.current = sizeMult;
     for (const o of nodeObjsRef.current.values()) {
+      if (o.always) continue; // anchors/brain keep their size
       o.mesh.scale.setScalar(sizeMult);
       o.label.position.y = o.baseR * sizeMult + Math.max(3.5, o.baseR * 0.9);
     }
@@ -457,68 +638,52 @@ export default function Graph() {
     repelMultRef.current = repelMult;
     const graph = graphRef.current;
     if (!graph) return;
-    graph.d3Force('charge').strength((viewRef.current === 'clusters' ? -400 : -120) * repelMult);
+    graph.d3Force('charge').strength((n) => {
+      const base = n.kind === 'anchor' ? -500 : n.kind === 'brain' ? -700 : -35;
+      return base * repelMult;
+    });
     graph.d3ReheatSimulation();
   }, [gravityMult, repelMult]);
 
-  const focusOnNode = useCallback((id) => {
-    setQuery('');
-    if (viewRef.current === 'thoughts' && !focusCommunities) {
-      selectNode(id);
-    } else {
-      pendingFocusRef.current = id;
-      setFocusCommunities(null);
-      setView('thoughts');
-    }
-  }, [focusCommunities, selectNode]);
-
   if (error) return <p className="text-red-600 dark:text-red-400 text-sm">Graph error: {error}</p>;
-  if (!data) return <p className="text-txt-ter text-sm">Building graph…</p>;
+  if (!data) {
+    return (
+      <div className="graph-loading fixed inset-0 z-30 bg-black flex items-center justify-center">
+        <p className="text-slate-500 text-sm">Building graph…</p>
+      </div>
+    );
+  }
 
   const selected = selectedNode ? nodeById.get(selectedNode) : null;
+  const isolated = isolatedGroup ? grouping.groups.find((grp) => grp.key === isolatedGroup) : null;
 
   return (
     <div className="graph-tab">
-      {/* Toolbar */}
-      <div className="graph-toolbar flex flex-wrap items-center gap-3 mb-4">
-        <div className="graph-toolbar__views flex border border-subtle">
-          {['clusters', 'thoughts'].map((v) => (
-            <button
-              key={v}
-              onClick={() => { setView(v); setFocusCommunities(null); }}
-              className={`graph-view-btn px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
-                view === v && !focusCommunities ? 'bg-accent text-white' : 'text-txt-sec hover:text-txt'
-              }`}
-            >
-              {v === 'clusters' ? 'Cluster map' : 'All thoughts'}
-            </button>
-          ))}
-        </div>
-        {focusCommunities && (
-          <button
-            onClick={() => { setView('clusters'); setFocusCommunities(null); }}
-            className="graph-back-btn px-3 py-1.5 text-xs text-txt-sec border border-subtle hover:text-txt transition-colors"
-          >
-            ← back to map
-          </button>
-        )}
-        <p className="graph-hint text-[10px] uppercase tracking-wider text-txt-ter hidden md:block">
-          drag to orbit · scroll to zoom · click a node to focus
-        </p>
-        <div className="graph-search relative ml-auto">
+      {/* Full-screen scene */}
+      <div ref={containerRef} className="graph-canvas graph-canvas--full fixed inset-0 z-30 bg-black" />
+
+      {/* Hint overlay */}
+      <p className="graph-hint fixed bottom-3 left-4 z-40 text-[10px] uppercase tracking-wider text-slate-600 pointer-events-none">
+        {mode === '3d' ? 'drag to orbit' : 'drag to pan'} · scroll to zoom · click thought to focus · click group to isolate
+      </p>
+
+      {/* Controls overlay panel */}
+      <div className="graph-controls-panel fixed top-[104px] right-4 z-40 w-72 max-h-[calc(100vh-120px)] overflow-y-auto space-y-3">
+        {/* Search */}
+        <div className="graph-search relative">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find thought…"
-            className="graph-search__input px-3 py-1.5 bg-surface border border-subtle text-txt text-sm w-56"
+            className="graph-search__input w-full px-3 py-1.5 bg-black/40 border border-white/10 text-slate-200 text-sm placeholder-slate-500"
           />
           {searchMatches.length > 0 && (
-            <div className="graph-search__results absolute top-full left-0 right-0 z-20 bg-surface border border-subtle shadow-lg max-h-64 overflow-y-auto">
+            <div className="graph-search__results absolute top-full left-0 right-0 z-20 bg-[#0a0d16] border border-white/10 shadow-lg max-h-64 overflow-y-auto">
               {searchMatches.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => focusOnNode(n.id)}
-                  className="block w-full text-left px-3 py-2 text-xs text-txt hover:bg-[var(--border)] transition-colors"
+                  className="block w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-white/10 transition-colors"
                 >
                   <span className="inline-block w-2 h-2 mr-2" style={{ backgroundColor: communityColor(n.community) }} />
                   {n.title}
@@ -527,170 +692,196 @@ export default function Graph() {
             </div>
           )}
         </div>
-      </div>
 
-      <div className="flex gap-4 items-start">
-        {/* Canvas */}
-        <div className="graph-canvas-wrap flex-1 min-w-0" ref={wrapRef}>
-          <div
-            ref={containerRef}
-            className="graph-canvas graph-canvas--3d border border-subtle overflow-hidden"
-            style={{ height: '640px' }}
-          />
-          {/* Legend */}
-          <div className="graph-legend flex flex-wrap items-center gap-4 mt-2 text-[10px] uppercase tracking-wider text-txt-ter">
-            {Object.keys(EDGE_KIND_LABELS).map((kind) => (
-              <label key={kind} className="graph-legend__item flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={edgeKinds[kind]}
-                  onChange={() => setEdgeKinds((prev) => ({ ...prev, [kind]: !prev[kind] }))}
-                  className="accent-[var(--accent-blue)]"
-                />
-                <span
-                  className="inline-block w-4 h-0.5"
-                  style={{ backgroundColor: LINK_HL[kind] }}
-                />
-                {EDGE_KIND_LABELS[kind]}
-              </label>
-            ))}
-            <label className="graph-legend__threshold flex items-center gap-1.5 ml-auto">
-              cosine ≥ {semThreshold.toFixed(2)}
-              <input
-                type="range"
-                min="0.7"
-                max="0.9"
-                step="0.01"
-                value={semThreshold}
-                onChange={(e) => setSemThreshold(parseFloat(e.target.value))}
-                className="w-24 accent-[var(--accent-blue)]"
-              />
-            </label>
+        {/* Renderer + grouping */}
+        <div className="graph-controls-panel__section">
+          <p className="graph-controls-panel__label">Layout</p>
+          <div className="flex gap-2 mb-2">
+            <div className="graph-mode-switch flex border border-white/10">
+              {['2d', '3d'].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors ${
+                    mode === m ? 'bg-accent text-white' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            {isolated && (
+              <button
+                onClick={() => setIsolatedGroup(null)}
+                className="graph-isolation-chip px-2 py-1 text-xs border border-white/10 text-slate-300 hover:text-white transition-colors"
+                title="Show all groups"
+              >
+                {truncate(isolated.label, 18)} ✕
+              </button>
+            )}
           </div>
-          {/* Physics controls */}
-          <div className="graph-physics flex flex-wrap items-center gap-4 mt-1.5 text-[10px] uppercase tracking-wider text-txt-ter">
-            <label className="graph-physics__slider flex items-center gap-1.5">
-              node size ×{sizeMult.toFixed(1)}
-              <input
-                type="range" min="0.4" max="2.5" step="0.1" value={sizeMult}
-                onChange={(e) => setSizeMult(parseFloat(e.target.value))}
-                className="w-20 accent-[var(--accent-blue)]"
-              />
-            </label>
-            <label className="graph-physics__slider flex items-center gap-1.5">
-              gravity ×{gravityMult.toFixed(1)}
-              <input
-                type="range" min="0" max="3" step="0.1" value={gravityMult}
-                onChange={(e) => setGravityMult(parseFloat(e.target.value))}
-                className="w-20 accent-[var(--accent-blue)]"
-              />
-            </label>
-            <label className="graph-physics__slider flex items-center gap-1.5">
-              repel ×{repelMult.toFixed(1)}
-              <input
-                type="range" min="0.2" max="3" step="0.1" value={repelMult}
-                onChange={(e) => setRepelMult(parseFloat(e.target.value))}
-                className="w-20 accent-[var(--accent-blue)]"
-              />
-            </label>
+          <p className="graph-controls-panel__label">Group by</p>
+          <div className="graph-groupby flex flex-wrap gap-1">
+            {GROUP_MODES.map((m) => (
+              <button
+                key={m.key}
+                onClick={() => { setGroupBy(m.key); setIsolatedGroup(null); }}
+                className={`px-2 py-1 text-[10px] font-medium uppercase tracking-wider border transition-colors ${
+                  groupBy === m.key
+                    ? 'bg-accent border-accent text-white'
+                    : 'border-white/10 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Side panel */}
-        <div className="graph-side-panel w-64 shrink-0 space-y-4 text-sm">
-          {selected ? (
-            <div className="graph-node-info border border-subtle p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ backgroundColor: selected.archived ? '#999' : communityColor(selected.community) }} />
-                <span className="font-medium text-txt text-xs leading-tight">{selected.title}</span>
-              </div>
-              <p className="text-[10px] uppercase tracking-wider text-txt-ter mb-2">
-                {selected.type} · {selected.source} · {selected.degree} links
-                {selected.archived && ' · archived'}
-              </p>
+        {/* Groups list */}
+        <div className="graph-controls-panel__section">
+          <p className="graph-controls-panel__label">Groups</p>
+          <div className="max-h-40 overflow-y-auto space-y-0.5">
+            {grouping.groups.map((grp) => (
               <button
-                onClick={() => setModalThoughtId(selected.id)}
-                className="graph-node-info__open w-full px-3 py-1.5 bg-accent text-white text-xs font-medium hover:bg-accent-dark transition-colors mb-2"
+                key={grp.key}
+                onClick={() => setIsolatedGroup((cur) => (cur === grp.key ? null : grp.key))}
+                className={`block w-full text-left text-xs transition-colors ${
+                  isolatedGroup === grp.key ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                Open thought
+                <span className="inline-block w-2 h-2 mr-2" style={{ backgroundColor: grp.color }} />
+                {grp.label} <span className="text-slate-600">({grp.count})</span>
               </button>
-              {selectedNeighbors.length > 0 && (
-                <>
-                  <p className="text-xs uppercase tracking-wider text-txt-ter mt-2 mb-1">Connections</p>
-                  <div className="graph-node-info__neighbors max-h-48 overflow-y-auto space-y-1">
-                    {selectedNeighbors.map(({ node: n, edge: e }, i) => (
-                      <button
-                        key={`${n.id}-${i}`}
-                        onClick={() => focusOnNode(n.id)}
-                        className="block w-full text-left text-xs text-txt-sec hover:text-txt transition-colors"
-                        title={
-                          e.kind === 'metadata'
-                            ? `shared: ${[...(e.shared?.people || []), ...(e.shared?.projects || []), ...(e.shared?.topics || [])].join(', ')}`
-                            : e.kind === 'semantic'
-                              ? `cosine ${(e.score * 100).toFixed(0)}%`
-                              : 'supersedes'
-                        }
-                      >
-                        <span className={`inline-block w-1.5 h-1.5 mr-1.5 ${e.kind === 'semantic' ? 'bg-[var(--accent-blue)]' : e.kind === 'supersedes' ? 'bg-amber-500' : 'bg-[var(--border-subtle)]'}`} />
-                        {n.title}
-                        {e.kind === 'semantic' && <span className="text-txt-ter"> {(e.score * 100).toFixed(0)}%</span>}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          ) : view === 'clusters' ? (
-            <div className="graph-cluster-panel border border-subtle p-3">
-              <p className="text-xs uppercase tracking-wider text-txt-ter mb-2">Clusters</p>
-              <div className="max-h-72 overflow-y-auto space-y-1">
-                {data.communities.filter((c) => c.size > 1).map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => drillInto([c.id])}
-                    className="block w-full text-left text-xs text-txt-sec hover:text-txt transition-colors"
-                  >
-                    <span className="inline-block w-2 h-2 mr-2" style={{ backgroundColor: communityColor(c.id) }} />
-                    {c.label} <span className="text-txt-ter">({c.size})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="graph-health-panel border border-subtle p-3">
-              <p className="text-xs uppercase tracking-wider text-txt-ter mb-2">
-                Hubs <span className="text-[10px] normal-case">(most connected)</span>
-              </p>
-              <div className="space-y-1 mb-3">
-                {hubs.map((n) => (
-                  <button key={n.id} onClick={() => focusOnNode(n.id)} className="block w-full text-left text-xs text-txt-sec hover:text-txt transition-colors">
-                    {n.title} <span className="text-txt-ter">({n.degree})</span>
-                  </button>
-                ))}
-              </div>
-              {orphans.length > 0 && (
-                <>
-                  <p className="text-xs uppercase tracking-wider text-txt-ter mb-1">
-                    Orphans <span className="text-[10px] normal-case">({orphans.length} unlinked)</span>
-                  </p>
-                  <div className="max-h-40 overflow-y-auto space-y-1">
-                    {orphans.map((n) => (
-                      <button key={n.id} onClick={() => setModalThoughtId(n.id)} className="block w-full text-left text-xs text-txt-sec hover:text-txt transition-colors">
-                        {n.title}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Stats */}
-          <div className="graph-stats border border-subtle p-3 text-[10px] uppercase tracking-wider text-txt-ter space-y-0.5">
-            <p>{data.stats.node_count} thoughts · {data.stats.edge_count} links</p>
-            <p>{data.stats.metadata_edges} tag · {data.stats.semantic_edges} semantic · {data.stats.supersedes_edges} supersedes</p>
-            <p>{data.stats.community_count} clusters · {data.stats.orphan_count} orphans</p>
+            ))}
           </div>
+        </div>
+
+        {/* Edges + physics */}
+        <div className="graph-controls-panel__section">
+          <p className="graph-controls-panel__label">Edges</p>
+          {Object.keys(EDGE_KIND_LABELS).map((kind) => (
+            <label key={kind} className="graph-legend__item flex items-center gap-1.5 cursor-pointer select-none text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+              <input
+                type="checkbox"
+                checked={edgeKinds[kind]}
+                onChange={() => setEdgeKinds((prev) => ({ ...prev, [kind]: !prev[kind] }))}
+                className="accent-[var(--accent-blue)]"
+              />
+              <span className="inline-block w-4 h-0.5" style={{ backgroundColor: LINK_HL[kind] }} />
+              {EDGE_KIND_LABELS[kind]}
+            </label>
+          ))}
+          <label className="graph-legend__threshold flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
+            cosine ≥ {semThreshold.toFixed(2)}
+            <input
+              type="range" min="0.7" max="0.9" step="0.01" value={semThreshold}
+              onChange={(e) => setSemThreshold(parseFloat(e.target.value))}
+              className="flex-1 accent-[var(--accent-blue)]"
+            />
+          </label>
+          <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
+            node size ×{sizeMult.toFixed(1)}
+            <input
+              type="range" min="0.4" max="2.5" step="0.1" value={sizeMult}
+              onChange={(e) => setSizeMult(parseFloat(e.target.value))}
+              className="flex-1 accent-[var(--accent-blue)]"
+            />
+          </label>
+          <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
+            gravity ×{gravityMult.toFixed(1)}
+            <input
+              type="range" min="0" max="3" step="0.1" value={gravityMult}
+              onChange={(e) => setGravityMult(parseFloat(e.target.value))}
+              className="flex-1 accent-[var(--accent-blue)]"
+            />
+          </label>
+          <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
+            repel ×{repelMult.toFixed(1)}
+            <input
+              type="range" min="0.2" max="3" step="0.1" value={repelMult}
+              onChange={(e) => setRepelMult(parseFloat(e.target.value))}
+              className="flex-1 accent-[var(--accent-blue)]"
+            />
+          </label>
+        </div>
+
+        {/* Selection / hubs */}
+        {selected ? (
+          <div className="graph-node-info graph-controls-panel__section">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ backgroundColor: communityColor(selected.community) }} />
+              <span className="font-medium text-slate-100 text-xs leading-tight">{selected.title}</span>
+            </div>
+            <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">
+              {selected.type} · {selected.source} · {selected.degree} links
+            </p>
+            <button
+              onClick={() => setModalThoughtId(selected.id)}
+              className="graph-node-info__open w-full px-3 py-1.5 bg-accent text-white text-xs font-medium hover:bg-accent-dark transition-colors mb-2"
+            >
+              Open thought
+            </button>
+            {selectedNeighbors.length > 0 && (
+              <>
+                <p className="graph-controls-panel__label mt-2">Connections</p>
+                <div className="graph-node-info__neighbors max-h-40 overflow-y-auto space-y-1">
+                  {selectedNeighbors.map(({ node: n, edge: e }, i) => (
+                    <button
+                      key={`${n.id}-${i}`}
+                      onClick={() => focusOnNode(n.id)}
+                      className="block w-full text-left text-xs text-slate-400 hover:text-slate-100 transition-colors"
+                      title={
+                        e.kind === 'metadata'
+                          ? `shared: ${[...(e.shared?.people || []), ...(e.shared?.projects || []), ...(e.shared?.topics || [])].join(', ')}`
+                          : e.kind === 'semantic'
+                            ? `cosine ${(e.score * 100).toFixed(0)}%`
+                            : 'supersedes'
+                      }
+                    >
+                      <span className={`inline-block w-1.5 h-1.5 mr-1.5 ${e.kind === 'semantic' ? 'bg-[var(--accent-blue)]' : e.kind === 'supersedes' ? 'bg-amber-500' : 'bg-slate-600'}`} />
+                      {n.title}
+                      {e.kind === 'semantic' && <span className="text-slate-600"> {(e.score * 100).toFixed(0)}%</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="graph-health-panel graph-controls-panel__section">
+            <p className="graph-controls-panel__label">
+              Hubs <span className="normal-case">(most connected)</span>
+            </p>
+            <div className="space-y-1 mb-2">
+              {hubs.map((n) => (
+                <button key={n.id} onClick={() => focusOnNode(n.id)} className="block w-full text-left text-xs text-slate-400 hover:text-slate-100 transition-colors">
+                  {n.title} <span className="text-slate-600">({n.degree})</span>
+                </button>
+              ))}
+            </div>
+            {orphans.length > 0 && (
+              <>
+                <p className="graph-controls-panel__label">
+                  Orphans <span className="normal-case">({orphans.length} unlinked)</span>
+                </p>
+                <div className="max-h-28 overflow-y-auto space-y-1">
+                  {orphans.map((n) => (
+                    <button key={n.id} onClick={() => setModalThoughtId(n.id)} className="block w-full text-left text-xs text-slate-400 hover:text-slate-100 transition-colors">
+                      {n.title}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Stats */}
+        <div className="graph-stats graph-controls-panel__section text-[10px] uppercase tracking-wider text-slate-500 space-y-0.5">
+          <p>{data.stats.node_count} thoughts · {data.stats.edge_count} links</p>
+          <p>{data.stats.metadata_edges} tag · {data.stats.semantic_edges} semantic · {data.stats.supersedes_edges} supersedes</p>
+          <p>{data.stats.community_count} clusters · {data.stats.orphan_count} orphans</p>
         </div>
       </div>
 

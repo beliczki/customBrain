@@ -134,61 +134,67 @@ export default function App() {
     return <UnlockForm onAuthenticated={(val) => { localStorage.setItem('ui_secret', val); setToken(val); }} />;
   }
 
+  // Graph is a full-viewport scene: the header + nav float above it as a
+  // translucent overlay bar instead of taking layout space.
+  const graphActive = active === 'Graph';
+
   return (
     <div className="min-h-screen">
       <ThemeToggle />
-      {/* Header row */}
-      <div className="section-row">
-        <div className="container">
-          <div className="flex items-center gap-3 px-6 py-4">
-            <img src="/brain_darkmode.svg" alt="" className="w-8 h-8 dark:block hidden" />
-            <img src="/brain.svg" alt="" className="w-8 h-8 dark:hidden" />
-            <h1 className="text-2xl font-bold text-txt">{APP_NAME}</h1>
-            <span className="text-xs text-txt-sec bg-surface border border-subtle px-1.5 py-0.5 rounded font-mono">
-              v{APP_VERSION}
-            </span>
+      <div className={graphActive ? 'graph-overlay-chrome fixed top-0 inset-x-0 z-50' : ''}>
+        {/* Header row */}
+        <div className="section-row">
+          <div className="container">
+            <div className="flex items-center gap-3 px-6 py-4">
+              <img src="/brain_darkmode.svg" alt="" className={`w-8 h-8 ${graphActive ? 'block' : 'dark:block hidden'}`} />
+              {!graphActive && <img src="/brain.svg" alt="" className="w-8 h-8 dark:hidden" />}
+              <h1 className="text-2xl font-bold text-txt">{APP_NAME}</h1>
+              <span className="text-xs text-txt-sec bg-surface border border-subtle px-1.5 py-0.5 rounded font-mono">
+                v{APP_VERSION}
+              </span>
+            </div>
+          </div>
+        </div>
+        {/* Nav row */}
+        <div className="section-row">
+          <div className="container">
+            <nav className="flex px-6">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActive(tab)}
+                  className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                    active === tab
+                      ? 'border-[var(--accent-blue)] text-txt'
+                      : 'border-transparent text-txt-sec hover:text-txt'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </nav>
           </div>
         </div>
       </div>
-      {/* Nav row */}
-      <div className="section-row">
-        <div className="container">
-          <nav className="flex px-6">
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActive(tab)}
-                className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                  active === tab
-                    ? 'border-[var(--accent-blue)] text-txt'
-                    : 'border-transparent text-txt-sec hover:text-txt'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
-      {/* Content row */}
-      <div className="section-row min-h-[calc(100vh-120px)]">
-        <div className="container">
-          <div className="px-6 py-8">
-            {active === 'Capture' && <Capture />}
-            {active === 'Search' && <Search />}
-            {active === 'Recent' && <Recent />}
-            {active === 'Agenda' && <Agenda />}
-            {active === 'Graph' && (
-              <Suspense fallback={<p className="text-txt-ter text-sm">Loading graph…</p>}>
-                <Graph />
-              </Suspense>
-            )}
-            {active === 'Stats' && <Stats />}
-            {active === 'Export' && <Export />}
-            {active === 'Settings' && <Settings />}
+      {graphActive ? (
+        <Suspense fallback={<p className="text-txt-ter text-sm p-8">Loading graph…</p>}>
+          <Graph />
+        </Suspense>
+      ) : (
+        <div className="section-row min-h-[calc(100vh-120px)]">
+          <div className="container">
+            <div className="px-6 py-8">
+              {active === 'Capture' && <Capture />}
+              {active === 'Search' && <Search />}
+              {active === 'Recent' && <Recent />}
+              {active === 'Agenda' && <Agenda />}
+              {active === 'Stats' && <Stats />}
+              {active === 'Export' && <Export />}
+              {active === 'Settings' && <Settings />}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

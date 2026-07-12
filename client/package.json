@@ -1,6 +1,6 @@
 {
   "name": "open-brain-client",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "3d-force-graph": "^1.80.0",
+    "force-graph": "^1.51.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
