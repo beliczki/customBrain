@@ -56,6 +56,11 @@ function loadPrefs() {
   try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch { return {}; }
 }
 
+// Thought radius as a function of degree. `spread` is the contrast exponent:
+// 1 = the default sqrt curve, >1 exaggerates hubs vs. loners, <1 flattens.
+const thoughtRadius = (degree, spread) =>
+  1.8 + 10 * Math.pow(Math.min(1, (degree || 0) / 40), 0.5 * spread);
+
 const endId = (v) => (typeof v === 'object' && v !== null ? v.id : v);
 const truncate = (s, n) => ((s || '').length > n ? `${s.slice(0, n - 1)}…` : s || '');
 const escapeHtml = (s) => (s || '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -144,6 +149,7 @@ export default function Graph() {
   const [edgeKinds, setEdgeKinds] = useState(prefs.edgeKinds || { metadata: true, semantic: true, supersedes: true });
   const [semThreshold, setSemThreshold] = useState(prefs.semThreshold ?? 0.75);
   const [sizeMult, setSizeMult] = useState(prefs.sizeMult ?? 1);
+  const [sizeSpread, setSizeSpread] = useState(prefs.sizeSpread ?? 1);
   const [gravityMult, setGravityMult] = useState(prefs.gravityMult ?? 1);
   const [repelMult, setRepelMult] = useState(prefs.repelMult ?? 1);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -163,6 +169,7 @@ export default function Graph() {
   const hoverRef = useRef(null);
   const fitPendingRef = useRef(false);
   const sizeMultRef = useRef(sizeMult);
+  const sizeSpreadRef = useRef(sizeSpread);
   const gravityMultRef = useRef(gravityMult);
   const repelMultRef = useRef(repelMult);
   const groupsRef = useRef([]);
@@ -174,9 +181,9 @@ export default function Graph() {
   // Persist view prefs.
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
-      mode, groupBy, sizeMult, gravityMult, repelMult, semThreshold, edgeKinds,
+      mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds,
     }));
-  }, [mode, groupBy, sizeMult, gravityMult, repelMult, semThreshold, edgeKinds]);
+  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds]);
 
   const nodeById = useMemo(() => {
     if (!data) return new Map();
@@ -417,7 +424,9 @@ export default function Graph() {
           wireframe: node.kind === 'anchor',
         });
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(node.r, 24, 16), mat);
-        mesh.scale.setScalar(node.kind === 'thought' ? sizeMultRef.current : 1);
+        mesh.scale.setScalar(node.kind === 'thought'
+          ? (thoughtRadius(node.degree, sizeSpreadRef.current) / node.r) * sizeMultRef.current
+          : 1);
         group.add(mesh);
 
         const labelSize = node.big
@@ -438,7 +447,8 @@ export default function Graph() {
         group.add(label);
 
         nodeObjsRef.current.set(node.id, {
-          mat, label, mesh, baseR: node.r, archived: !!node.archived, always: !!node.big,
+          mat, label, mesh, baseR: node.r, degree: node.degree,
+          archived: !!node.archived, always: !!node.big,
         });
         return group;
       });
@@ -462,7 +472,9 @@ export default function Graph() {
         .nodeCanvasObject((node, ctx, globalScale) => {
           const sel = selectedRef.current;
           const inHood = !sel || neighborhoodRef.current.has(node.id);
-          const r = node.kind === 'thought' ? node.r * 0.55 * sizeMultRef.current : node.r * 0.55;
+          const r = node.kind === 'thought'
+            ? thoughtRadius(node.degree, sizeSpreadRef.current) * 0.55 * sizeMultRef.current
+            : node.r * 0.55;
           const alpha = node.kind === 'thought'
             ? (inHood ? (node.archived ? 0.5 : 0.95) : 0.06)
             : (inHood || node.kind === 'brain' ? 0.95 : 0.15);
@@ -515,7 +527,9 @@ export default function Graph() {
           ctx.restore();
         })
         .nodePointerAreaPaint((node, color, ctx) => {
-          const r = (node.kind === 'thought' ? node.r * 0.55 * sizeMultRef.current : node.r * 0.55) + 2;
+          const r = (node.kind === 'thought'
+            ? thoughtRadius(node.degree, sizeSpreadRef.current) * 0.55 * sizeMultRef.current
+            : node.r * 0.55) + 2;
           ctx.fillStyle = color;
           ctx.beginPath();
           ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
@@ -562,7 +576,8 @@ export default function Graph() {
           sub: `${n.type} · ${n.source} · ${n.degree} links`,
           color: groupOf(key)?.color || MISC_COLOR,
           groupKey: key,
-          r: 1.8 + Math.min(10, Math.sqrt(n.degree) * 1.6),
+          degree: n.degree,
+          r: thoughtRadius(n.degree, 1),
         });
         cache.set(n.id, obj);
         return obj;
@@ -626,12 +641,14 @@ export default function Graph() {
   // === Live physics/size sliders — mutate in place, no scene rebuild ===
   useEffect(() => {
     sizeMultRef.current = sizeMult;
+    sizeSpreadRef.current = sizeSpread;
     for (const o of nodeObjsRef.current.values()) {
       if (o.always) continue; // anchors/brain keep their size
-      o.mesh.scale.setScalar(sizeMult);
-      o.label.position.y = o.baseR * sizeMult + Math.max(3.5, o.baseR * 0.9);
+      const scale = (thoughtRadius(o.degree, sizeSpread) / o.baseR) * sizeMult;
+      o.mesh.scale.setScalar(scale);
+      o.label.position.y = o.baseR * scale + Math.max(3.5, o.baseR * 0.9);
     }
-  }, [sizeMult]);
+  }, [sizeMult, sizeSpread]);
 
   useEffect(() => {
     gravityMultRef.current = gravityMult;
@@ -785,6 +802,14 @@ export default function Graph() {
             <input
               type="range" min="0.4" max="2.5" step="0.1" value={sizeMult}
               onChange={(e) => setSizeMult(parseFloat(e.target.value))}
+              className="flex-1 accent-[var(--accent-blue)]"
+            />
+          </label>
+          <label className="graph-physics__slider flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
+            size contrast ×{sizeSpread.toFixed(1)}
+            <input
+              type="range" min="0.3" max="3" step="0.1" value={sizeSpread}
+              onChange={(e) => setSizeSpread(parseFloat(e.target.value))}
               className="flex-1 accent-[var(--accent-blue)]"
             />
           </label>
