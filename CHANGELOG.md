@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.36.2 — 2026-07-12
+
+Graph: BRAIN node pinned at the origin (fx/fy/fz=0). High gravity compressed the system below the spoke rest length and the springs expelled the brain outside the blob.
+
 ## 0.36.1 — 2026-07-12
 
 Graph tuning: orbit ring radius from 92nd-percentile cluster extent (outliers no longer push it into deep space), edge-opacity slider (2D alpha / 3D opacity uniform, persisted), size-contrast max raised ×3 → ×5.

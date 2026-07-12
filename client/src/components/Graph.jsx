@@ -668,8 +668,12 @@ export default function Graph() {
 
     if (!isolatedGroup) {
       const brainCached = cache.get('brain') || {};
+      // Pinned at the origin: the brain IS the center. Without the pin, high
+      // gravity compresses the system below the spoke length and the springs
+      // expel the brain outside the blob.
       nodes.push(Object.assign(brainCached, {
         id: 'brain', kind: 'brain', title: 'BRAIN', color: '#e2e8f0', r: 7, big: true,
+        fx: 0, fy: 0, fz: 0,
       }));
       cache.set('brain', nodes[nodes.length - 1]);
       for (const grp of visibleGroups) {
