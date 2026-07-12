@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.36.1 — 2026-07-12
+
+Graph tuning: orbit ring radius from 92nd-percentile cluster extent (outliers no longer push it into deep space), edge-opacity slider (2D alpha / 3D opacity uniform, persisted), size-contrast max raised ×3 → ×5.
+
 ## 0.36.0 — 2026-07-12
 
 **Graph: multi-membership satellites + orbit ring.** In project/person grouping a thought now links to the anchor of EVERY project/person it carries (link strength split across memberships) — multi-project thoughts settle *between* their clusters instead of hiding in one; color stays the rarest (most specific) group's. The top-12 + "Other projects" cap is gone: every project/person with ≥3 thoughts gets its own anchor. "Unfiled"/"Solo"/"Unclustered" no longer render as fake clusters — thoughts with no anchored group become gray **orbit** nodes parked by a radial force on a ring (2D) / shell (3D) just outside the whole system; a new "In orbit (N)" row in the Groups panel isolates them. Also: **size contrast ×** slider (exponent on the degree→radius curve — separates hubs from loners visually; shipped earlier today unbumped).
