@@ -15,6 +15,15 @@ Evidence audit and build sequence:
 
 Immediate next step: finish the sensitive-data exposure audit, grade the first 2–3 evaluator answers, define a small `Topics/` seed vocabulary, dry-run the morning entity-discovery loop, and draft one active Project's replaceable weekly-state block. No schedule is authorized yet; proposal-only morning/weekend triggers are considered only after the manual loops prove useful.
 
+**Trial progress 2026-07-18 (first manual pass executed):**
+- Secret audit DONE — `scripts/secret-exposure-audit.js` + `tasks/secret-exposure-2026-07-18.json`: 2971 points, 5 flagged (3 spoken passwords in Fireflies, 1 tokened Hetzner link, 1 OTP-Bank false positive), 0 API-key-tier hits. Verified the flagged Bizi password IS reachable via plain search_brain. **Open decision: redaction approach.**
+- Evaluator v0 DONE (files) — `tasks/evaluator/questions.yaml` (13 draft questions, 3 held-out) + baseline runs for 3 recommended firsts in `tasks/evaluator/runs/2026-07-18.yaml`. **Awaiting Robert: pick 2–3, supply gold, grade.**
+- Topics seed DRAFTED — `tasks/topics-draft/` (8 files). Discovery: 0.27.0 `GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID` mechanism exists but is UNCONFIGURED on Hetzner. **Go-live = Robert approves files + sets folder ID (minor bump).**
+- wiki-steward dry run DONE — `tasks/stewardship/candidates-2026-07-18.yaml` (5 candidates + 3 remembered rejections). **Awaiting review.**
+- Bizi weekly-state block DRAFTED — `tasks/stewardship/bizi-weekly-state-draft-2026-07-18.md`. **Awaiting approval before Drive write.**
+- Gardener pass DONE (pre-grading variant) — `tasks/evaluator/gardener-2026-07-18.yaml` (4 proposals incl. a belief-boundary trap).
+- Cowork handoff DONE — `docs/cowork-scheduled-tasks.md` (2 proposal-only scheduled tasks + manual gardener prompt).
+
 Implementation is gated on human-reviewed evidence. The plan explicitly avoids a new repository, storage layer, ranker, training loop, automatic entity admission, or autonomous cleanup process in v1.
 
 ---

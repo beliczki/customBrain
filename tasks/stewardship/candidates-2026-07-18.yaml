@@ -1,0 +1,105 @@
+# wiki-steward dry run — 2026-07-18
+# Window: 2026-07-04 .. 2026-07-18 (Calendar + recent brain captures; Gmail
+# covered indirectly via gmail-sourced captures; raw Fireflies skipped — all
+# recent meetings already arrived as fireflies-sourced thoughts).
+# Registries compared: Drive People/ (~250 files), Projects/ (27 files), Topics (none live).
+# Review actions: map | create | reject | defer | needs_context
+# Decisions recorded here are the NOISE MEMORY for future passes.
+
+pass_meta:
+  run_at: 2026-07-18
+  window: 2026-07-04..2026-07-18
+  candidate_cap: 5
+  reviewed_by: pending
+
+candidates:
+  - candidate_id: 2026-07-18-hello-szulo
+    candidate_type: project
+    candidate_name: "Hello Szülő"
+    first_seen_at: 2026-06-23
+    last_seen_at: 2026-07-13
+    source_refs:
+      - "brain 891c0760 Bizi — Helló Szülő prototípus árazás (gmail, 2026-07-13)"
+      - "brain 20f90e22 AI kapcsolt feladatok (fireflies, 2026-06-23) — HelloDigitál/Hello Szülő platform AI asszisztens módszertan"
+    reason_detected: >-
+      Has objective (parent-child assistant MVP), owner (Robert offers build),
+      explicit budget (3-4M HUF MVP, 2-3M Phase 2), deadline (end of August),
+      and a distinct client-facing deliverable — project-shaped by the loops-doc
+      test, currently tagged only under project Bizi.
+    possible_matches: ["Bizi (currently absorbs it)"]
+    suggested_action: needs_context
+    note: "Robert decides: separate Project file (own state, own weekly block) or stays a Bizi workstream."
+    status: pending
+
+  - candidate_id: 2026-07-18-hegedus-kato-greta
+    candidate_type: person
+    candidate_name: "Hegedűs-Kató Gréta"
+    first_seen_at: 2026-07-15
+    last_seen_at: 2026-07-15
+    source_refs:
+      - "calendar 2026-07-15 'HM szabályrend - banner' — accepted attendee (greta.hegedus-kato@erstebank.hu, Omp)"
+      - "brain 2026-07-14/15 HM szabályrend thoughts (Bodiss Anna tagged; Gréta not captured)"
+    reason_detected: >-
+      Accepted attendee of the Higgy Magadban banner-rules meeting — the brand
+      rules directly govern Robert's active BeErste/HM creative work. Likely the
+      Erste-side owner of the HM rulebook.
+    possible_matches: []
+    suggested_action: create
+    note: "Minimal stub with email; relationship evidence is one meeting — description stays 'unknown' beyond role."
+    status: pending
+
+  - candidate_id: 2026-07-18-erste-precision
+    candidate_type: project
+    candidate_name: "Erste Precision"
+    first_seen_at: 2026-07-10
+    last_seen_at: 2026-07-10
+    source_refs:
+      - "calendar 2026-07-10 'Erste Precision | Személyi kölcsön' — 23 attendees (Erste + WPP + Robert)"
+    reason_detected: >-
+      Capitalized workstream name in a large cross-org meeting title. Title
+      couples it to Személyi kölcsön.
+    possible_matches: ["ERSTE Személyi kölcsön", "ERSTE (umbrella)"]
+    suggested_action: map_alias
+    note: "Likely a targeting/precision-marketing workstream inside ERSTE Személyi kölcsön → propose alias there, not a new Project. A calendar title alone does not prove a Project exists."
+    status: pending
+
+  - candidate_id: 2026-07-18-harmati-judit
+    candidate_type: person
+    candidate_name: "Harmati Judit"
+    first_seen_at: 2026-07-07
+    last_seen_at: 2026-07-07
+    source_refs:
+      - "calendar 2026-07-07 'AI offsite' — invited attendee (harmati.judit@telekom.hu)"
+    reason_detected: >-
+      Telekom attendee of the Robert-facilitated AI offsite, not covered by any
+      alias. Registry contains 'Laszlo Harmati' — different person, must NOT be
+      merged on surname similarity.
+    possible_matches: ["Laszlo Harmati (surname only — do not merge)"]
+    suggested_action: defer
+    note: "Invitation ≠ attendance ≠ relationship. Revisit if she appears in Fireflies or Gmail."
+    status: pending
+
+  - candidate_id: 2026-07-18-bodor-sebesta
+    candidate_type: person
+    candidate_name: "Bödör András + Sebesta Dóra Judit"
+    first_seen_at: 2026-07-07
+    last_seen_at: 2026-07-07
+    source_refs:
+      - "calendar 2026-07-07 'AI offsite' — invited attendees (bodor.andras@, sebesta.dora.judit@telekom.hu)"
+    reason_detected: "Unmapped Telekom invitees of the same offsite; single-event evidence."
+    possible_matches: []
+    suggested_action: defer
+    note: "Same rule as above — one invitation is not a professional relationship."
+    status: pending
+
+# Rejected-as-noise this pass (remembered so they are not re-proposed):
+rejections:
+  - name: "Ervin Pora, Tamas Palfy, Csaba Buranyi (WPP); Hornyák Brigitta, Fodor Zsófia (Erste)"
+    type: person
+    reason: "CC-grade invitees of one large Erste Precision status call; no other evidence in window. Being invited ≠ relationship."
+  - name: "HM szabályrend / Higgy magadban"
+    type: topic
+    reason: "Brand-guideline workstream inside ERSTE creative work — belongs to ERSTE project files, not a reusable cross-project Topic."
+  - name: "Fabele. 2nd brain (calendar 2026-07-11)"
+    type: project
+    reason: "Personal work block for customBrain — already project customBrain."

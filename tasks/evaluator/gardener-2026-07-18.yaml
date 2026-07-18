@@ -1,0 +1,50 @@
+# Evaluator-gardener pass — 2026-07-18 (first, PRE-grading)
+# Normally triggered after a grading batch; this first pass draws only on what
+# the trial itself surfaced (new candidates, observed retrieval failures,
+# coverage gaps). Robert selects/rewrites 2-3 and supplies gold answers;
+# nothing here activates itself. The gardener never writes its own gold answer.
+
+candidates:
+  - candidate_question: "What is the status of the Hello Szülő MVP offer (3-4M HUF, end-of-August deadline) — accepted, countered, or open?"
+    reason: changed_state
+    category: current_state
+    as_of: 2026-07-18
+    suggested_sources: ["gmail thread w/ Barta Attila", "brain 891c0760"]
+    expected_freshness: "72h when active — this is a live commercial thread"
+    status: proposed
+
+  - candidate_question: "Do I believe that sustained focus will become a clinical condition by 2045?"
+    reason: coverage_gap
+    category: belief
+    as_of: 2026-07-18
+    suggested_sources: ["brain 51f3971e (YouTube reference)"]
+    expected_freshness: "n/a — belief-boundary trap"
+    note: >-
+      Deliberate trap: the claim exists in the brain only as a saved YouTube
+      reference. A correct answer distinguishes 'a reference I saved' from
+      'something I believe' — the exact reference-pollution failure observed
+      in the baseline identity search.
+    status: proposed
+
+  - candidate_question: "What are the current Higgy Magadban usage rules for banner creatives, and when were they last confirmed?"
+    reason: changed_state
+    category: current_state
+    as_of: 2026-07-18
+    suggested_sources: ["brain HM szabályrend thoughts 2026-07-14/15", "calendar 2026-07-15 meeting w/ Bodiss Anna, Hegedűs-Kató Gréta"]
+    expected_freshness: "7 days — evolving brand rulebook governing active deliverables"
+    status: proposed
+
+  - candidate_question: "How many of my Project registry entries are actually active right now?"
+    reason: coverage_gap
+    category: count
+    as_of: 2026-07-18
+    suggested_sources: ["Drive Projects/ (27 files)"]
+    expected_freshness: "7 days"
+    note: >-
+      Currently unanswerable honestly — Project files carry no status field.
+      Gold answer should initially be 'unknown — statuses not yet recorded',
+      turning correct-abstention into a measurable behavior. Becomes a real
+      count once Phase 2 classification lands.
+    status: proposed
+
+held_out_integrity: "No held-out question (q-heldout-*) was referenced by any curation artifact produced today (topics-draft, stewardship candidates, Bizi block)."

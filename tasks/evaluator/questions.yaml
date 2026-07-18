@@ -1,0 +1,222 @@
+# Evaluator question bank — truth-first professional-life trial
+# Schema: docs/professional-life-upgrade-detailed.md §5.6
+# Rules:
+#   - gold_answer is ALWAYS human-supplied (Robert). The system never approves
+#     its own gold answer from brain evidence.
+#   - status: draft -> active (only after Robert supplies/confirms gold) -> retired
+#   - held_out: true questions are NEVER used to tune prompts, dossiers, or
+#     curation. They exist to detect overfitting to corrected examples.
+#   - Version changed questions instead of overwriting; keep old versions with
+#     status: retired.
+
+as_of: 2026-07-18
+questions:
+  - id: q-identity-setup
+    version: 1
+    status: draft
+    category: identity
+    question: "What is my current professional setup — company, main lines of work, and how do they relate to each other?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "quarterly review"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  - id: q-identity-transition
+    version: 1
+    status: draft
+    category: identity
+    question: "What was my role before going independent, and when and why did the transition happen?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "stable history — no decay"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  - id: q-current-bizi
+    version: 1
+    status: draft
+    category: current_state
+    question: "What is the current status of the Bizi engagement — what changed recently, and what are the open commitments on my side?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "7 days or answer as stale"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  - id: q-current-messaging-matrix
+    version: 1
+    status: draft
+    category: current_state
+    question: "What is the current state of the Messaging Matrix product — who uses it and what is the next step?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "7 days or answer as stale"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  - id: q-history-cseperedo
+    version: 1
+    status: draft
+    category: history
+    question: "What were the key milestones and decisions in the ERSTE Cseperedő campaign?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "immutable history — dated facts only"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  - id: q-belief-ai-adoption
+    version: 1
+    status: draft
+    category: belief
+    question: "What do I actually believe about how organizations should adopt AI — as opposed to references I've merely saved?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "twice-yearly review"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  - id: q-relationship-porkolab
+    version: 1
+    status: draft
+    category: relationship
+    question: "Who is Pörköláb Dávid professionally, and what is the current state of our collaboration?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "quarterly review or on change"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  - id: q-voice-operational
+    version: 1
+    status: draft
+    category: voice
+    question: "Draft a short operational email in my voice to a client contact: a campaign asset is due, one item is blocked on their side, I need it by tomorrow noon."
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "no expiry — exemplar-based"
+    voice_context: "operational / known client contact / email / HU or EN per relationship"
+    reviewed_at: null
+    held_out: false
+
+  - id: q-management-scope
+    version: 1
+    status: draft
+    category: management
+    question: "A client asks to double a campaign's scope one week before launch with no additional budget. How would I actually respond, based on how I've handled similar situations?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "no expiry — case-based"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  - id: q-count-bizi-meetings
+    version: 1
+    status: draft
+    category: count
+    question: "How many meetings did I have about Bizi since 2026-05-01?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: ["quick_lookup"]
+    freshness_sla: "exact at query time"
+    voice_context: null
+    reviewed_at: null
+    held_out: false
+
+  # ---- held-out slice (never used for tuning/curation) ----
+
+  - id: q-heldout-active-projects
+    version: 1
+    status: draft
+    category: current_state
+    question: "What are my top three active projects right now, and what is the next milestone in each?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "7 days or answer as stale"
+    voice_context: null
+    reviewed_at: null
+    held_out: true
+
+  - id: q-heldout-hetzner-abuse
+    version: 1
+    status: draft
+    category: history
+    question: "What did the Hetzner abuse report in May 2026 concern, and how was it resolved?"
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "immutable history"
+    voice_context: null
+    reviewed_at: null
+    held_out: true
+
+  - id: q-heldout-strategic-voice
+    version: 1
+    status: draft
+    category: voice
+    question: "Write the opening two paragraphs, in my strategic voice, of a reply challenging a client's assumption that AI production automation is purely a cost play."
+    as_of: 2026-07-18
+    gold_answer: null
+    required_claims: []
+    forbidden_claims: []
+    acceptable_unknowns: []
+    required_sources: []
+    freshness_sla: "no expiry — exemplar-based"
+    voice_context: "strategic / senior client / email / expansive, analogy-rich, challenges framing first"
+    reviewed_at: null
+    held_out: true
