@@ -1,5 +1,16 @@
 # customBrain — Roadmap
-## Last updated: 2026-07-18 (v0.37.1 — truth-first professional-life representation planned; no implementation started)
+## Last updated: 2026-07-19 (v0.38.0 — dossier indexing shipped: canonical People/Projects/Topics now retrievable by search)
+
+---
+
+## SHIPPED 2026-07-19 — Dossier indexing (0.38.0), retrieval-layer fix #1
+
+The canonical People/Projects/Topics `.md` dossiers are now indexed into `thoughts_v2` (`kind:'dossier'`) and surface in `search_brain` with a boost + `canonical_dossier` tag. Verified on Hetzner: the four queries that returned ZERO dossiers on 2026-07-18 (`believeinyourself`→ERSTE, `Diffusion Simulator`→Nexus, Bizi status→Bizi, Porkoláb→Porkoláb) now return the dossier as the #1 hit. 290 dossiers indexed; idempotent re-run skips all (deterministic per-path IDs, no dupes); on-demand `reindex_dossiers` tool + `POST /reindex` + hourly reconcile on the export cron. See `CHANGELOG.md` 0.38.0 + `tasks/dossier-index-spec.md`.
+
+**Data issues surfaced (for a cleanup pass):**
+- Duplicate Drive file: two `Évnyito BTS App` files exist in Projects/ (2114 + 1574 chars) — same path, they collide on the deterministic index id (last wins). Delete the stale one on Drive.
+- 15 project dossiers exceed CHUNK_THRESHOLD (1500) — indexed verbatim; candidates for chunking later (ERSTE 4188, ArtAI 4095, ERSTE Hitelkártya 2708, …).
+- Porkoláb has 4 People-file variants (Porkoláb Dávid / Dávid Porkoláb / David Porkolab / David Porkoláb) — all now surface as separate dossiers. People consolidation (Phase 2) is now higher-value since duplicates are visible in results.
 
 ---
 
