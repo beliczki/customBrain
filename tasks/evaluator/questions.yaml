@@ -13,18 +13,38 @@ as_of: 2026-07-18
 questions:
   - id: q-identity-setup
     version: 1
-    status: draft
+    status: active
     category: identity
     question: "What is my current professional setup — company, main lines of work, and how do they relate to each other?"
     as_of: 2026-07-18
-    gold_answer: null
-    required_claims: []
-    forbidden_claims: []
+    gold_answer: >-
+      Independent strategist-builder via Grafia Studió Bt. (ex-Head of Addressable
+      Content EMEA, Wavemaker/WPP). Lines of work:
+      (1) ERSTE — creative production across product categories (hitelkártya,
+      személyi kölcsön, számlák, vállalkozók, market, ...). MessagingMatrix.ai is
+      CORE infrastructure to this engagement, not a side product; it must be named
+      in the ERSTE context.
+      (2) Telekom — RMT/NGA ATL creatives and production, AI-assisted. eSignage is
+      now only "RMT eContent", one part of the full eSignage project run by
+      ArtFirst (media servers + physical screens); RMT eContent video approval flow
+      is tracked in a spreadsheet, worked with Nagy Krisztián. AI advisory is tied
+      directly to Telekom projects, not a standalone line.
+      (3) Nexus — an active project not yet in Drive/Projects (should be added).
+      Agaurg Ltd is paused. Attraction Productions is breaking down (invoicing
+      problems) and should be flagged to close ASAP.
+    required_claims:
+      - "Grafia Studió Bt., independent, ex-Wavemaker/WPP"
+      - "MessagingMatrix.ai is core infrastructure to ERSTE (not just a product)"
+      - "eSignage = RMT eContent only; full eSignage run by ArtFirst"
+      - "AI advisory is tied to Telekom, not standalone"
+    forbidden_claims:
+      - "Attraction Productions as a healthy/ongoing engagement"
+      - "eSignage as Robert's full-scope deliverable"
     acceptable_unknowns: []
     required_sources: []
-    freshness_sla: "quarterly review"
+    freshness_sla: "quarterly review or on change"
     voice_context: null
-    reviewed_at: null
+    reviewed_at: 2026-07-18
     held_out: false
 
   - id: q-identity-transition
@@ -45,18 +65,29 @@ questions:
 
   - id: q-current-bizi
     version: 1
-    status: draft
+    status: active
     category: current_state
     question: "What is the current status of the Bizi engagement — what changed recently, and what are the open commitments on my side?"
     as_of: 2026-07-18
-    gold_answer: null
-    required_claims: []
-    forbidden_claims: []
-    acceptable_unknowns: []
+    gold_answer: >-
+      Bizi/Dasszisztens is running and monthly-maintained; C dialog mode is in
+      progress. BTS (Back to School, aka "Hello Szülő") is a SEPARATE project and
+      must not be reported as part of Bizi. The core-team MS Teams chat holds the
+      real current state and is not ingested, so open commitments on Robert's side
+      cannot be reliably answered from captured evidence — the honest answer names
+      the Teams gap rather than inventing status.
+    required_claims:
+      - "Bizi/Dasszisztens running, monthly maintained; C dialog in progress"
+      - "BTS is a separate project, not Bizi"
+    forbidden_claims:
+      - "the Hello Szülő/BTS MVP is a Bizi workstream"
+      - "asserting completion or acceptance of items decided only in Teams"
+    acceptable_unknowns:
+      - "current open commitments (they live in un-ingested Teams chats)"
     required_sources: []
-    freshness_sla: "7 days or answer as stale"
+    freshness_sla: "7 days or answer as stale; Teams gap flagged"
     voice_context: null
-    reviewed_at: null
+    reviewed_at: 2026-07-18
     held_out: false
 
   - id: q-current-messaging-matrix
@@ -157,18 +188,44 @@ questions:
 
   - id: q-count-bizi-meetings
     version: 1
-    status: draft
+    status: retired
     category: count
     question: "How many meetings did I have about Bizi since 2026-05-01?"
     as_of: 2026-07-18
     gold_answer: null
-    required_claims: []
-    forbidden_claims: []
-    acceptable_unknowns: []
-    required_sources: ["quick_lookup"]
-    freshness_sla: "exact at query time"
+    retired_reason: >-
+      Weak evaluator (Robert 2026-07-18): the meeting count is meaningless, and
+      it only tests tag completeness, not anything Robert cares about. Replaced
+      by q-bizi-identity-state.
+    reviewed_at: 2026-07-18
+    held_out: false
+
+  - id: q-bizi-identity-state
+    version: 1
+    status: active
+    category: current_state
+    question: "What is the Bizi project's canonical name, production URL, and current operational status?"
+    as_of: 2026-07-18
+    gold_answer: >-
+      "Bizi" is a working name. The product is the Digitális Asszisztens
+      (Dasszisztens), in production at dasszisztens.telekom.hu (staging:
+      bizi.beliczki.hu), part of the Telekom AI Mesh. Current status: RUNNING and
+      monthly-maintained; C dialog mode is IN PROGRESS. Authoritative current
+      state (C-dialog progress, reports, decisions) lives in the core-team MS
+      Teams chat, which the brain does not yet ingest — so a truthful answer must
+      flag that live status is only partially observable from captured evidence.
+    required_claims:
+      - "canonical product name = Digitális Asszisztens / Dasszisztens"
+      - "production URL = dasszisztens.telekom.hu"
+      - "status = running, monthly maintained; C dialog mode in progress"
+    forbidden_claims:
+      - "BTS / Hello Szülő is part of Bizi"
+    acceptable_unknowns:
+      - "detailed live state that lives only in un-ingested Teams chats"
+    required_sources: []
+    freshness_sla: "7 days or answer as stale; Teams gap flagged"
     voice_context: null
-    reviewed_at: null
+    reviewed_at: 2026-07-18
     held_out: false
 
   # ---- held-out slice (never used for tuning/curation) ----

@@ -1,97 +1,74 @@
 # Evaluator baseline run — 2026-07-18
-# Answers produced against the CURRENT brain, before any upgrade work.
-# No answer was corrected after retrieval. user_rating is Robert's to fill:
-#   correct | partly_correct | wrong | correctly_unknown
-# failure_tags (if wrong/partly): missing_evidence | stale | contradiction_missed |
-#   entity_confusion | unsupported_inference | wrong_voice | wrong_management_choice |
-#   too_verbose_or_terse | sensitive_data_exposure
+# GRADED by Robert 2026-07-18. Answers produced against the CURRENT brain,
+# before any upgrade work. user_correction is authoritative gold source.
 
 memory_snapshot: "thoughts_v2 @ 415 thoughts / 2971 points, 2026-07-18"
 model_and_prompt_version: "claude-fable-5, in-session retrieval routing per CLAUDE.md (quick_lookup -> search_brain -> get_thought)"
+graded_at: 2026-07-18
+graded_by: Robert
 
 runs:
   - question_id: q-count-bizi-meetings
     question_version: 1
     run_at: 2026-07-18T19:20:00Z
-    answer: >-
-      17 meetings about Bizi since 2026-05-01.
+    answer: "17 meetings about Bizi since 2026-05-01."
     evidence_used:
       - "quick_lookup {project: Bizi, type: meeting, since: 2026-05-01, count_only: true} -> 17"
-    retrieval_trace:
-      - tool: quick_lookup
-        params: "project=Bizi type=meeting since=2026-05-01 count_only"
-        result_count: 17
-    stated_unknowns:
-      - "Count reflects thoughts typed 'meeting' with project tag 'Bizi'; meetings mis-tagged or typed 'conversation' are not included."
-    user_rating: pending
-    failure_tags: []
-    user_correction: null
+    user_rating: bad_question
+    failure_tags: [weak_evaluator]
+    user_correction: >-
+      The count is meaningless as an evaluator ("as many as many, it does not
+      matter"). What matters about this project: its working name is "Bizi" but
+      the real product is Digitális Asszisztens (Dasszisztens) at
+      dasszisztens.telekom.hu. The load-bearing state — C dialog mode progress,
+      status, reports — lives in MS Teams core-team chats that the brain does
+      NOT ingest. Retire this question; replace with one that tests project
+      identity + current operational state (see q-bizi-identity-state).
 
   - question_id: q-current-bizi
     question_version: 1
     run_at: 2026-07-18T19:22:00Z
     answer: >-
-      As of the latest evidence (2026-07-13): the Bizi engagement has two active threads.
-      (1) Hello Szülő prototype: after prototype feedback with Barta Attila, Robert
-      offered to build the MVP for 3-4M HUF (100+ hours) with an end-of-August deadline;
-      open commitments include fixing the userflow (parent starts, child continues),
-      repairing the desktop view, designing the AI-assistance UI, deciding on voice
-      readout for MVP scope, jailbreak testing if deeper AI dialogue ships, and ensuring
-      legal/IT-security acceptability before campaign start. Phase 2 (UX polish,
-      knowledge base, referrals) sketched at 2-3M HUF. (2) Daszi (Digitalizációs
-      Asszisztens): July 2 evaluation meetings set the plan - design Daszi v2 in July,
-      develop in August, run live in September; restructure media to 60-80percent
-      Google/AdWords intent-based traffic; Robert owes a 5-10 page deck on Daszi
-      lessons (comfortable and uncomfortable data) for Hajni and Attila, and a
-      C-conversation thread is going into staging on bizi.beliczki.hu.
-      No verified change after 2026-07-13 - anything newer is not in the brain.
-    evidence_used:
-      - "891c0760 Bizi - Hello Szülő prototípus árazás (gmail, effective 2026-07-13)"
-      - "0f18ca96 Bizi - Projekt teljesítmény értékelés (fireflies, 2026-07-02)"
-      - "fa37ccf4 Bizi - Daszi jövője és fejlesztési irányok (fireflies, 2026-07-02)"
-    retrieval_trace:
-      - tool: quick_lookup
-        params: "project=Bizi since=2026-06-15 limit=15"
-        result_count: 10
-    stated_unknowns:
-      - "Whether the 3-4M HUF MVP offer was accepted - no acceptance evidence in the brain."
-      - "State of commitments between 2026-07-13 and today (5-day evidence gap)."
-    user_rating: pending
-    failure_tags: []
-    user_correction: null
+      [conflated two projects] Two active threads as of 2026-07-13: Hello Szülő
+      MVP offer (3-4M HUF, end-August) + Daszi v2 cadence, media restructure,
+      lessons deck, C-conversation thread to staging.
+    user_rating: wrong
+    failure_tags: [entity_confusion, missing_evidence, stale]
+    user_correction: >-
+      Two distinct errors.
+      (1) ENTITY CONFUSION: "Hello Szülő" is BTS (Back to School) — a SEPARATE
+      project, wrongly folded into Bizi by Haiku at capture time. It is not Bizi.
+      (2) MISSING SIGNAL (not misinterpretation): the BTS MVP offer was DECLINED,
+      via a Teams chat the brain never ingested — so the brain cannot know this.
+      Actual Bizi/Dasszisztens status: RUNNING, monthly maintained; C dialog mode
+      IN PROGRESS. That true state also lives in Teams and is invisible to the
+      brain. Root cause is the un-ingested Teams channel, not retrieval.
 
   - question_id: q-identity-setup
     question_version: 1
     run_at: 2026-07-18T19:25:00Z
     answer: >-
-      Robert operates as an independent strategist-builder through Grafia Studió Bt.
-      (all client work invoices through it), having left the Head of Addressable
-      Content EMEA role at Wavemaker/WPP Media between autumn 2025 and spring 2026.
-      Three interlocking lines: (1) direct client delivery - ERSTE (AI-assisted DCO
-      and production, formally via MediaCO Kft., with intent to recontract directly),
-      Magyar Telekom (direct framework: RMT/NGA creative, eSignage, AI advisory),
-      and per the April synthesis also Attraction Productions (full marketing scope);
-      (2) product development - MessagingMatrix.ai (personalized DCO/nudging platform,
-      live in client work since ~Aug 2025) as the IP asset that gives the services a
-      moat, with Agaurg Ltd (Estonian e-Residency vehicle for the product side) paused
-      until revenue justifies the split; (3) AI-adoption advisory increasingly visible
-      in mid-2026 evidence: Bizi/Daszi (Telekom small-business advisor platform),
-      Hello Szülő prototype, Telekom AI offsite facilitation, and skill-based agent
-      work. CAVEAT: the canonical synthesis dates from 2026-04-21; the relative
-      weight of these lines as of July (e.g. whether Attraction is still active) is
-      not confirmed by newer evidence.
-    evidence_used:
-      - "106fbdc0 Grafia - Robert karrierútja és stratégiája (manual synthesis, 2026-04-21)"
-      - "6c46ed84 Grafia - Canonical projects registry (manual, 2026-04-18)"
-      - "891c0760 + fa37ccf4 + 5bf0ba45 (July Bizi/Telekom evidence for the advisory line)"
-    retrieval_trace:
-      - tool: search_brain
-        params: "typed: vec 'professional identity independent Grafia portfolio' + lex 'Grafia Wavemaker WPP career independent'"
-        result_count: 6
-        note: "Top hit was the April career synthesis (bm25_exact + high dense). A YouTube reference (AI jövőképe) also surfaced in an identity query - reference pollution exactly as the upgrade docs predict."
-    stated_unknowns:
-      - "Current status of Attraction Productions engagement (no evidence after April)."
-      - "Whether the April strategic posture (Grafia-first, Agaurg paused) still holds in July."
-    user_rating: pending
-    failure_tags: []
-    user_correction: null
+      Independent via Grafia; ERSTE (via MediaCO) + Telekom (RMT/NGA, eSignage,
+      AI advisory) + Attraction; MessagingMatrix.ai as product; Agaurg paused;
+      AI-adoption advisory as a third line.
+    user_rating: partly_correct
+    failure_tags: [missing_evidence, stale, entity_confusion]
+    user_correction: >-
+      Directionally right but several material gaps:
+      - ERSTE: should name the product categories worked on as CREATIVE
+        (hitelkártya, személyi kölcsön, számlák, vállalkozók, market, ...).
+      - MessagingMatrix.ai is NOT merely "a product" — it is CORE infrastructure
+        to the ERSTE engagement. Omitting it from the ERSTE context is a red flag.
+      - Telekom: more precise = "RMT/NGA ATL creatives and production, AI-assisted."
+        eSignage is now only "RMT eContent", which is one part of the full eSignage
+        project run by ArtFirst (a company handling media servers + physical
+        screens). RMT eContent video approval flow is tracked in a spreadsheet;
+        work done with Nagy Krisztián.
+      - AI advisory is directly tied to Telekom projects, not a standalone line.
+      - Agaurg: paused (correct).
+      - Attraction Productions: invoicing problem, business breaking down — should
+        be FLAGGED TO CLOSE ASAP.
+      - Nexus: an active project with NO mention because it is not yet in
+        Drive/Projects (should be added; ~a week overdue).
+      This gap set is exactly why scheduled project auto-update is needed: the
+      brain cannot know what BTS is, why it was declined, or that Nexus exists.
