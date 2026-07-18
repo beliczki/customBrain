@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.38.0 — 2026-07-19
+
+Dossier indexing — the canonical People/Projects/Topics `.md` dossiers are now indexed into `thoughts_v2` as `kind:'dossier'` points, so `search_brain` can surface curated truth (previously they were read only at capture time for Haiku metadata and were unreachable by search — identity/belief answers fell back to stale thoughts). `server/dossier-index.js` embeds name+aliases+body with deterministic per-path UUID ids (re-index overwrites, no dupes), hash-gated via `state/dossier-index-manifest.json`, reconcile deletes orphaned points, flags project files over `CHUNK_THRESHOLD`. Dossiers surface via hybrid search, are exempt from time decay, get a modest boost + `canonical_dossier` evidence tag. Safety: capture dedup and the Recent/stats/export/hygiene filters exclude dossiers. Refresh: on-demand `reindex_dossiers` MCP tool + `POST /reindex`, plus hourly reconcile folded into the export cron. (Per-capture opportunistic reindex deferred — hot-path latency; hourly + on-demand cover freshness.)
+
 ## 0.37.2 — 2026-07-18
 
 Truth-first professional-life trial, first manual pass (no live server behavior change). New read-only `scripts/secret-exposure-audit.js` (Phase 0 gate): scanned 2971 Qdrant points, 5 flagged (3 spoken passwords in Fireflies transcripts, 1 tokened link, 1 false positive), 0 API-key-tier hits. Evaluator v0 question bank + baseline runs (`tasks/evaluator/`), topics seed drafts (`tasks/topics-draft/` — 0.27.0 canonicalization mechanism found dormant on Hetzner, go-live deferred), wiki-steward dry run + Bizi weekly-state draft (`tasks/stewardship/`), evaluator-gardener proposals, and Cowork scheduled-task handoff (`docs/cowork-scheduled-tasks.md`). All curation writes gated on Robert's review. Also: per-stage timing instrumentation in `capture.js` for nginx 504 diagnosis.
