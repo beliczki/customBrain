@@ -118,9 +118,11 @@ export async function getByIds(ids) {
   return (results || []).map((p) => ({ id: p.id, ...p.payload }));
 }
 
-// Common filter to exclude v2 chunk points from any "list of thoughts" query.
-// Chunks are a search-augmenting layer; the THOUGHT is the canonical unit.
-const NOT_CHUNK = { must_not: [{ key: 'kind', match: { value: 'chunk' } }] };
+// Common filter for "list of thoughts" queries: exclude both v2 chunk points
+// AND canonical dossier points (People/Projects/Topics indexed for retrieval).
+// Chunks are a search-augmenting layer; dossiers are canonical reference docs —
+// neither is a THOUGHT for Recent / stats / export / hygiene purposes.
+const NOT_CHUNK = { must_not: [{ key: 'kind', match: { any: ['chunk', 'dossier'] } }] };
 
 export async function scrollRecent(limit = 10) {
   // Order by effective_date — the date the CONTENT happened, not when it was
@@ -224,6 +226,14 @@ export async function deleteChunksByParent(parentId) {
 export async function upsertChunks(points) {
   if (!points?.length) return;
   await qdrant.upsert(COLLECTION, { points });
+}
+
+// Bulk-delete points by id. Used by the dossier-index reconcile pass to remove
+// points for dossier files that no longer exist on Drive. Does NOT touch chunks
+// (dossiers have none) — a plain point delete.
+export async function deletePointsByIds(ids) {
+  if (!ids?.length) return;
+  await qdrant.delete(COLLECTION, { points: ids });
 }
 
 // === Retrieval-transparency (P18 anatomy + explain) ===

@@ -69,10 +69,17 @@ router.get('/search/explain', async (req, res) => {
 
 export default router;
 
+// Canonical dossiers (People/Projects/Topics) are curated truth — they should
+// outrank a stale raw thought on overlapping content. Modest multiplier;
+// calibrate with the evaluator. Dossiers are ALSO exempt from time decay: a
+// current dossier is not "old news" just because its file wasn't touched today.
+const DOSSIER_BOOST = 1.5;
+
 function applyTimeDecay(results) {
   const now = Date.now();
   return results
     .map((r) => {
+      const isDossier = r.kind === 'dossier';
       // Prefer effective_date (content date) over created_at (capture date).
       // Old Gmail/Fireflies content captured today should NOT get a recency
       // boost as if it were a fresh thought.
@@ -81,8 +88,9 @@ function applyTimeDecay(results) {
       // 90-day half-life — gentler than initial 30-day. At 238 thoughts the
       // brain has months of context; a 30-day decay over-penalises content
       // older than a month even when cosine match is much stronger.
-      const decay = 1 / (1 + days / 90);
-      return { ...r, cosine_score: r.score, score: r.score * decay };
+      const decay = isDossier ? 1 : 1 / (1 + days / 90);
+      const boost = isDossier ? DOSSIER_BOOST : 1;
+      return { ...r, cosine_score: r.score, score: r.score * decay * boost };
     })
     .sort((a, b) => b.score - a.score);
 }
@@ -147,6 +155,9 @@ async function rollupChunkHits(rawHits) {
     } else {
       out.push({
         id: hit.id,
+        // kind passthrough so downstream (time-decay/boost) can treat canonical
+        // dossiers differently from raw thoughts.
+        kind: hit.kind,
         title: hit.title,
         text: hit.text,
         created_at: hit.created_at,
@@ -200,7 +211,9 @@ export async function searchThoughts(query, limit = 5) {
   const denseRanks = rankMapOf(legs.dense);
   const bm25Ranks = rankMapOf(legs.bm25);
   for (const hit of rawHits) {
-    hit.evidence = deriveEvidence(hit, [query], denseRanks.get(String(hit.id)), bm25Ranks.get(String(hit.id)));
+    hit.evidence = hit.kind === 'dossier'
+      ? 'canonical_dossier'
+      : deriveEvidence(hit, [query], denseRanks.get(String(hit.id)), bm25Ranks.get(String(hit.id)));
   }
   const rolled = await rollupChunkHits(rawHits);
   const decayed = applyTimeDecay(rolled);
@@ -247,12 +260,14 @@ export async function searchThoughtsMulti(subQueries, limit = 5) {
         ...hit,
         score: rrfScore,
         sub_hits,
-        evidence: deriveEvidence(
-          hit,
-          queryTexts,
-          bestVec ? { rank: bestVec.rank, score: bestVec.score } : null,
-          bestLex ? { rank: bestLex.rank, score: bestLex.score } : null,
-        ),
+        evidence: hit.kind === 'dossier'
+          ? 'canonical_dossier'
+          : deriveEvidence(
+            hit,
+            queryTexts,
+            bestVec ? { rank: bestVec.rank, score: bestVec.score } : null,
+            bestLex ? { rank: bestLex.rank, score: bestLex.score } : null,
+          ),
       };
     });
 

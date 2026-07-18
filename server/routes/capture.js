@@ -82,7 +82,9 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
   // superseded; a chunk archive is meaningless.
   let supersedes = null;
   t = Date.now();
-  const nearMatches = (await searchVector(vector, 10)).filter((m) => m.kind !== 'chunk').slice(0, 3);
+  // Exclude chunks AND dossiers — only THOUGHT points can be archived/superseded;
+  // a chunk or a canonical dossier is never a capture duplicate.
+  const nearMatches = (await searchVector(vector, 10)).filter((m) => m.kind !== 'chunk' && m.kind !== 'dossier').slice(0, 3);
   timings.conflict_search = Date.now() - t;
   const candidates = nearMatches.filter((m) => m.score > conflictThreshold);
   console.log(`Conflict check: ${candidates.length} candidates above ${conflictThreshold} (scores: ${nearMatches.map((m) => m.score.toFixed(3)).join(', ')})`);

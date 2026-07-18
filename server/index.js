@@ -18,6 +18,7 @@ import agendaRouter from './routes/agenda.js';
 import settingsRouter from './routes/settings.js';
 import healthCheckRouter from './routes/health-check.js';
 import graphRouter from './routes/graph.js';
+import reindexRouter from './routes/reindex.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import mcpTokensRouter from './routes/mcp-tokens.js';
 import oauthRouter from './routes/oauth.js';
@@ -49,7 +50,8 @@ app.get('*', (req, res, next) => {
       req.path.startsWith('/stats') || req.path.startsWith('/export') ||
       req.path.startsWith('/thoughts') || req.path.startsWith('/agenda') ||
       req.path.startsWith('/settings') || req.path.startsWith('/health-check') ||
-      req.path.startsWith('/graph') || req.path.startsWith('/fireflies-webhook') ||
+      req.path.startsWith('/graph') || req.path.startsWith('/reindex') ||
+      req.path.startsWith('/fireflies-webhook') ||
       req.path.startsWith('/oauth') || req.path.startsWith('/.well-known')) {
     return next();
   }
@@ -177,6 +179,7 @@ app.use(agendaRouter);
 app.use(settingsRouter);
 app.use(healthCheckRouter);
 app.use(graphRouter);
+app.use(reindexRouter);
 app.use(mcpTokensRouter);
 app.use(oauthRouter);
 

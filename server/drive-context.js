@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { readFileSync } from 'node:fs';
+import crypto from 'node:crypto';
 import { isAbsolute, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -263,6 +264,85 @@ async function listWithAliases(drive, folderId, { withDocuments = false } = {}) 
     console.error(`drive-context: listWithAliases failed (folder ${folderId}): ${err.message}\n${err.stack}`);
     return { names: [], aliases: {}, emails: {} };
   }
+}
+
+/**
+ * Read every dossier `.md` in a canonical folder, returning per-file records
+ * for the retrieval index: full body text, aliases (from frontmatter), Drive
+ * modifiedTime, and a content hash for change detection. Distinct from
+ * listWithAliases (which only builds alias/name maps for capture-time metadata)
+ * — this returns the raw material the dossier-index embeds and upserts.
+ */
+async function listDossierFiles(drive, folderId, folderLabel, type) {
+  const res = await drive.files.list({
+    q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
+    fields: 'files(id, name, modifiedTime)',
+    pageSize: 1000,
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true,
+  });
+  const files = res.data.files || [];
+  const out = [];
+  const PARALLEL = 10;
+  for (let i = 0; i < files.length; i += PARALLEL) {
+    const batch = files.slice(i, i + PARALLEL);
+    const results = await Promise.all(batch.map(async (file) => {
+      try {
+        const content = await drive.files.get(
+          { fileId: file.id, alt: 'media' },
+          { responseType: 'text' },
+        );
+        const text = typeof content.data === 'string' ? content.data : '';
+        return { file, text };
+      } catch (err) {
+        console.error(`dossier fetch failed ${file.name}: ${err.message}`);
+        return null;
+      }
+    }));
+    for (const r of results) {
+      if (!r) continue;
+      const name = r.file.name.replace(/\.md$/, '');
+      const fm = parseFrontmatter(r.text);
+      const aliases = [];
+      if (fm && Array.isArray(fm.frontmatter.aliases)) {
+        for (const a of fm.frontmatter.aliases) {
+          const alias = String(a).trim().replace(/^\[\[(?:[^|\]]*\|)?|]]$/g, '');
+          if (alias) aliases.push(alias);
+        }
+      }
+      out.push({
+        type,
+        name,
+        path: `${folderLabel}/${name}`,
+        aliases,
+        body: r.text,
+        modifiedTime: r.file.modifiedTime,
+        hash: crypto.createHash('md5').update(r.text).digest('hex'),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Fetch all canonical dossiers (People/Projects/Topics) as records for the
+ * retrieval index. Uses the service account (sees all files regardless of owner,
+ * same as getVaultContext). Missing folder-ID env vars are skipped.
+ */
+export async function fetchDossiers() {
+  const drive = getSaDrive();
+  const specs = [
+    { folderId: process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID, label: 'People', type: 'person' },
+    { folderId: process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID, label: 'Projects', type: 'project' },
+    { folderId: process.env.GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID, label: 'Topics', type: 'topic' },
+  ];
+  const all = [];
+  for (const s of specs) {
+    if (!s.folderId) continue;
+    const files = await listDossierFiles(drive, s.folderId, s.label, s.type);
+    all.push(...files);
+  }
+  return all;
 }
 
 export async function getVaultContext() {

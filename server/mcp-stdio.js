@@ -15,6 +15,7 @@ import { listThoughtsNeedingSummary, setThoughtTextWithSummary } from './routes/
 import { getAgenda } from './routes/agenda.js';
 import { runHealthCheck } from './brain-health.js';
 import { quickLookup } from './quick-lookup.js';
+import { reindexDossiers } from './dossier-index.js';
 import { registerAgentTools } from '../agent/register.js';
 
 const server = new McpServer({
@@ -238,6 +239,20 @@ server.tool(
   },
   async ({ days, force_refresh }) => {
     const result = await getAgenda({ days: days ?? 1, force_refresh: force_refresh ?? false });
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  'reindex_dossiers',
+  'Re-index the canonical People/Projects/Topics dossiers into the search index so their content is retrievable by search_brain. Call this right after editing a dossier `.md` on Drive so the change is searchable immediately (don\'t wait for the hourly reconcile). No args = re-index only files whose content changed since last run. Optional: paths (e.g. ["Projects/Bizi"]) or types (["person"|"project"|"topic"]) to scope; reconcile=true forces a full re-embed in scope AND deletes points for dossiers removed from Drive.',
+  {
+    paths: z.array(z.string()).optional().describe('Specific dossier paths, e.g. ["Projects/Bizi", "People/Porkoláb Dávid"]'),
+    types: z.array(z.enum(['person', 'project', 'topic'])).optional(),
+    reconcile: z.boolean().optional().describe('Force full re-embed + delete orphaned points (default false)'),
+  },
+  async ({ paths, types, reconcile }) => {
+    const result = await reindexDossiers({ paths, types, reconcile: !!reconcile });
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );
