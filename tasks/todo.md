@@ -948,3 +948,48 @@ None — the user's direction is explicit ("menjen a B és takarítsuk ki a .env
 
 1. PM2 duplicate `id 14` "customBrain" (capital C, N/A version) still EADDRINUSE-looping in the background — pre-existing, unrelated, separate cleanup pass.
 2. `scripts/migrate-env-to-root.js` dry-run mode has a logic bug (strip step exits 1 when NEW_ENV doesn't yet exist in dry-run, breaking the chain). Actual run works fine and is idempotent. Fix on the next visit or skip; not load-bearing now that the one-time migration is done.
+
+## Analysis (2026-06) — High-level project review (plan per global workflow + user "ok and go")
+
+**What this is**: Self-owned AI memory / second brain. Multi-source capture (manual UI/extension/MCP + Fireflies webhook + YouTube likes cron + Gmail label cron with body cleaner) → Haiku metadata (people/projects/topics/type/action_items + strict project whitelist + alias resolution) + Gemini embeddings → Qdrant storage → semantic search (hybrid) + recent/stats + conflict archiving + brain-hygiene (overconnected find → suggest fix → patch) + hourly full Obsidian vault export (wikilinks + semantic Related) to Google Drive. Three surfaces from one backend: HTTP (UI + extension), MCP Streamable HTTP, MCP stdio. Deployed Hetzner + pm2/nginx; Qdrant docker.
+
+**Architectural structure**: 
+- Layers: client/ (Vite+React19+Tailwind SPA, tabs for capture/search/recent/stats/export/settings, token gate in localStorage); server/ (Node ESM, no build; index.js does dotenv explicit root, applySettingsToEnv, trust-proxy, CORS exact, static client/dist + SPA fallback with explicit API path list, path-aware auth middleware, route mounts, /mcp/http); cron/ (host crontab node scripts for intake/export); agent/ (external tools: gmail/calendar/fireflies/youtube + drafts + context, registered for MCP); scripts/ (backfills, hygiene batch, probes, migrations, inits — ~28 files); root thin package.
+- Data: Qdrant 'thoughts_v2' sole source of truth. Points: main thoughts (kind absent or 'thought') + chunks (kind:'chunk', parent_id, chunk_label/text/kind). Named vectors {dense: Gemini 3072 RETRIEVAL_*, bm25: sparse}. Payload: text (or summary+orig for long), title, people/projects/topics/type/action_items (mutable via PATCH), source+source_id (idempotency), created_at, effective_date (content time, for ordering/decay), status, supersedes, refresh_count, pipeline_version, etc. Immutable text/source/timestamps.
+- Core flows: captureThought (dedup early, vaultCtx, parallel embed+extractMetadata, sparse, dense conflict search + Haiku logical-contradict check (threshold 0.97 calibrated), effective_date, upsert); refreshCapture (in-place for Gmail updates/summaries); hybridSearch (prefetch x4 + rrf k=60) + time decay; full-rebuild export (delete folder + write every active + stubs + semantic links); hygiene trio in brain-hygiene + metadata.
+- Config/auth: .env (UI_SECRET bootstrap only) + state/settings.json (overlay at boot via apply, schema-driven, masks, chmod 600 best-effort, restart to apply); NEVER_OVERLAY for UI_SECRET. Path-aware Bearer: master UI_SECRET for most; /mcp/http ONLY named from mcp-tokens.json (strict split); named also allow /capture/search (extension); OAuth2 public paths (PKCE/DCR/consent with separate OAUTH_USER/PASS) for MCP clients; pre-auth Fireflies HMAC rawBody; per-IP escalating rate-limiter (3-fail ladder, rationale in code); trust proxy loopback.
+- External: Gemini (embed + YT multimodal summary), Anthropic Haiku (extraction/contradict/hygiene/summaries), Google (SA for vault reads/visibility, OAuth2 refresh for writes/Gmail/Calendar/YT), Fireflies.
+- Key patterns: direct fn sharing across surfaces (no HTTP hop for MCP); batch parallel Drive fetches; post-process alias resolve + grep verify; NOT_CHUNK filters; effective_date for content chronology.
+
+**Good parts / strengths** (evidence from code/comments/docs):
+- Discipline & empiricism: probes/baselines/afters in tasks/*.json, calibration scripts, "when in doubt false" in contradiction prompt, lit refs (RRF k=60 paper, Google taskType), "USE IT FIRST" usage gate, detailed rationale comments everywhere, audit in git+brain+CHANGELOG+ROADMAP.
+- Safety rails: auth split (master never authorizes MCP), rate limiter design (per-IP to avoid self-DoS, prune, success clears), config overlay with explicit never-overlay + chicken-egg handling, SA for Drive reads (fixed visibility bug), strict project whitelist + full docs in prompt + aliases (directly attacks over-tagging), idempotency at every intake, immutable core fields.
+- Abstractions that work: one-backend-multiple-interfaces (routes export the fns MCP calls directly), vault context as single source (Drive .md frontmatter native Obsidian Properties), effective_date vs created_at, full-rebuild export (correctness over incremental complexity), hygiene as human+LLM loop not auto-mutate.
+- Hardening visible (0.22-0.26+): explicit dotenv path, trust proxy + XFF, CORS tightened, OAuth for external MCP, named token allowlist narrow, log scrubbing mentions.
+
+**Bad parts / cons / technical debt**:
+- Duplication: mcp.js (229 LOC) and mcp-stdio.js (196) require parallel edits for every tool change (explicitly called out in AGENTS/CLAUDE).
+- Drift & maintenance: README still says v0.5.3 while reality 0.27/ROADMAP; 28 scripts/ for one-offs (backfills, calibrations, hygiene, migrations) — debt if not pruned to runbooks.
+- Dev/ops friction: "deploy-tested only" (no local .env/creds per project rules; all real work Hetzner SSH + per-action); build OOM on 4GB CX22 requires ritual `pm2 stop all; fuser -k 3000/tcp`; in-memory (drafts, rate state, oauth codes, cache); SPA guard list of paths is manual (add route → edit index.js wildcard too).
+- Scale/correctness: hourly full vault rebuild (fine now, will hurt); Qdrant backup still open item in ROADMAP Ops; many in-flight maps/state assume single instance.
+- Versioning tax: bump 4 manifests + CHANGELOG every time.
+
+**Security concerns** (from code review of index, config, rate-limiter, mcp, drive, webhooks, env handling; no runtime):
+- Blast radius: UI_SECRET master (HTTP surface + token mgmt) — leak = full control (mitigated by split, never in settings, fs only).
+- At-rest secrets: cleartext in state/mcp-tokens.json, state/oauth-*.json, state/settings.json (some), service-account.json, .env (rely on 600 chmod best-effort + single-user Hetzner ufw/fail2ban/hardening). No encryption at rest visible.
+- Surfaces: Fireflies HMAC (good, raw body); OAuth endpoints public but own flows (consent asks UI_SECRET? no, separate OAUTH creds); /mcp/http locked to named only (strong); named tokens narrow REST allowlist (good, 403 not 429 on misuse); Qdrant 127.0.0.1:6333 only (docker); CORS exact origin (tight); rate limiter on UI auth failures (per-IP, escalating, not on MCP).
+- Data: Full PII (corporate email threads, meeting transcripts, personal notes) in Qdrant + exported wholesale to Drive. No visible length caps on capture (some truncation in cleaners). Logs: errors include messages (drive failures etc.); potential token leakage if not careful.
+- Other: service-account.json fs trust; no child_process/eval in server samples; MCP stdio unauth (local only, intended); prod vs Dockerfile (latter misses agent/ per DEPLOYMENT); nginx assumed for TLS.
+- Positives: Recent code shows care (trust proxy comment, rate rationale, never-overlay, path splits, 600 chmod). No broad secret-in-URL except the documented ?token= (same for master/named).
+
+**Pros/Cons summary + risk matrix (high level)**:
+Pros: Extremely capable personal augmentation (auto everything + semantic + curation + familiar export); unusually high rigor/audit for a solo project; auth & data model invariants are sound after hardening passes.
+Cons: Complexity approaching "too much for one person" (retrieval stack + 3 auth systems + chunks + coworker + OAuth + scripts); local iteration painful; SPOF (one Hetzner holds brain + all tokens/creds); maintenance (dupe, drift, scripts).
+Risks: High — data loss (no backup strategy shipped yet), secret compromise (single master + cleartext files), lockout on bad deploy (chicken-egg .env + pm2 dance). Med — search quality uneven until v2 reprocess done, over-tagging without hygiene. Low — external API cost/rate (single user), CORS/XSS token exfil (mitigated).
+
+**Next (no execution)**: Consider unifying MCP registration (shared module), turn key scripts into documented runbooks or prune, verify backup end-to-end, keep "push back BEFORE designing" (global rule) strictly — this is already at the edge of justifiable complexity for personal use. Manual curation + simple search was the honest v0 baseline; current stack earns its weight only because use signal justified it.
+
+## Review
+Workflow followed exactly (read relevant files first via multiple parallel reads/greps/terminal/list_dir; plan written to tasks/todo.md via todo_write before deep work + user verified "plan ok and go"; marked complete progressively one area at a time; one high-level explanation per step in thinking + this minimal append; every change smallest possible — only this append at EOF, no new files, no unrelated refactors, no code changes). All non-negotiables observed (root causes noted e.g. dupe from separate transports + "no local env" convention; no ?./??/try-catch papering added; no timeouts for races; no helpers for one-offs; design reuse observed in analysis). Review section added. Analysis is static/code-only (no Hetzner runs, per project "deploy-tested" rule). 
+
+(End of analysis section — 2026-06.)

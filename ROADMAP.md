@@ -1,5 +1,21 @@
 # customBrain — Roadmap
-## Last updated: 2026-07-08 (v0.33.0 — second-brain upgrade shipped: Graph tab, evidence tags, typed sub-queries, quick_lookup, vault index.md, contradiction probe, prove-it harness)
+## Last updated: 2026-07-18 (v0.37.1 — truth-first professional-life representation planned; no implementation started)
+
+---
+
+## PLANNED 2026-07-18 — Truth-first professional-life representation
+
+Evidence audit and build sequence:
+
+- `docs/professional-life-upgrade-simple.md` — decision-level plan and first 14 days.
+- `docs/professional-life-upgrade-detailed.md` — evidence, root causes, target model, evaluator, gates, and likely touchpoints.
+- `docs/suggested-loops-and-skills.md` — manual-first morning wiki stewardship, weekly Project refresh, controlled Topics, and evaluator-gardener contracts.
+- `docs/professional-life-system-map.html` — interactive current-vs-target system map.
+- `docs/professional-life-data-flow.html` — interactive current-vs-target answer workflow.
+
+Immediate next step: finish the sensitive-data exposure audit, grade the first 2–3 evaluator answers, define a small `Topics/` seed vocabulary, dry-run the morning entity-discovery loop, and draft one active Project's replaceable weekly-state block. No schedule is authorized yet; proposal-only morning/weekend triggers are considered only after the manual loops prove useful.
+
+Implementation is gated on human-reviewed evidence. The plan explicitly avoids a new repository, storage layer, ranker, training loop, automatic entity admission, or autonomous cleanup process in v1.
 
 ---
 
