@@ -44,7 +44,14 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
     }
   }
 
+  // Per-stage timings (ms) logged as one line at the end — nginx 504s on
+  // /capture told us the pipeline can stall past 60s, but not which stage.
+  const timings = {};
+  const started = Date.now();
+
+  let t = Date.now();
   const vaultCtx = await getVaultContext();
+  timings.vault_ctx = Date.now() - t;
 
   // Capture is always a FAST single-vector write (embedding + Haiku metadata).
   // Multi-vector chunking (Sonnet summary + topic chunks) is too slow to run
@@ -52,9 +59,16 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
   // nginx 60s gateway timeout and break the Chrome extension. Chunking is done
   // asynchronously by cron/backfill-chunks.js (enrichWithChunks), which upgrades
   // long single-vector thoughts to multi-vector within minutes.
+  t = Date.now();
   const [vector, metadata] = await Promise.all([
-    embedText(text, 'RETRIEVAL_DOCUMENT'),
-    extractMetadata(text, vaultCtx),
+    embedText(text, 'RETRIEVAL_DOCUMENT').then((v) => {
+      timings.embed = Date.now() - t;
+      return v;
+    }),
+    extractMetadata(text, vaultCtx).then((m) => {
+      timings.metadata = Date.now() - t;
+      return m;
+    }),
   ]);
   const sparseVector = sparseEncodeDoc(text);
 
@@ -67,9 +81,12 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
   // Over-fetch and exclude chunks — only THOUGHT-points can be archived /
   // superseded; a chunk archive is meaningless.
   let supersedes = null;
+  t = Date.now();
   const nearMatches = (await searchVector(vector, 10)).filter((m) => m.kind !== 'chunk').slice(0, 3);
+  timings.conflict_search = Date.now() - t;
   const candidates = nearMatches.filter((m) => m.score > conflictThreshold);
   console.log(`Conflict check: ${candidates.length} candidates above ${conflictThreshold} (scores: ${nearMatches.map((m) => m.score.toFixed(3)).join(', ')})`);
+  t = Date.now();
   for (const existing of candidates) {
     try {
       const check = await checkContradiction(text, existing.text);
@@ -88,6 +105,7 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
       console.error(`Conflict check failed for ${existing.id}: ${err.message}`);
     }
   }
+  timings.contradiction = Date.now() - t;
 
   const payload = {
     text,
@@ -110,7 +128,11 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
   // (last_internal_date, meeting_date, published_at) are visible.
   payload.effective_date = computeEffectiveDate(payload);
 
+  t = Date.now();
   const id = await upsertPoint(vector, sparseVector, payload);
+  timings.upsert = Date.now() - t;
+  timings.total = Date.now() - started;
+  console.log(`[capture] source=${source} len=${text.length} timings ${JSON.stringify(timings)}`);
   return { ok: true, id, metadata, ...(supersedes && { supersedes, archived: supersedes }) };
 }
 
