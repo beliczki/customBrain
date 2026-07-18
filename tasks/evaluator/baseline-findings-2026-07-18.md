@@ -91,9 +91,39 @@ evaluate Graph API only for tenants where consent is obtainable; skip puppeteer.
   and that Humanody/Cafe collabs stalled. Reinforces cluster 1/2: uncaptured work
   (incl. Robert's own unpushed Codex SPD/HTML work) + no project auto-update.
 
+## Cluster 5 — retrieval is below grade (CORRECTION to an earlier claim)
+
+An earlier draft of this doc claimed "the highest-value build is NOT better
+retrieval." That was wrong (Robert, 2026-07-18). Retrieval is independently
+broken, in two ways, both verified 2026-07-18:
+
+- **Canonical dossiers are not in the search index at all.** People/Projects/Topics
+  `.md` files are read only at capture time (Haiku metadata context); they are
+  never upserted to Qdrant. Searching for text unique to a dossier returns nothing
+  from that dossier: `Diffusion Simulator`/`Insight Hub` (Nexus.md),
+  `believeinyourself` (ERSTE.md), `Gossip/Wisdom KB layers` (Bizi.md) all return
+  only thoughts, never the file. So the richest curated truth Robert maintains by
+  hand is unreachable by `search_brain`. This is why Q3 answered from a stale
+  April synthesis thought instead of the correct, current ERSTE.md.
+- **Ranking quality is poor.** Results are dominated by `weak_semantic`; saved
+  references rank alongside first-person reflections (Q6); the wrong source
+  (stale thought) outranks canonical content.
+
+Plus ingest QUALITY (not just holes): Haiku mislabels at capture — folds BTS into
+Bizi, mis-assigns roles/seniority, over-tags. So the pipeline is weak at three
+independent layers, not one.
+
 ## What this batch proves for sequencing
 
-The single highest-value build is **not** better retrieval — it's closing the
-Teams signal gap and giving projects a reviewed current-state. That matches the
-upgrade plan's Phase 4/5 ordering. Retrieval tuning stays deferred; there is no
-retrieval fix for an un-captured source.
+There is no single lever — three layers are independently broken and all three
+need work:
+1. **Capture** — holes (Teams, Robert's unpushed Codex work) AND Haiku ingest
+   quality (mislabeling, over-tagging, wrong entities).
+2. **Retrieval** — index the canonical dossiers so curated truth can surface at
+   all; fix ranking so references don't outrank reflections and stale thoughts
+   don't outrank canonical files.
+3. **Truth model** — project status/current-state, reflection-vs-reference
+   separation.
+Retrieval is NOT deferred. Indexing the canonical dossiers is likely the single
+cheapest retrieval win (the content already exists and is curated; it just isn't
+searchable).
