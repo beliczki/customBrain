@@ -1,12 +1,20 @@
-# Topics seed vocabulary — DRAFT for review
+# Topics seed vocabulary — LIVE since 2026-07-18
 
-Status: proposal only. Nothing here is live.
+Status: LIVE. These 8 topics (42 aliases) are canonical and active in capture-time
+canonicalization on Hetzner.
 
-Go-live requires two explicit decisions by Robert:
-1. Approve/edit these topic files, then move them to Drive `_customBrain/_meta/topics/`.
-2. Set `GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID` in Settings (currently NOT configured
-   on Hetzner — the 0.27.0 canonicalization mechanism is dormant). Once set, capture-time
-   topic canonicalization activates for all new captures → minor version bump.
+- Drive folder: `Topics/` id `1oGc8NmXzMIiSsW0dPRF7t5y6LBRJ4qAL` (under the shared
+  `_customBrain` parent, so the service account sees it by inheritance).
+- Setting: `GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID` set in Hetzner `state/settings.json`.
+- Verified: `getVaultContext()` loads 8 canonical topics / 42 aliases via SA.
+
+The Drive files are now the source of truth (human-owned, like People/Projects).
+Edit them directly in Drive; these local copies are a mirror of the seed, not canonical.
+
+Two aliases to eyeball (judgment calls I made):
+- `Claude Code` → topic `AI agents`. Fold in, or split into a dedicated "AI coding tools" topic?
+- Trimmed before go-live: `mesterséges intelligencia` was removed from `AI adoption`
+  aliases (too generic — would over-tag every AI-general capture).
 
 Contract: `aliases:` frontmatter is what `server/drive-context.js::listWithAliases`
 parses (same as People/Projects). The Description/Includes/Excludes body is

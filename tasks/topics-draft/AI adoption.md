@@ -1,7 +1,7 @@
 ---
 type: topic
 name: AI adoption
-aliases: [AI bevezetés, AI-first marketing, AI szemléletváltás, szervezeti AI adopció, mesterséges intelligencia, organizational change]
+aliases: [AI bevezetés, AI-first marketing, AI szemléletváltás, szervezeti AI adopció, organizational change]
 status: active
 reviewed_at: 2026-07-18
 ---
