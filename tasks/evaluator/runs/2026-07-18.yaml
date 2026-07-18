@@ -72,3 +72,83 @@ runs:
         Drive/Projects (should be added; ~a week overdue).
       This gap set is exactly why scheduled project auto-update is needed: the
       brain cannot know what BTS is, why it was declined, or that Nexus exists.
+
+  # ---- batch 2 (answered 2026-07-18, awaiting grade) ----
+
+  - question_id: q-current-messaging-matrix
+    question_version: 1
+    run_at: 2026-07-18T20:45:00Z
+    answer: >-
+      MessagingMatrix.ai is a one-codebase / multi-instance platform (erste, proficio,
+      telekom instances). Current active version is MM6; there is an MM6 UI dev backlog
+      (2026-05-28) and a v6 project-state note (2026-04-28). Recent activity: user-access
+      restoration (2026-07-16), a Humanody H!ntegrator↔MM6 integration thread (2026-05-08),
+      and an automation collaboration with Cafe Communications. Core use is real ERSTE DCO
+      delivery. No single crisp "current status" record exists — assembled from scattered
+      evidence; latest signal is 2026-07-16.
+    evidence_used: ["quick_lookup project='Messaging matrix' (25 thoughts)"]
+    user_rating: wrong
+    failure_tags: [stale, missing_evidence]
+    user_correction: >-
+      MM6 is deployed for ERSTE ONLY (not proficio/telekom). The real story is
+      strategic, and the brain has almost none of it: MM6 has pivoted to an
+      MCP + agent model — Robert does not want to click the matrix; he wants the
+      AGENT to do the work and to check via the UI that it's OK. Next step: an
+      MCP demo with Tamás Várfi. Monitoring is a priority: Adform creative-rep
+      performance data flows back into the matrix. The creative library has been
+      updated from delivery ("leadás") folders from everywhere; skills are being
+      built with the agent. Strategic thesis: move human-lead → agent-lead —
+      agents do updates AND adserver placement setup, humans do quality + taste;
+      AI production + deployment may beat rigid DCO templates/feeds since there
+      is no real DCO optimization in practice. Humanody cooperation and Cafe
+      Communications collaboration have both STALLED. Known capture gap: Robert's
+      own SPD-editing and HTML-editing work (done with Codex) was never pushed to
+      the brain.
+
+  - question_id: q-relationship-porkolab
+    question_version: 1
+    run_at: 2026-07-18T20:45:00Z
+    answer: >-
+      Porkoláb Dávid (David.Porkolab@erstebank.hu) is an ERSTE Bank Hungary contact —
+      Robert's day-to-day client-side counterpart on ERSTE creative/DCO delivery. Appears
+      across ERSTE Számlák, Hitelkártya, Személyi kölcsön, and Vállalkozók; active and
+      frequent through at least 2026-07-10 (Q3 Boost images, THM changes). The brain shows
+      the working relationship via meetings/tasks but has no explicit relationship-status note.
+    evidence_used: ["quick_lookup person='Porkoláb Dávid' (9 thoughts)"]
+    user_rating: wrong
+    failure_tags: [entity_confusion, missing_evidence]
+    user_correction: >-
+      Wrong seniority/role. Dávid Porkoláb is ERSTE Bank Hungary's HEAD OF DIGITAL
+      MARKETING SOLUTIONS — a senior/high-level stakeholder, NOT Robert's day-to-day
+      contact. Day-to-day ERSTE delivery contacts are Tamás Várfi and Csaba Brunner.
+      Registry note: Porkoláb, Várfi, and Brunner each have multiple duplicate
+      People-file variants (Porkoláb Dávid / David Porkolab / Dávid Porkoláb, etc.)
+      — consolidation needed (Phase 2).
+
+  - question_id: q-belief-ai-adoption
+    question_version: 1
+    run_at: 2026-07-18T20:45:00Z
+    answer: >-
+      ABSTAIN. The brain has essentially no first-person belief evidence on this: a search
+      for Robert's view on AI adoption returns almost entirely saved YouTube references
+      (5 of 6 hits) — consumed content, not stated belief. The honest answer is that this
+      cannot be reliably answered from the brain; what exists is references plus fragments
+      in Telekom AI-First / MMSZ reflections. A proper answer requires Robert to record a
+      reflection stating the belief.
+    evidence_used: ["search_brain 'how organizations should adopt AI, my view vs saved references' — 5/6 youtube references"]
+    user_rating: wrong
+    failure_tags: [under_retrieval, wrong_abstention]
+    user_correction: >-
+      Abstaining was WRONG — the belief IS in the brain, scattered across many of
+      Robert's own reflections/ideas plus engaged philosophy material. This was a
+      retrieval + synthesis failure (one generic query surfaced only YouTube refs;
+      I gave up instead of querying the specific concepts). Robert's actual belief:
+      AI sovereignty and BYOAI (bring-your-own-AI); "place yourself OVER the loop,
+      not inside it"; "bring the work to the agents, not the agent to the work";
+      content is king; record everything to build good context or you get slop;
+      AI leads to a kind of abundance and optionality ("work if you want to, but
+      you don't have to") — yet near-term there is MORE to do, not less, so we need
+      MORE jobs and MORE people, not fewer; rejects AI/datacenter doomerism as an
+      uninformed hoax; stance = find a problem and solve it (raise kids who solve
+      problems, not fear the future). Correct behavior: multi-angle retrieval over
+      his reflection-type thoughts, kept distinct from saved references.

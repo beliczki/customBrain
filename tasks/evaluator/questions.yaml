@@ -92,18 +92,33 @@ questions:
 
   - id: q-current-messaging-matrix
     version: 1
-    status: draft
+    status: active
     category: current_state
     question: "What is the current state of the Messaging Matrix product — who uses it and what is the next step?"
     as_of: 2026-07-18
-    gold_answer: null
-    required_claims: []
-    forbidden_claims: []
-    acceptable_unknowns: []
+    gold_answer: >-
+      MM6 is deployed for ERSTE only. Strategic pivot: MM6 has moved to an MCP +
+      agent model — the goal is agent-led execution (agents do the matrix work,
+      updates, and adserver placement setup) with human oversight via the UI for
+      quality and taste, not manual matrix clicking. Next step: MCP demo with
+      Tamás Várfi. Priorities: monitoring (Adform creative-rep data flowing back
+      into the matrix); the creative library, updated from delivery ("leadás")
+      folders; agent-built skills. Thesis: AI production + deployment may beat
+      rigid DCO templates/feeds (no real DCO optimization exists in practice).
+      Humanody and Cafe Communications collaborations have stalled.
+    required_claims:
+      - "MM6 is ERSTE-only"
+      - "pivot to MCP + agent model; agent-led, human quality/taste via UI"
+      - "next step = MCP demo with Tamás Várfi"
+    forbidden_claims:
+      - "MM6 deployed across proficio/telekom instances"
+      - "Humanody/Cafe Communications as active collaborations"
+    acceptable_unknowns:
+      - "Robert's SPD/HTML editing work (Codex) not yet pushed to the brain"
     required_sources: []
     freshness_sla: "7 days or answer as stale"
     voice_context: null
-    reviewed_at: null
+    reviewed_at: 2026-07-18
     held_out: false
 
   - id: q-history-cseperedo
@@ -124,34 +139,55 @@ questions:
 
   - id: q-belief-ai-adoption
     version: 1
-    status: draft
+    status: active
     category: belief
     question: "What do I actually believe about how organizations should adopt AI — as opposed to references I've merely saved?"
     as_of: 2026-07-18
-    gold_answer: null
-    required_claims: []
-    forbidden_claims: []
+    gold_answer: >-
+      Robert's stated positions (his own, distinct from saved references):
+      AI sovereignty and BYOAI (bring-your-own-AI); "place yourself OVER the loop,
+      not inside it"; "bring the work to the agents, not the agent to the work";
+      content is king; record everything to build good context, or you get slop;
+      AI leads to a kind of abundance and optionality ("work if you want to, but
+      you don't have to") — yet near-term there is MORE to do, not less, so we need
+      MORE jobs and MORE people, not fewer; AI/datacenter doomerism is an uninformed
+      hoax; the stance is to find a problem and solve it (raise kids who solve
+      problems rather than fear the future).
+    required_claims:
+      - "AI sovereignty / BYOAI"
+      - "over the loop, not inside it; bring work to agents not agent to work"
+      - "abundance + optionality long-term, but MORE work / more people near-term"
+      - "rejects AI/datacenter doomerism"
+    forbidden_claims:
+      - "abstaining ('the brain doesn't hold your belief') — the belief IS present"
+      - "presenting saved YouTube references as Robert's belief"
     acceptable_unknowns: []
     required_sources: []
     freshness_sla: "twice-yearly review"
     voice_context: null
-    reviewed_at: null
+    reviewed_at: 2026-07-18
     held_out: false
 
   - id: q-relationship-porkolab
     version: 1
-    status: draft
+    status: active
     category: relationship
     question: "Who is Pörköláb Dávid professionally, and what is the current state of our collaboration?"
     as_of: 2026-07-18
-    gold_answer: null
-    required_claims: []
-    forbidden_claims: []
+    gold_answer: >-
+      Dávid Porkoláb is ERSTE Bank Hungary's Head of Digital Marketing Solutions —
+      a senior/high-level stakeholder, NOT Robert's day-to-day contact. Day-to-day
+      ERSTE delivery runs through Tamás Várfi and Csaba Brunner.
+    required_claims:
+      - "Porkoláb = ERSTE Head of Digital Marketing Solutions (senior)"
+      - "day-to-day contacts = Tamás Várfi and Csaba Brunner"
+    forbidden_claims:
+      - "Porkoláb as Robert's day-to-day/operational contact"
     acceptable_unknowns: []
     required_sources: []
     freshness_sla: "quarterly review or on change"
     voice_context: null
-    reviewed_at: null
+    reviewed_at: 2026-07-18
     held_out: false
 
   - id: q-voice-operational

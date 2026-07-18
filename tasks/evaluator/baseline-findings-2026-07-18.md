@@ -68,6 +68,29 @@ evaluate Graph API only for tenants where consent is obtainable; skip puppeteer.
   Phase 3 runs.
 - Add `status` + `reviewed_at` to active project files (Phase 2, batch).
 
+## Batch 2 (Q4–Q6) — new failure modes
+
+- **Belief under-retrieval / wrong abstention (Q6).** The belief IS in the brain
+  (scattered across Robert's reflections/ideas + engaged philosophy), but a single
+  generic query surfaced only YouTube references and the system abstained. Two fixes:
+  (a) belief questions need multi-angle retrieval over his own reflection-type
+  thoughts; (b) reflections must be separated from saved references so belief
+  synthesis draws from the former. Robert's belief is now recorded as gold
+  (AI sovereignty/BYOAI; over-the-loop; bring work to agents; content is king;
+  record everything or slop; abundance + near-term more-work optimism; anti-doomer).
+  Candidate action: capture a consolidated belief reflection (Robert-owned).
+
+- **Role/seniority confusion + People-variant duplication (Q5).** Porkoláb was
+  reported as day-to-day; he is ERSTE Head of Digital Marketing Solutions (senior);
+  day-to-day = Várfi + Brunner. Porkoláb/Várfi/Brunner each have multiple duplicate
+  People files — Phase 2 consolidation.
+
+- **MM6 strategic pivot entirely uncaptured (Q4).** The brain missed that MM6 is
+  ERSTE-only and has pivoted to an MCP + agent model (agent-led execution, human
+  quality/taste, Várfi MCP demo next, Adform monitoring, agent-built skills),
+  and that Humanody/Cafe collabs stalled. Reinforces cluster 1/2: uncaptured work
+  (incl. Robert's own unpushed Codex SPD/HTML work) + no project auto-update.
+
 ## What this batch proves for sequencing
 
 The single highest-value build is **not** better retrieval — it's closing the
