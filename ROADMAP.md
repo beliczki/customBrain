@@ -24,6 +24,10 @@ Immediate next step: finish the sensitive-data exposure audit, grade the first 2
 - Gardener pass DONE (pre-grading variant) — `tasks/evaluator/gardener-2026-07-18.yaml` (4 proposals incl. a belief-boundary trap).
 - Cowork handoff DONE — `docs/cowork-scheduled-tasks.md` (2 proposal-only scheduled tasks + manual gardener prompt).
 
+**Deferred security follow-ups (not urgent — the 4 flagged values are all dead/stale: expired staging-demo passwords + a closed-ticket abuse-response token; 0 API-key-tier hits):**
+- **(A) Backfill redaction of the 4 existing hits** — one-off script (like `backfill-*.js`): strip the secret from `text` + `chunk_text` + `action_items` AND re-encode the sparse (BM25) vector, else the token still matches in search even when the returned text is masked. Touches nominally-immutable transcript text, so it's a deliberate one-off, not an MCP call. Affected IDs in `tasks/secret-exposure-2026-07-18.json`. Also removes them from the Drive/Obsidian mirror on next export.
+- **(B) Capture-time redaction gate** — the load-bearing half. Reuse the pattern library in `scripts/secret-exposure-audit.js` as a detector; minimal insertion is a redaction pass on `text` before embedding in `captureThought` (`server/routes/capture.js`), covering ALL sources at one choke point (worst hits were Fireflies, not Gmail — so `gmail-clean.js` alone is insufficient). Add a `redacted: true` payload flag; no secret-vault machinery. Capture-pipeline change → needs explicit go/no-go.
+
 Implementation is gated on human-reviewed evidence. The plan explicitly avoids a new repository, storage layer, ranker, training loop, automatic entity admission, or autonomous cleanup process in v1.
 
 ---
