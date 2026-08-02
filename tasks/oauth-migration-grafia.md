@@ -1,5 +1,32 @@
 # customBrain OAuth-migráció: `custombrain` projekt → `grafia-2026`
 
+> ## ✅ VÉGREHAJTVA — 2026-08-02, 0.39.0
+>
+> Új kliens: `customBrain-client` a `grafia-2026`-on, External + In production,
+> redirect URI `http://localhost:3001/callback`.
+> Scope-ok: **`drive` (teljes)**, `gmail.modify`, `calendar.readonly`, `youtube.readonly`.
+> A service account **megszűnt** (lásd a „DÖNTÉS" szakaszt lent).
+>
+> **Verifikáció (mind zöld):** vault 100 people / 28 projects / 8 topics / 4 alias
+> — karakterre egyezik az SA utolsó jó állapotával; 296 dosszié; Gmail
+> `beliczki.robert@gmail.com` (233902 üzenet); Calendar OK; YouTube OK;
+> Drive írás+törlés OK.
+>
+> **Két buktató, ami élesben elkapott minket:**
+> 1. **Google elutasítja a `drive.file` + `youtube.readonly` párost** egy consent
+>    kérésben („scopes that cannot be requested together"). A 2026 márciusi régi
+>    token még mindkettőt tartalmazza — a szabály azóta szigorodott. Ezért lett
+>    teljes `drive` a `drive.file` + `drive.readonly` helyett.
+> 2. **Rossz Google-fiókkal auth-oltunk először.** A Chrome „Work" profilja
+>    automatikusan a `robert@beliczki.hu`-val léptetett be; a token formálisan
+>    érvényes lett, teljes `drive` scope-pal, csak épp 0 vault-fájlt látott (a vault
+>    a gmail-fiókban van). A `drive.about.get({fields:'user'})` hívás azonnal
+>    megmutatja, kié a token — **ezt érdemes minden re-auth után lefuttatni.**
+>    Kárt nem okozott: a Gmail-cron a munkafiókon „Mail service not enabled"
+>    hibával elszállt, nem rögzített semmit.
+>
+> **Hátralévő takarítás:** lásd a 10. lépést.
+
 Átadó doksi a customBrain-agentnek (írta: parlamentAI-session Claude, 2026-08-02).
 A feladat: a customBrain Google OAuth-kliensének (Gmail + Drive + Calendar hozzáférés)
 átköltöztetése a régi `custombrain` GCP-projektből az új `grafia-2026` projektbe,
