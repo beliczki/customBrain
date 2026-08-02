@@ -1,12 +1,16 @@
 import { google } from 'googleapis';
 
+// No fallback on purpose: a missing refresh token must fail loudly rather than
+// silently degrade to an identity that may not exist (see drive-context.js).
 function getOAuth2Client() {
-  const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
-  console.error(`[google-auth] client_id=${clientId?.substring(0,10)}... secret=${clientSecret ? 'set' : 'MISSING'} refresh=${refreshToken?.substring(0,15)}...`);
-  const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
-  oauth2.setCredentials({ refresh_token: refreshToken });
+  if (!process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
+    throw new Error('GOOGLE_DRIVE_REFRESH_TOKEN is not set — Google API access unavailable');
+  }
+  const oauth2 = new google.auth.OAuth2(
+    process.env.GOOGLE_DRIVE_CLIENT_ID,
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET
+  );
+  oauth2.setCredentials({ refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN });
   return oauth2;
 }
 

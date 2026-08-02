@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.39.2 — 2026-08-02
+
+Cleanup after the OAuth migration.
+
+`server/google-auth.js` was printing `[google-auth] client_id=… refresh=…` to stderr on every single client construction — a debug line from the migration that put the first 15 characters of the refresh token into `/var/log/brain-*.log` on every cron tick. Removed. In its place the file now has the same missing-token guard as `drive-context.js`: `getOAuth2Client()` throws when `GOOGLE_DRIVE_REFRESH_TOKEN` is unset instead of handing back a client that fails later with an opaque API error.
+
+Also added `/etc/logrotate.d/custombrain` on Hetzner (daily, keep 7, compress, `copytruncate`, `su root adm` because `/var/log` is `root:syslog`). The cron logs are written by crontab redirects, so pm2-logrotate never touched them — `brain-export.log` had reached 46 MB.
+
 ## 0.39.1 — 2026-08-02
 
 One version for all of customBrain. The UI badge was showing `v0.37.1` while the server ran `0.39.0`, because the client baked `client/package.json`'s version into the bundle at build time — so it froze at whatever was current the last time the SPA was rebuilt, and every server-only deploy widened the gap.
