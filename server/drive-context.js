@@ -1,22 +1,5 @@
 import { google } from 'googleapis';
-import { readFileSync } from 'node:fs';
 import crypto from 'node:crypto';
-import { isAbsolute, resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(MODULE_DIR, '..');
-
-// service-account.json lives at repo root since 0.23.0 (moved from server/).
-// Relative paths in GOOGLE_SERVICE_ACCOUNT_PATH resolve against REPO_ROOT now;
-// absolute paths are honored as-is.
-function resolveSaPath() {
-  const envPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
-  if (envPath) {
-    return isAbsolute(envPath) ? envPath : resolve(REPO_ROOT, envPath);
-  }
-  return resolve(REPO_ROOT, 'service-account.json');
-}
 
 let cachedContext = null;
 let cacheTime = 0;
@@ -31,22 +14,17 @@ function getOAuth2Client() {
   return oauth2;
 }
 
-function getSaDrive() {
-  const sa = JSON.parse(readFileSync(resolveSaPath(), 'utf-8'));
-  const auth = new google.auth.JWT({
-    email: sa.client_email,
-    key: sa.private_key,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
-  return google.drive({ version: 'v3', auth });
-}
-
+// Vault reads used to go through a service account, because the OAuth2 token
+// only carried `drive.file` and therefore saw nothing the app hadn't created —
+// hand-made dossiers (Me.md, the whole Topics folder) were invisible. Since
+// 0.39.0 the OAuth2 client holds the full `drive` scope, so the SA is gone.
+// No fallback on purpose: a missing refresh token must fail loudly rather than
+// silently degrade to an identity that may not exist.
 function getDrive() {
-  // Try OAuth2 first
-  if (process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
-    return google.drive({ version: 'v3', auth: getOAuth2Client() });
+  if (!process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
+    throw new Error('GOOGLE_DRIVE_REFRESH_TOKEN is not set — Drive access unavailable');
   }
-  return getSaDrive();
+  return google.drive({ version: 'v3', auth: getOAuth2Client() });
 }
 
 export function getGmail() {
@@ -326,11 +304,10 @@ async function listDossierFiles(drive, folderId, folderLabel, type) {
 
 /**
  * Fetch all canonical dossiers (People/Projects/Topics) as records for the
- * retrieval index. Uses the service account (sees all files regardless of owner,
- * same as getVaultContext). Missing folder-ID env vars are skipped.
+ * retrieval index. Missing folder-ID env vars are skipped.
  */
 export async function fetchDossiers() {
-  const drive = getSaDrive();
+  const drive = getDrive();
   const specs = [
     { folderId: process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID, label: 'People', type: 'person' },
     { folderId: process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID, label: 'Projects', type: 'project' },
@@ -351,8 +328,7 @@ export async function getVaultContext() {
   }
 
   try {
-    // SA sees all files regardless of owner (OAuth2 misses some)
-    const drive = getSaDrive();
+    const drive = getDrive();
     const peopleFolderId = process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID;
     const projectsFolderId = process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID;
     // 0.27.0: optional _meta/topics/ folder for topic canonicalization. One .md

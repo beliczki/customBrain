@@ -2,6 +2,18 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.39.0 — 2026-08-02
+
+Google OAuth migrated to the `grafia-2026` project, and the service account is gone.
+
+**The bug this fixed:** vault reads had been silently dead. The service account belonged to `messagingmatrix` — not to the `custombrain` GCP project as assumed — and that project was deleted, so every Drive call failed with `Project #495467475194 has been deleted`. `getVaultContext()` caught the error and returned an empty context, which the next line logged as `Vault context loaded: 0 people, 0 projects, 0 topics` — a success-shaped log line. Captures were running with no People/Projects/Topics context and no alias resolution, undetected.
+
+**Why the SA could be dropped entirely:** the long-standing note that "OAuth2 can't see all vault files" was never an ownership problem — it was scope. The token only carried `drive.file`, which by definition sees only app-created files, so hand-made dossiers (Me.md, the entire Topics folder) were invisible. Measured before the switch: OAuth2 saw 6 of 28 Projects and 0 of 8 Topics.
+
+**Scope change:** the new client requests full `https://www.googleapis.com/auth/drive`. `drive.readonly` would have covered the reads, but the export also writes to Drive, and Google now rejects `drive.file` alongside `youtube.readonly` in one consent request (the old token predates that rule and still carries both).
+
+Removed: `getSaDrive()` / `getSaDriveClient()`, `resolveSaPath()`, and the `GOOGLE_SERVICE_ACCOUNT_PATH` settings field. `getDrive()` / `getDriveClient()` now throw when no refresh token is set instead of falling back to a service account that may not exist. `server/get-drive-token.js` requests the new scope set; note `scripts/get-drive-token.js` still only asks for `drive.file` and must not be used for re-auth.
+
 ## 0.38.0 — 2026-07-19
 
 Dossier indexing — the canonical People/Projects/Topics `.md` dossiers are now indexed into `thoughts_v2` as `kind:'dossier'` points, so `search_brain` can surface curated truth (previously they were read only at capture time for Haiku metadata and were unreachable by search — identity/belief answers fell back to stale thoughts). `server/dossier-index.js` embeds name+aliases+body with deterministic per-path UUID ids (re-index overwrites, no dupes), hash-gated via `state/dossier-index-manifest.json`, reconcile deletes orphaned points, flags project files over `CHUNK_THRESHOLD`. Dossiers surface via hybrid search, are exempt from time decay, get a modest boost + `canonical_dossier` evidence tag. Safety: capture dedup and the Recent/stats/export/hygiene filters exclude dossiers. Refresh: on-demand `reindex_dossiers` MCP tool + `POST /reindex`, plus hourly reconcile folded into the export cron. (Per-capture opportunistic reindex deferred — hot-path latency; hourly + on-demand cover freshness.)

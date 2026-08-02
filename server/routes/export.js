@@ -1,8 +1,5 @@
 import { Router } from 'express';
 import { google } from 'googleapis';
-import { readFileSync } from 'node:fs';
-import { isAbsolute, resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getAllWithVectors } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
 
@@ -12,43 +9,20 @@ import { getVaultContext } from '../drive-context.js';
 const RELATED_MIN_SCORE = 0.75;
 const RELATED_MAX = 3;
 
-const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(MODULE_DIR, '..', '..');
-
-// service-account.json lives at repo root since 0.23.0 (moved from server/).
-// Mirror the path-resolution in server/drive-context.js — single source of
-// truth would be cleaner, but the duplication is intentional to keep the
-// route file self-contained.
-function resolveSaPath() {
-  const envPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
-  if (envPath) {
-    return isAbsolute(envPath) ? envPath : resolve(REPO_ROOT, envPath);
-  }
-  return resolve(REPO_ROOT, 'service-account.json');
-}
-
 const router = Router();
 
+// The service-account path is gone as of 0.39.0 — the OAuth2 client now carries
+// the full `drive` scope, so it sees the whole vault (see server/drive-context.js).
 function getDriveClient() {
-  if (process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
-    const oauth2 = new google.auth.OAuth2(
-      process.env.GOOGLE_DRIVE_CLIENT_ID,
-      process.env.GOOGLE_DRIVE_CLIENT_SECRET
-    );
-    oauth2.setCredentials({ refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN });
-    return google.drive({ version: 'v3', auth: oauth2 });
+  if (!process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
+    throw new Error('GOOGLE_DRIVE_REFRESH_TOKEN is not set — Drive access unavailable');
   }
-  return getSaDriveClient();
-}
-
-function getSaDriveClient() {
-  const sa = JSON.parse(readFileSync(resolveSaPath(), 'utf-8'));
-  const auth = new google.auth.JWT({
-    email: sa.client_email,
-    key: sa.private_key,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
-  return google.drive({ version: 'v3', auth });
+  const oauth2 = new google.auth.OAuth2(
+    process.env.GOOGLE_DRIVE_CLIENT_ID,
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET
+  );
+  oauth2.setCredentials({ refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN });
+  return google.drive({ version: 'v3', auth: oauth2 });
 }
 
 function slugify(text) {
@@ -346,12 +320,11 @@ export async function rebuildVault(onLog) {
     emit(`[${ts()}] Syncing ${folderName}/ (${names.size} entries)...`);
     const subfolderId = envFolderId;
 
-    // List with SA — it can see all files regardless of owner
-    const saDrive = getSaDriveClient();
+    const listDrive = getDriveClient();
     const existingNames = new Set();
     let pt;
     do {
-      const res = await saDrive.files.list({
+      const res = await listDrive.files.list({
         q: `'${subfolderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`,
         fields: 'nextPageToken, files(name)',
         pageSize: 100,

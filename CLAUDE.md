@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Deploying?** Read `DEPLOYMENT.md` first.
 
 ## No local environment — deploy-tested only
-There is no `.env` or `service-account.json` on the local Mac filesystem (both live at repo root on Hetzner since 0.23.0; previously at `server/`). Local `npm start`, local crons, and the Vite dev server will all fail without them. All testing happens directly on Hetzner (`brain.beliczki.hu`). Static checks (syntax, pure-function unit tests, regex validation) are fine locally; anything that hits Qdrant, Google APIs, Fireflies, or Anthropic needs the server. Propose SSH-based verification instead of "run it locally first".
+There is no `.env` on the local Mac filesystem (it lives at repo root on Hetzner since 0.23.0; previously at `server/`). Local `npm start`, local crons, and the Vite dev server will all fail without them. All testing happens directly on Hetzner (`brain.beliczki.hu`). Static checks (syntax, pure-function unit tests, regex validation) are fine locally; anything that hits Qdrant, Google APIs, Fireflies, or Anthropic needs the server. Propose SSH-based verification instead of "run it locally first".
 
 ## Where plans live
 - **`ROADMAP.md`** — canonical priority list (P1–P9, sequenced with a usage gate at position 0). Stubs cross-reference brain thought IDs for full specs.
@@ -53,7 +53,7 @@ node server/mcp-stdio.js            # connects Claude Desktop without Express
 ```
 
 ### Environment setup
-Copy `.env.example` to `.env` at REPO ROOT (since 0.23.0; previously at `server/`). Only `UI_SECRET` lives in `.env` now (renamed from `CAPTURE_SECRET` in 0.24.0) — it's the UI bootstrap master secret. All other config (API keys, Google Drive OAuth2 + service account path, Fireflies, Gmail labels, Qdrant URL, port) flows through `state/settings.json` and is managed via the Settings UI tab. Run `scripts/get-drive-token.js` to generate the OAuth2 refresh token, then paste the printed values into Settings → Google Drive section. `service-account.json` also lives at repo root.
+Copy `.env.example` to `.env` at REPO ROOT (since 0.23.0; previously at `server/`). Only `UI_SECRET` lives in `.env` now (renamed from `CAPTURE_SECRET` in 0.24.0) — it's the UI bootstrap master secret. All other config (API keys, Google Drive OAuth2, Fireflies, Gmail labels, Qdrant URL, port) flows through `state/settings.json` and is managed via the Settings UI tab. Run `server/get-drive-token.js` to generate the OAuth2 refresh token, then paste the printed values into Settings → Google Drive section.
 
 ### Dependency management
 Root `package.json` and `server/package.json` have separate dependency trees (no workspaces). Client has its own `package.json` too. Agent code imports from server's `node_modules` via relative paths.
@@ -71,10 +71,15 @@ No `test` or `lint` scripts defined in any package.json. Verification is manual.
 - **Google Drive** export for Obsidian sync
 
 ### Google auth
-- **Server** (`server/google-auth.js`): service account for Drive reads. Uses `GOOGLE_SERVICE_ACCOUNT_PATH`.
-- **Agent** (`agent/google-auth.js`): OAuth2 for Gmail, Calendar, YouTube. Uses `GOOGLE_DRIVE_CLIENT_ID/SECRET/REFRESH_TOKEN`.
-- **Drive writes** (`server/drive-context.js`): OAuth2, same refresh token.
-- **Vault context reads** (`server/drive-context.js`): service account. OAuth2 can't see all files in People/Projects folders — SA sees everything regardless of owner. This bit us: OAuth2 missed Me.md, Pityesz.md, Agaurg.md and 6 project files.
+**One identity for everything since 0.39.0: OAuth2, no service account.** All of
+`server/google-auth.js`, `agent/google-auth.js`, `server/drive-context.js` and
+`server/routes/export.js` use `GOOGLE_DRIVE_CLIENT_ID/SECRET/REFRESH_TOKEN`.
+
+- **GCP project**: `grafia-2026` (migrated from the standalone `custombrain` project on 2026-08-02). Client `customBrain-client`, redirect URI `http://localhost:3001/callback`, consent screen External + In production.
+- **Scopes**: `drive` (full), `gmail.modify`, `calendar.readonly`, `youtube.readonly`.
+- **Re-auth**: `node server/get-drive-token.js`. ⚠️ **Not** `scripts/get-drive-token.js` — that one only requests `drive.file` and would produce a token that silently can't read the vault.
+- **Why full `drive`**: vault reads need to see hand-made dossiers, which `drive.file` cannot (it only sees app-created files — this, not file ownership, was the real cause of the old "OAuth2 misses Me.md" problem). `drive.readonly` would cover reads but not the export's writes, and Google rejects `drive.file` together with `youtube.readonly` in one consent request.
+- **No fallback by design**: `getDrive()` / `getDriveClient()` throw when the refresh token is missing. The previous service-account fallback masked a dead identity for weeks — see CHANGELOG 0.39.0.
 
 ### People aliases
 - People `.md` files on Drive can contain `alias: <name>` lines (e.g., `Me.md` has `alias: Beliczki Róbert` and `alias: Robi`)

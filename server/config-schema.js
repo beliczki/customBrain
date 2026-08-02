@@ -84,14 +84,7 @@ export const SETTINGS_SCHEMA = [
     category: 'Google Drive',
     label: 'OAuth2 refresh token',
     is_secret: true,
-    description: 'Generate via scripts/get-drive-token.js. Required for Drive writes + Gmail + Calendar + YouTube.',
-  },
-  {
-    key: 'GOOGLE_SERVICE_ACCOUNT_PATH',
-    category: 'Google Drive',
-    label: 'Service account JSON path',
-    is_secret: false,
-    description: 'Absolute path to service-account.json on the server. Required for Drive vault reads (People/Projects).',
+    description: 'Generate via server/get-drive-token.js (NOT scripts/, which only requests drive.file). Required for Drive reads + writes + Gmail + Calendar + YouTube.',
   },
   {
     key: 'GOOGLE_DRIVE_FOLDER_ID',

@@ -32,7 +32,17 @@ const url = oauth2.generateAuthUrl({
   access_type: 'offline',
   prompt: 'consent',
   scope: [
-    'https://www.googleapis.com/auth/drive.file',
+    // Full drive scope replaces the service account for vault reads (0.39.0).
+    // Two constraints forced this exact scope:
+    //   1. drive.file only sees app-created files, so hand-made dossiers
+    //      (Me.md, the whole Topics folder) were invisible — that was the real
+    //      cause of the "OAuth2 can't see all vault files" note in CLAUDE.md.
+    //   2. Google rejects drive.file and youtube.readonly in the same consent
+    //      request ("scopes that cannot be requested together", 2026-08-02).
+    //      The old token predates that rule and still carries both.
+    // drive.readonly would cover the reads but not the vault writes the export
+    // performs, so full drive is the narrowest scope that satisfies both.
+    'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/gmail.modify',
     'https://www.googleapis.com/auth/calendar.readonly',
     'https://www.googleapis.com/auth/youtube.readonly',
