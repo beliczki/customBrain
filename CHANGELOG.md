@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). Versions live in `package.json` (root, `server/`, `client/`) and `extension/manifest.json`.
 
+## 0.39.1 — 2026-08-02
+
+One version for all of customBrain. The UI badge was showing `v0.37.1` while the server ran `0.39.0`, because the client baked `client/package.json`'s version into the bundle at build time — so it froze at whatever was current the last time the SPA was rebuilt, and every server-only deploy widened the gap.
+
+The root `package.json` is now the only place a version is bumped. `/stats` (which the client already fetches on mount to validate its token) returns it, and the header reads it from there, so the badge always shows what is actually running. The `version` field is gone from `server/package.json` and `client/package.json` — nothing read them, and leaving them there just invites the drift back. `extension/manifest.json` keeps its own because Chrome requires it.
+
+`getStats()` is untouched: the field is added on the route, so the MCP `brain_stats` response shape doesn't change.
+
 ## 0.39.0 — 2026-08-02
 
 Google OAuth migrated to the `grafia-2026` project, and the service account is gone.

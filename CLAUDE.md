@@ -19,7 +19,11 @@ There is no `.env` on the local Mac filesystem (it lives at repo root on Hetzner
 - **`tasks/todo.md`** (global CLAUDE.md convention) — not used for customBrain; ROADMAP covers this better here.
 
 ## Versioning
-Semver (`major.minor.patch`), currently `0.18.0`. Versions sync across root `package.json`, `server/package.json`, `client/package.json`, `extension/manifest.json`. Bump all four together and log the change in `CHANGELOG.md`. `0.x.y` = pre-1.0, breaking changes allowed on minor bumps.
+Semver (`major.minor.patch`). **One version for all of customBrain, and it lives in the root `package.json` — bump only that.** `server/package.json` and `client/package.json` carry no `version` field on purpose (since 0.39.0); they used to, and the client's baked-in copy silently drifted from the running server whenever we shipped without rebuilding the SPA. The UI badge now reads the version off the `/stats` response, so it always reflects what is actually running.
+
+The one unavoidable duplicate is `extension/manifest.json` — Chrome requires a version there. Bump it alongside the root when the extension changes.
+
+Log every bump in `CHANGELOG.md`. `0.x.y` = pre-1.0, breaking changes allowed on minor bumps.
 
 **After finishing any shipped work — a completed plan, a patch, a new cron/route/MCP tool, a dependency upgrade — remind the user to bump the version before wrapping up.** Don't bump silently. Surface a suggestion in the form:
 

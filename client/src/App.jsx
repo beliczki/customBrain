@@ -10,11 +10,9 @@ import Stats from './components/Stats.jsx';
 import Export from './components/Export.jsx';
 import Settings from './components/Settings.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
-import pkg from '../package.json';
 
 const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Graph', 'Stats', 'Export', 'Settings'];
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'customBrain';
-const APP_VERSION = pkg.version;
 
 // Pre-validates the token against /stats before saving to localStorage. Inline
 // error messages for 401 (wrong token) and 429 (rate-limit lockout, since
@@ -98,6 +96,10 @@ export default function App() {
   // Clear it and bounce the user to the Unlock screen instead of letting them
   // see a broken UI that silently 401s every API call.
   const [validating, setValidating] = useState(!!token);
+  // Served by the server off the root package.json, so the badge always shows
+  // the version that is actually running — not whatever was current when the
+  // SPA bundle was last built.
+  const [version, setVersion] = useState(null);
 
   useEffect(() => {
     if (!token) {
@@ -106,11 +108,14 @@ export default function App() {
     }
     let canceled = false;
     fetch('/stats', { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => {
+      .then(async (res) => {
         if (canceled) return;
         if (res.status === 401) {
           localStorage.removeItem('ui_secret');
           setToken('');
+        } else if (res.ok) {
+          const data = await res.json();
+          if (!canceled) setVersion(data.version);
         }
         setValidating(false);
       })
@@ -149,9 +154,11 @@ export default function App() {
               <img src="/brain_darkmode.svg" alt="" className={`w-8 h-8 ${graphActive ? 'block' : 'dark:block hidden'}`} />
               {!graphActive && <img src="/brain.svg" alt="" className="w-8 h-8 dark:hidden" />}
               <h1 className="text-2xl font-bold text-txt">{APP_NAME}</h1>
-              <span className="text-xs text-txt-sec bg-surface border border-subtle px-1.5 py-0.5 rounded font-mono">
-                v{APP_VERSION}
-              </span>
+              {version && (
+                <span className="app-version text-xs text-txt-sec bg-surface border border-subtle px-1.5 py-0.5 rounded font-mono">
+                  v{version}
+                </span>
+              )}
             </div>
           </div>
         </div>

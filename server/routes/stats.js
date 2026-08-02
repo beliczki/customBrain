@@ -1,12 +1,24 @@
 import { Router } from 'express';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getAllPayloads } from '../qdrant.js';
 
 const router = Router();
 
+// Single source of truth for "what version is customBrain". The client used to
+// bake its own client/package.json version in at build time, which silently
+// drifted whenever we shipped a server-only change without rebuilding the SPA.
+// It now reads this off the /stats response it already fetches on mount.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const VERSION = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8')).version;
+
 router.get('/stats', async (req, res) => {
   try {
     const results = await getStats();
-    res.json(results);
+    // Deliberately added on the route, not in getStats() — the MCP brain_stats
+    // tool calls getStats() directly and its response shape stays untouched.
+    res.json({ ...results, version: VERSION });
   } catch (err) {
     console.error('Stats error:', err.message);
     res.status(500).json({ error: err.message });
