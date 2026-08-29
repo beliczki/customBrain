@@ -1,5 +1,35 @@
 # customBrain — Roadmap
-## Last updated: 2026-07-19 (v0.38.0 — dossier indexing shipped: canonical People/Projects/Topics now retrievable by search)
+## Last updated: 2026-08-02 (v0.39.2 — OAuth migration verified end-to-end on Hetzner)
+
+---
+
+## VERIFIED 2026-08-02 — post-OAuth-migration health check (0.39.2)
+
+Full check of the new single-identity OAuth setup on Hetzner. Everything green:
+
+- **Token** (`state/settings.json`, updated 12:07 UTC): identity `beliczki.robert@gmail.com`, GCP client under `grafia-2026`, scopes `drive` + `gmail.modify` + `calendar.readonly` + `youtube.readonly`. All four vault folders (`_customBrain`, People, Projects, Topics) resolve and are user-owned.
+- **Drive export**: `cron/export.js` run manually — 437 thoughts, 438 deleted, `index.md` written, 118.8s, then `dossier reindex: indexed 296, deleted 0, flagged 14`.
+- **All six crons green**: export, gmail-intake, youtube-intake, agenda-sync, qdrant-backup, backfill-chunks.
+- Every `Project #495467475194 has been deleted` (dead SA) and `YouTube Unauthorized` line in the logs predates the 12:07 token paste. None after.
+- Fixed in 0.39.2: `server/google-auth.js` was logging a refresh-token prefix on every call; `/etc/logrotate.d/custombrain` added because crontab-redirect logs were never rotated (`brain-export.log` had hit 46 MB).
+
+Still open (unchanged by this check): 14 project dossiers exceed `CHUNK_THRESHOLD` 1500 — see the dossier-indexing section below.
+
+---
+
+## SHIPPED 2026-07-21 — Offline vault document rebuild
+
+Source: `~/GoogleDrive/Docs/_customBrain` (read-only). Output: `docs/rebuild/`.
+
+- [x] Freeze the 251 People, 28 Projects, and 8 Topics dossiers as naming/link context; build an alias-to-canonical map and audit duplicate entities.
+- [x] Process the 409 `customBrain/*.md` files in six stable batches (80/80/80/80/80/9), preserving `captured_at`, source content, and source file timestamps.
+- [x] Give every thought a specific, globally unique title and filename; keep a complete old-to-new rename map and rewrite internal thought links against it.
+- [x] Rebuild `People/`, `Projects/`, `Topics/`, and `customBrain/` under `docs/rebuild/` without modifying the Google Drive source.
+- [x] Create one concise, source-grounded note per thought under `customBrainSummaries/`, with canonical People/Project/Topic wikilinks and a backlink to the rebuilt thought.
+- [x] Produce review proposals for stronger People/Project descriptions, duplicate People consolidation, and missing Topics; do not silently merge canonical entities.
+- [x] Verify file counts, unique filenames, link targets, preserved dates, source-to-output coverage, and a sample from every batch; record findings in a review report.
+
+**Review:** `docs/rebuild/reports/REVIEW.md` reports PASS on all 15 checks: 409 rebuilt thoughts, 409 summaries, globally unique titles and filenames, preserved `captured_at` and source mtimes, valid qualified wikilinks, complete manifest coverage, correct batch sizes, and zero source drift. Curated dossier/topic proposals and the alias collision audit are under `docs/rebuild/reports/`; canonical source entities were not silently merged or edited.
 
 ---
 
@@ -199,6 +229,8 @@ Részletes execution order a dokumentum alján.
 
 ### Key finding: OAuth2 vs SA visibility
 OAuth2 (personal account) couldn't see files that exist in shared folders — SA sees all regardless of owner. This affected both People (8/11) and Projects (3/9). Root cause unclear (possibly Google Drive sharing/visibility rules). Fix: use SA for all vault context reads.
+
+> ⚠️ **Superseded 2026-08-02 (0.39.0).** The root cause was never sharing or ownership — the OAuth token only carried the `drive.file` scope, which by definition sees only app-created files. With full `drive` scope the OAuth identity sees everything, and the service account was removed entirely. Do not reintroduce an SA on the strength of this entry.
 
 ---
 
