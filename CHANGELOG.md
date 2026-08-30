@@ -2,6 +2,16 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.39.3 — 2026-08-30
+
+The Graph tab's "Open thought" opened a blank modal — a close button and a lone `1 VEKTOR` badge, nothing else.
+
+`getThought()` in `client/src/api.js` only handled 404. Every other non-OK status (429 from the per-IP auth rate limiter, 401, 500) fell through to `res.json()`, and the resulting `{ error: … }` object is truthy — so `ThoughtModal` handed it to `ThoughtView` as if it were a thought. Title, text, metadata and timestamp are all `undefined` there and render nothing; the only thing left painting was `ThoughtFacts`, whose vector badge is unconditional. The actual status code never reached the screen.
+
+Fixed with the same guard its two neighbours in the file already use (`thoughtAnatomy`, `searchExplain`): `if (!res.ok) throw new Error(...)`. `ThoughtModal` already catches and displays it, so a failure now reads `Error: thought HTTP 429` instead of pretending to be an empty thought.
+
+Note: eleven other functions in `api.js` (`recent`, `search`, `capture`, `stats`, `healthCheck`, `deleteThought`, `agenda`, `agendaSync`, `getSettings`, `saveSettings`, `restartServer`) still return `res.json()` unchecked and would render error bodies the same way. Left alone deliberately — a separate decision, not a drive-by.
+
 ## 0.39.2 — 2026-08-02
 
 Cleanup after the OAuth migration.

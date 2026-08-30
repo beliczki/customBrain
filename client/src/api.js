@@ -38,6 +38,12 @@ export async function recent(limit = 10) {
 export async function getThought(id) {
   const res = await fetch(`${BASE}/thoughts/${id}`, { headers: authHeaders() });
   if (res.status === 404) return null;
+  // Without this, any other non-OK status (429 from the auth rate limiter, 401,
+  // 500) parses into `{ error: ... }` — a truthy object that ThoughtModal hands
+  // to ThoughtView as if it were a thought. Every field is undefined, so the
+  // modal renders blank except the unconditional "1 vektor" badge, and the real
+  // status is never shown. Mirrors thoughtAnatomy / searchExplain below.
+  if (!res.ok) throw new Error(`thought HTTP ${res.status}`);
   return res.json();
 }
 
