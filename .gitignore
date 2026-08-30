@@ -5,9 +5,33 @@ client_secret*.json
 client/dist/
 package-lock.json
 
-# Local-only artifacts (not committed)
-static/                           # favicons, hygiene batch reports, local-only assets
-state/                            # runtime watermarks + agenda cache (gmail history, agenda-cache.json, etc.)
-backups/                          # Qdrant snapshot files (local rotation, last 3)
-brain-hygiene-batch-*.md          # in case a report lands at repo root by accident
+# Local-only artifacts (not committed).
+# NOTE: git has no trailing-comment syntax in .gitignore — a `pattern  # note`
+# line is matched verbatim, comment and all. These four entries carried trailing
+# comments and therefore never actually matched anything; comments now sit on
+# their own lines.
 
+# favicons, hygiene batch reports, local-only assets
+static/
+# runtime watermarks + agenda cache (gmail history, agenda-cache.json, etc.)
+state/
+# Qdrant snapshot files (local rotation, last 3)
+backups/
+# in case a report lands at repo root by accident
+brain-hygiene-batch-*.md
+# macOS Finder metadata
+.DS_Store
+
+# The 2026-07-21 offline vault rebuild (scripts/rebuild-documents.mjs) writes a
+# full People/Projects/Topics/customBrain/customBrainSummaries tree here. Kept
+# on disk, deliberately NOT committed: the hourly export cron deletes and
+# rewrites the entire customBrain/ folder on Drive from Qdrant, so those 409
+# regenerated thoughts could never survive an hour there, and the summaries
+# folder has no reader anywhere in the codebase. What IS committed is
+# docs/rebuild/reports/ — the durable analysis — plus the script that can
+# regenerate the tree from the read-only Drive source at any time.
+docs/rebuild/People/
+docs/rebuild/Projects/
+docs/rebuild/Topics/
+docs/rebuild/customBrain/
+docs/rebuild/customBrainSummaries/

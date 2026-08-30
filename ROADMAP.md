@@ -29,6 +29,14 @@ Source: `~/GoogleDrive/Docs/_customBrain` (read-only). Output: `docs/rebuild/`.
 - [x] Produce review proposals for stronger People/Project descriptions, duplicate People consolidation, and missing Topics; do not silently merge canonical entities.
 - [x] Verify file counts, unique filenames, link targets, preserved dates, source-to-output coverage, and a sample from every batch; record findings in a review report.
 
+**CLOSED 2026-08-30 — what happens to this output.** The rebuild splits into three fates, and only one of them is actionable:
+
+1. **`customBrain/` (409 rebuilt thoughts) — not applicable.** `cron/export.js` deletes and rewrites the entire `customBrain/` Drive folder from Qdrant every hour (`export.js:187–201`), so these files would live at most 60 minutes there. Their only durable content is the new *titles*, which live in the Qdrant payload and would have to go back via 409 `update_thought` calls — against a snapshot that is now a month old and 56 thoughts behind.
+2. **`customBrainSummaries/` (409 summaries) — no reader.** Nothing in the codebase writes or reads such a folder, and it is not indexed. The brain already has a summary mechanism that *is* wired to search (0.10.0: `## Summary` block prepended into `text` above 6000 chars).
+3. **`People/` + `Projects/` + `Topics/` and the proposal reports — the actual value.** `writeStubs` only creates missing files and never overwrites an existing one (`export.js:348–351`), so these are human-owned; and since 0.38.0 they are indexed into search, so a better dossier directly improves answers.
+
+Decision: the generated tree stays on disk but is gitignored; `docs/rebuild/reports/` + `scripts/rebuild-documents.mjs` are committed as the durable artifact (the tree is regenerable from the read-only Drive source at any time). The remaining work is **processing the three proposal reports on Drive**, not "applying the rebuild". Concretely open: `ENTITY-ALIAS-AUDIT.md` lists 33 People duplicate groups (the known Porkoláb×4 is only one of them — also `Me` / `Beliczki Róbert` / `Robi` / `Robert`, `Hollósi István` / `Istvan Hollosi` / `Pityesz`, `Tamas Varfi` / `Tomi`), plus 8 prioritized Topic candidates with alias lists in `MISSING-TOPICS-PROPOSALS.md`.
+
 **Review:** `docs/rebuild/reports/REVIEW.md` reports PASS on all 15 checks: 409 rebuilt thoughts, 409 summaries, globally unique titles and filenames, preserved `captured_at` and source mtimes, valid qualified wikilinks, complete manifest coverage, correct batch sizes, and zero source drift. Curated dossier/topic proposals and the alias collision audit are under `docs/rebuild/reports/`; canonical source entities were not silently merged or edited.
 
 ---
