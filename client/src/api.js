@@ -9,6 +9,20 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// A non-OK response still carries a JSON body — `{ error: … }` — and handing
+// that back as data is how a 429 turned into "l.map is not a function" in
+// Recent instead of a message on screen. Every fetcher whose result feeds
+// rendering goes through this: parse on success, throw on anything else, and
+// prefer the server's own message (the rate limiter's, for instance, says how
+// many seconds are left) over a bare status code.
+async function jsonOrThrow(res, label) {
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || `${label} HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function capture(text) {
   const res = await fetch(`${BASE}/capture`, {
     method: 'POST',
@@ -25,26 +39,20 @@ export async function search(q, limit = 5) {
   const res = await fetch(`${BASE}/search?q=${encodeURIComponent(q)}&limit=${limit}`, {
     headers: authHeaders(),
   });
-  return res.json();
+  return jsonOrThrow(res, 'search');
 }
 
 export async function recent(limit = 10) {
   const res = await fetch(`${BASE}/recent?limit=${limit}`, {
     headers: authHeaders(),
   });
-  return res.json();
+  return jsonOrThrow(res, 'recent');
 }
 
 export async function getThought(id) {
   const res = await fetch(`${BASE}/thoughts/${id}`, { headers: authHeaders() });
   if (res.status === 404) return null;
-  // Without this, any other non-OK status (429 from the auth rate limiter, 401,
-  // 500) parses into `{ error: ... }` — a truthy object that ThoughtModal hands
-  // to ThoughtView as if it were a thought. Every field is undefined, so the
-  // modal renders blank except the unconditional "1 vektor" badge, and the real
-  // status is never shown. Mirrors thoughtAnatomy / searchExplain below.
-  if (!res.ok) throw new Error(`thought HTTP ${res.status}`);
-  return res.json();
+  return jsonOrThrow(res, 'thought');
 }
 
 export async function thoughtAnatomy(id) {
@@ -74,7 +82,7 @@ export async function stats() {
   const res = await fetch(`${BASE}/stats`, {
     headers: authHeaders(),
   });
-  return res.json();
+  return jsonOrThrow(res, 'stats');
 }
 
 export async function getGraph() {
@@ -85,13 +93,13 @@ export async function getGraph() {
 
 export async function healthCheck() {
   const res = await fetch(`${BASE}/health-check`, { headers: authHeaders() });
-  return res.json();
+  return jsonOrThrow(res, 'health-check');
 }
 
 export async function agenda(days = 7) {
   const res = await fetch(`${BASE}/agenda?days=${days}`, { headers: authHeaders() });
   if (res.status === 404) return null;
-  return res.json();
+  return jsonOrThrow(res, 'agenda');
 }
 
 export async function agendaSync(days = 7) {
@@ -100,12 +108,12 @@ export async function agendaSync(days = 7) {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ days }),
   });
-  return res.json();
+  return jsonOrThrow(res, 'agenda sync');
 }
 
 export async function getSettings(reveal = false) {
   const res = await fetch(`${BASE}/settings${reveal ? '?reveal=true' : ''}`, { headers: authHeaders() });
-  return res.json();
+  return jsonOrThrow(res, 'settings');
 }
 
 export async function saveSettings(partial) {

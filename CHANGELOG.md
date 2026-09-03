@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.39.4 — 2026-09-03
+
+The UI locked itself out, and then crashed instead of saying so. Two separate bugs, one visible symptom: a white screen with `l.map is not a function` on the Recent tab.
+
+**Root cause — MCP discovery probes were counted as failed logins.** MCP clients probe OAuth discovery relative to the resource URL, so they request `/mcp/http/.well-known/oauth-protected-resource` and `/mcp/http/.well-known/openid-configuration`. The auth middleware's exemption tested `req.path.startsWith('/.well-known')` — root-anchored, so it missed both — and the MCP branch tests `req.path === '/mcp/http'` exactly, so it missed them too. They fell through to the master-secret branch, arrived without a UI token, and hit `rateLimitBad()`. Eighteen such probes from the user's own IP walked the lockout ladder to level 4 and kept re-arming the 30-minute block; the UI's `/stats` and `/recent` then got 429s from the user's own MCP client. The `/.well-known/` test now matches the segment anywhere in the path. A discovery probe is not a login attempt.
+
+**Second bug — the client rendered error bodies as data.** `recent()` returned `res.json()` unchecked, so the 429's `{ error: … }` object went into `setThoughts`, and `thoughts.map(…)` threw. `Search` had a `try/catch` that never fired because `search()` never threw. Added a `jsonOrThrow()` helper in `client/src/api.js` — it throws on any non-OK status and prefers the server's own message (the rate limiter's says how many seconds remain) over a bare status code — and routed the read/list fetchers through it: `search`, `recent`, `getThought`, `stats`, `healthCheck`, `agenda`, `agendaSync`, `getSettings`. `Recent` gained an error state with a Retry button instead of an uncaught throw. This is the class flagged in 0.39.3; the mutation endpoints (`capture`, `saveSettings`, `deleteThought`, `restartServer`) still return their body unchecked on purpose — their components read `.error` and are user-initiated.
+
 ## 0.39.3 — 2026-08-30
 
 The Graph tab's "Open thought" opened a blank modal — a close button and a lone `1 VEKTOR` badge, nothing else.

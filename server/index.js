@@ -104,7 +104,18 @@ app.use((req, res, next) => {
   // checking the Authorization header explicitly there.
   // We exempt /oauth/authorize, /oauth/token, /oauth/register, and /.well-known.
   // /oauth/clients (management) goes through the master-auth flow below.
+  // The `/.well-known` test must match the segment ANYWHERE in the path, not
+  // just at the root. MCP clients probe discovery relative to the resource
+  // URL — `/mcp/http/.well-known/oauth-protected-resource` and
+  // `/mcp/http/.well-known/openid-configuration`. Those start with `/mcp/http/`,
+  // so a root-anchored startsWith missed them, and `req.path === '/mcp/http'`
+  // below is an exact match so they missed that too. They fell through to the
+  // master-secret branch, arrived without a UI token, and were counted as
+  // FAILED UI AUTH — 18 of them escalated the user's own IP to the 30-minute
+  // lockout, which then 429'd the UI's /stats and /recent. A discovery probe is
+  // not a login attempt; it must never touch the rate limiter.
   if (req.path.startsWith('/.well-known') ||
+      req.path.includes('/.well-known/') ||
       req.path === '/oauth/authorize' ||
       req.path === '/oauth/token' ||
       req.path === '/oauth/register') {
