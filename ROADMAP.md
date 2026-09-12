@@ -1,5 +1,65 @@
 # customBrain — Roadmap
-## Last updated: 2026-08-02 (v0.39.2 — OAuth migration verified end-to-end on Hetzner)
+## ACTIVE 2026-09-12 — Stabilizálás a tanulmány alapján (A szakasz, kalibrálva) — TOP PRIO
+
+Forrás: [Tanulmány](docs/custombrain-tanulmany-2026-09-12.md) + [Terv](docs/custombrain-korszerusitesi-terv-2026-09-12.md). A tanulmány legsúlyosabb állításait kódból ellenőriztük (2026-09-12 session), mind igaz. A terv teljes A–F íve NEM lett jóváhagyva — az alábbi, szűkített sorrend igen. B–F csak az A tapasztalatai után, külön döntéssel.
+
+### 1. S1 — Backup rossz collectiont célzott — ✅ DONE 2026-09-12 (0.41.2)
+A gyanú beigazolódott, és rosszabb volt a feltételezettnél. Élesben mindkét collection létezett, ezért a cron minden éjjel valódi snapshotot készített a **halott** collectionről és `Done in 8.8s`-t logolt.
+
+- Mért állapot: `thoughts` = 596 pont, régi séma (egy névtelen dense vektor, nincs sparse) — a 0.20.0 (2026-05-17) hibrid migráció rollback-hálója, sosem lett eldobva. `thoughts_v2` = 3802 pont, `dense` + sparse `bm25`.
+- **118 éjszakányi mentés, egy sem az élő adatról.** A 3 helyi és 14 Drive-példány mind a 596 pontos halottat őrizte. A restore script ugyanazt a rossz nevet vitte, tehát egy valódi katasztrófa-visszaállítás 596 elavult pontot írt volna az élő 3802 fölé.
+- [x] `server/collections.js` — egyetlen igazságforrás; core/init/backup/restore innen importál. Szándékosan import- és mellékhatásmentes: a cronok a `dotenv.config()` előtt importálják, egy modul-szintű QdrantClient ott betöltetlen `QDRANT_URL`-t fagyasztana be.
+- [x] A backup logolja a pontszámot snapshot előtt, és hangosan elhasal, ha a collection nem elérhető — ez a legolcsóbb detektor pont erre a hibaosztályra.
+- [x] `restore-from-snapshot.js --into <collection>` — a próba-visszaállítás nem tudja felülírni az éleset.
+- [x] **Első valódi mentés megtörtént** (3802 pont, 118 MB, Drive-ra feltöltve) — nem a cronra vártunk.
+- [x] **Visszaállíthatóság bizonyítva:** snapshot → `thoughts_restore_test`, majd összehasonlítás az élessel. Egyezik: darabszám, vektorséma, sparse-konfig, mind a 7 payload-index, és 400 mintapontra a payload + dense + sparse kanonikus hash-e (400/400 azonos). Scratch collection utána eldobva.
+- Módszertani tanulság a jövőbeli ellenőrzésekhez: az első két mérés hamis eltérést mutatott (207/400), mert (a) a `/points/scroll` és a `/points` retrieve másképp szerializál — ugyanazt az endpointot kell mindkét oldalon használni —, és (b) a Qdrant hívásonként más kulcssorrendben adja vissza a payloadot, ezért rendezett/kanonikus hash kell. A hibát a **self-comparison kontroll** fogta meg: `thoughts_v2` vs `thoughts_v2` is 207 eltérést jelzett. Bármilyen egyezés-ellenőrzést először önmagával kell validálni.
+
+**Nyitva maradt, felhasználói döntés kell:** a halott `thoughts` collection (596 pont, 34 MB) még a boxon van. A CHANGELOG 0.20.0 szerint "drop it manually once confident" — 4 hónapja. Amíg létezik, ugyanez a csapda újra elsülhet. Törlése destruktív, ezért külön jóváhagyás kell. Ugyanígy: 6 db egyszeri, migráció előtti script (`retry-failed-reprocess.js`, `backfill-gmail-thread-metadata.js`, `backfill-fireflies-meeting-date.js`, `backfill-effective-date.js`, `consolidate-people.js`, `migrate-to-hybrid-collection.js`) még literálisan `thoughts`-ot ír — történelmi futások rekordjai, de ha valaki ma futtatja őket, a halott collectionre mennek.
+
+### 2. A2-lite — Named token valódi hatóköre (S2)
+- Kód-tény: `NAMED_TOKEN_PATHS` (`server/index.js`) REST-en `/capture`+`/search`-re szűkít, de ugyanaz a token `/mcp/http`-n a TELJES toolkészletet eléri (Gmail/Calendar-olvasás, update_thought, stb.).
+- [ ] `scopes` mező a `state/mcp-tokens.json` tokenjein (pl. `capture,search` a clipper-tokennek; teljes jog az agent-tokennek); toolhívásnál ellenőrzés az MCP-oldalon (`server/mcp.js` ÉS `server/mcp-stdio.js` — dupla regisztráció!).
+- [ ] Kész: clipper-tokennel capture/search megy, közvetlen Gmail-tool és update_thought tiltott; scope nélküli régi token viselkedése eldöntendő (javaslat: teljes jog marad = backwards compatible, de a clipper-token kap szűkítést).
+- NEM kell hozzá a terv teljes A2-je (OAuth-átépítés, hash-tárolás, rate-limit-átdolgozás) — az később, külön.
+
+### 3. Gmail adatvesztés megállítása (I2-ből a fájó rész)
+- Kód-tény: `cron/gmail-intake.js:19` `MAX_BODY_CHARS = 6000`, `slice(0, 6000)` — a hosszú szál vége (tipikusan a döntés) visszahozhatatlanul elveszik. A watermark hibás szál-feldolgozás után is előrelép.
+- [ ] 6000-es levágás megszüntetése/felemelése — a hosszú szöveget a meglévő summary+chunk pipeline kezeli, nem kell előre csonkolni.
+- [ ] Watermark csak akkor lépjen, ha a batch minden szála sikeresen feldolgozódott (vagy a hibás szálak látható függő tételként megmaradnak).
+
+### 4. A3-maradék — index-integritás rövid javítások
+- R6 fele MÁR KÉSZ: 180ca06 (0.41.1) — hash-gate túléli a reconcile-t, force explicit. NYITVA a másik fele:
+- [ ] Dosszié-reconcile törlés csak bizonyított eltűnésnél — egy hibás Drive-tartalomletöltés (`listDossierFiles` kihagyja a fájlt) ne számítson törlésnek (`server/dossier-index.js`).
+- [ ] Drive-listázás lapozása: `listWithAliases` 100-as, `listDossierFiles` 1000-es limit, egyik sem követi a `nextPageToken`-t (`server/drive-context.js:121`) — a globális CLAUDE.md 1000-row-cap szabály klasszikus esete.
+- [ ] Chunk-cron zárja ki a dossziékat (`scripts/backfill-chunks.js:26`).
+- [ ] Fireflies in-flight race: `inFlight.has` és `inFlight.set` közti async DB-hívás (`server/routes/fireflies-webhook.js:94-108`) — a kritikus szakasz zárása, NEM sleep/retry.
+
+### Tudatosan NEM most (a tanulmány javasolja, de gate mögött)
+- B szakasz (tartós forráscollection, állapotgép) — csak ha az A után a fájdalom igazolja.
+- C öt keresési szándéka — helyette elég lehet egy `no_decay` flag a search_brain-en; külön döntés.
+- D/E/F — az A–B tapasztalatai után.
+
+Verzió: minden szállított csomag után bump-javaslat a CLAUDE.md heurisztika szerint (1. és 4. jellemzően patch; 2. és 3. minor, mert MCP-viselkedést/capture-viselkedést változtat).
+
+---
+
+## COMPLETED 2026-09-12 — CustomBrain tanulmány és korszerűsítési terv
+
+A felhasználó jóváhagyta a tanulmány és indokolt terv elkészítését; a célzott egyszerűsítés is elfogadható a teljes újraírás helyett. Ez dokumentációs munka, nem implementáció vagy éles üzemeltetési beavatkozás.
+
+- [x] A történet és a tényleges 0.41.0 funkciók feltérképezése a kód, a changelog és a bemutató alapján.
+- [x] Az intake, keresés, agent-kontextus, kontroll/export és biztonság bizonyítékokra épülő értékelése; a nem ellenőrzött éles állapot külön jelölése.
+- [x] Magyar tanulmány és mérhető, szakaszos korszerűsítési terv a `docs/` alatt, alternatívákkal és visszaállási feltételekkel.
+- [x] Hivatkozás- és állításellenőrzés; lezáró review és verziójavaslat.
+
+**Dokumentumok:** [Tanulmány](docs/custombrain-tanulmany-2026-09-12.md) · [Korszerűsítési terv](docs/custombrain-korszerusitesi-terv-2026-09-12.md).
+
+**Review:** 7 izolált, szintetikus adatú ellenőrzés; npm lockfile-audit (szerver: 12 érintett csomag, kliens: 7, kliens dev nélkül: 0); forráshivatkozások ellenőrizve. Elsőbbséget kap a `thoughts_v2` core és `thoughts` backup/restore eltérésének éles ellenőrzése, a nevesített tokenek túl széles MCP-joga és az intake/index helyessége. Nincs éles audit, implementáció vagy deploy. Javaslat: célzott korszerűsítés a meglévő Qdrant + 3072 dimenziós embedding + MCP alapon; dokumentációs bump 0.41.0 → 0.41.1, nem végrehajtva.
+
+---
+
+## Last updated: 2026-09-12 (v0.41.1 — stabilization package channeled from the study; see ACTIVE on top)
 
 ---
 
