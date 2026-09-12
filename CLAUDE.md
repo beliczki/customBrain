@@ -85,6 +85,12 @@ No `test` or `lint` scripts defined in any package.json. Verification is manual.
 - **Why full `drive`**: vault reads need to see hand-made dossiers, which `drive.file` cannot (it only sees app-created files — this, not file ownership, was the real cause of the old "OAuth2 misses Me.md" problem). `drive.readonly` would cover reads but not the export's writes, and Google rejects `drive.file` together with `youtube.readonly` in one consent request.
 - **No fallback by design**: `getDrive()` / `getDriveClient()` throw when the refresh token is missing. The previous service-account fallback masked a dead identity for weeks — see CHANGELOG 0.39.0.
 
+### Files & Repos dossiers (0.41.0)
+- Two more dossier folders beside People/Projects/Topics: `Files/` (one .md per delivered/received document — what it is, where it lives on Drive, which task it belongs to) and `Repos/` (one .md per repository — purpose, stack, deploy, state).
+- Hand/session-authored. Index-only: embedded + searchable via `search_brain` through the hourly dossier reindex (or `reindex_dossiers` on demand); they do NOT feed the capture-time Haiku prompt.
+- `Files/` frontmatter convention: `drive_link`, `project`, `direction: received|delivered`, `from`, `date`. `Repos/`: `repo`, `deploy`, plus `aliases:` as everywhere.
+- Habit: when substantial work in a repo wraps up, update that repo's dossier.
+
 ### People aliases
 - People `.md` files on Drive can contain `alias: <name>` lines (e.g., `Me.md` has `alias: Beliczki Róbert` and `alias: Robi`)
 - `drive-context.js` reads these at capture time, builds an alias→canonical map

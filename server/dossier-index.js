@@ -53,7 +53,7 @@ function dossierPointId(path) {
  *
  * @param {object} opts
  * @param {string[]} [opts.paths]  Only these dossier paths (e.g. ['Projects/Bizi']).
- * @param {string[]} [opts.types]  Only these types ('person'|'project'|'topic').
+ * @param {string[]} [opts.types]  Only these types ('person'|'project'|'topic'|'file'|'repo').
  * @param {boolean}  [opts.reconcile]  Force re-embed all in scope AND delete
  *                                     points for dossiers no longer on Drive.
  * @returns {{indexed:number, skipped:number, deleted:number, flagged:Array, total:number}}

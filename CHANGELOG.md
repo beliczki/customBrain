@@ -2,6 +2,12 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.41.0 — 2026-09-12
+
+Two new dossier sections beside People/Projects/Topics: **`Files/`** (one `.md` per delivered/received document — what it is, where it lives on Drive, which task it belongs to) and **`Repos/`** (one `.md` per repository — purpose, stack, deploy, state). Wired into `fetchDossiers()` so the hourly dossier reindex embeds them and `search_brain` finds them; `reindex_dossiers` accepts the new `file` / `repo` types (both MCP registrations). Settings gained `GOOGLE_DRIVE_FILES_FOLDER_ID` / `GOOGLE_DRIVE_REPOS_FOLDER_ID`.
+
+Deliberately NOT built (v1 scope decision): no attachment auto-extraction, no git-API repo analyzer, no capture-time prompt injection. Dossiers are hand/session-authored; the update mechanism for `Repos/` is the session that did the work, not a cron.
+
 ## 0.40.0 — 2026-09-12
 
 The hourly vault export stopped rewriting the world. The old `rebuildVault` deleted every `.md` in the Drive folder and recreated all of them on each run — ~2N Drive calls per hour even when nothing had changed, and every local sync client re-downloaded the full vault hourly because each file was, from Drive's point of view, a brand-new object.

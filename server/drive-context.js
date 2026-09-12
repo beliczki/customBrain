@@ -312,6 +312,12 @@ export async function fetchDossiers() {
     { folderId: process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID, label: 'People', type: 'person' },
     { folderId: process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID, label: 'Projects', type: 'project' },
     { folderId: process.env.GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID, label: 'Topics', type: 'topic' },
+    // 0.41.0: Files/ (delivered/received document descriptions — what a file
+    // is, where it lives on Drive, which task it belongs to) and Repos/
+    // (per-repo context). Hand/session-authored dossiers; index-only — they
+    // do NOT feed the capture-time Haiku prompt.
+    { folderId: process.env.GOOGLE_DRIVE_FILES_FOLDER_ID, label: 'Files', type: 'file' },
+    { folderId: process.env.GOOGLE_DRIVE_REPOS_FOLDER_ID, label: 'Repos', type: 'repo' },
   ];
   const all = [];
   for (const s of specs) {

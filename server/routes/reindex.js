@@ -6,7 +6,7 @@ const router = Router();
 // On-demand dossier reindex. Call after an agent or human edits a canonical
 // People/Projects/Topics `.md` so the change is searchable immediately, without
 // waiting for the hourly reconcile. Body (all optional):
-//   { paths?: string[], types?: ('person'|'project'|'topic')[], reconcile?: bool }
+//   { paths?: string[], types?: ('person'|'project'|'topic'|'file'|'repo')[], reconcile?: bool }
 router.post('/reindex', async (req, res) => {
   try {
     const { paths, types, reconcile } = req.body || {};

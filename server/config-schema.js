@@ -105,6 +105,20 @@ export const SETTINGS_SCHEMA = [
     label: 'Projects folder ID',
     is_secret: false,
   },
+  {
+    key: 'GOOGLE_DRIVE_FILES_FOLDER_ID',
+    category: 'Google Drive',
+    label: 'Files folder ID',
+    is_secret: false,
+    description: 'Drive folder of file dossiers — one .md per delivered/received document, indexed for search.',
+  },
+  {
+    key: 'GOOGLE_DRIVE_REPOS_FOLDER_ID',
+    category: 'Google Drive',
+    label: 'Repos folder ID',
+    is_secret: false,
+    description: 'Drive folder of repo-context dossiers — one .md per repository, indexed for search.',
+  },
 
   // ─── Fireflies (meeting transcripts) ───────────────────────────────
   {
