@@ -1,5 +1,9 @@
 # customBrain — Roadmap
-## ACTIVE 2026-09-12 — Stabilizálás a tanulmány alapján (A szakasz, kalibrálva) — TOP PRIO
+## DONE 2026-09-12 — Stabilizálás a tanulmány alapján (A szakasz, kalibrálva)
+
+**Mind a 4 jóváhagyott pont leszállítva és élesben igazolva** (0.41.2 → 0.43.0). Összefoglalva, amit a négy javítás ténylegesen helyrehozott: 118 éjszakányi használhatatlan mentés → bizonyítottan visszaállítható mentés; korlátlan integrációs tokenek → valódi képességkorlátok; csendes Gmail-csonkolás és elvesző szálak → teljes szöveg és újrapróbálkozás; 174 láthatatlan ember → teljes névtér a capture-nél. Három döntés maradt a felhasználónál (halott `thoughts` collection törlése, 5 token szűkítése, 5 levágott levél újrahúzása) — lentebb, pontonként.
+
+**A következő lépés nem újabb javítás, hanem mérés:** a B–F szakaszok gate mögött vannak, és most már van értelme megnézni, mennyit javult a visszakeresés az alias-javítás után. Ez a tanulmány 11. fejezetének kérdésbankja.
 
 Forrás: [Tanulmány](docs/custombrain-tanulmany-2026-09-12.md) + [Terv](docs/custombrain-korszerusitesi-terv-2026-09-12.md). A tanulmány legsúlyosabb állításait kódból ellenőriztük (2026-09-12 session), mind igaz. A terv teljes A–F íve NEM lett jóváhagyva — az alábbi, szűkített sorrend igen. B–F csak az A tapasztalatai után, külön döntéssel.
 
@@ -30,17 +34,20 @@ A gyanú beigazolódott, és rosszabb volt a feltételezettnél. Élesben mindk�
 
 **Follow-up (nem sürgős):** a Settings UI tokenlistája még nem jeleníti meg és nem szerkeszti a scope-okat; az API (`GET`/`POST`/`PATCH /mcp-tokens`) már visszaadja és fogadja őket.
 
-### 3. Gmail adatvesztés megállítása (I2-ből a fájó rész)
-- Kód-tény: `cron/gmail-intake.js:19` `MAX_BODY_CHARS = 6000`, `slice(0, 6000)` — a hosszú szál vége (tipikusan a döntés) visszahozhatatlanul elveszik. A watermark hibás szál-feldolgozás után is előrelép.
-- [ ] 6000-es levágás megszüntetése/felemelése — a hosszú szöveget a meglévő summary+chunk pipeline kezeli, nem kell előre csonkolni.
-- [ ] Watermark csak akkor lépjen, ha a batch minden szála sikeresen feldolgozódott (vagy a hibás szálak látható függő tételként megmaradnak).
+### 3. Gmail adatvesztés megállítása — ✅ DONE 2026-09-12 (0.42.0)
+- [x] `MAX_BODY_CHARS` 6000 → 180000, a Fireflies webhook `MAX_TRANSCRIPT_CHARS`-ával azonos biztonsági plafon. A vágás mostantól hangosan logol. **Mért kár:** 149 elmentett Gmail-szálból **5-nek a törzse pont 6000 karakteren, szó közepén elvágva** — `ERSTE — Erste World Wealth kampány`, `Koordináció vs szubsztrát vita`, `ERSTE Személyi kölcsön — SZK DCO feed frissítés`, `ERSTE — 2026 kampány setup és line itemek`, `ConfAI — Digital-Media Hungary egyeztetés`.
+- [x] Watermark: `state/gmail-watermark.json` kap `retry_thread_ids`-t; a hibás szálak a következő körbe kerülnek. A watermark **szándékosan tovább lép** — visszatartva egy mérgezett szál mögött torlódna fel minden későbbi levél, és a history API 7 nap után eldobja az eseményeket, tehát a megállás többet veszít, mint amennyit ment. Régi formátumú fájl gond nélkül olvasódik (élesben igazolva).
 
-### 4. A3-maradék — index-integritás rövid javítások
-- R6 fele MÁR KÉSZ: 180ca06 (0.41.1) — hash-gate túléli a reconcile-t, force explicit. NYITVA a másik fele:
-- [ ] Dosszié-reconcile törlés csak bizonyított eltűnésnél — egy hibás Drive-tartalomletöltés (`listDossierFiles` kihagyja a fájlt) ne számítson törlésnek (`server/dossier-index.js`).
-- [ ] Drive-listázás lapozása: `listWithAliases` 100-as, `listDossierFiles` 1000-es limit, egyik sem követi a `nextPageToken`-t (`server/drive-context.js:121`) — a globális CLAUDE.md 1000-row-cap szabály klasszikus esete.
-- [ ] Chunk-cron zárja ki a dossziékat (`scripts/backfill-chunks.js:26`).
-- [ ] Fireflies in-flight race: `inFlight.has` és `inFlight.set` közti async DB-hívás (`server/routes/fireflies-webhook.js:94-108`) — a kritikus szakasz zárása, NEM sleep/retry.
+**Nyitva, felhasználói döntés kell:** az 5 levágott levél újrahúzása Gmailből. Nem tettem meg: a jelenlegi szövegükre már összefoglaló van előfűzve, amit egy újra-capture felülírna.
+
+### 4. A3-maradék — index-integritás — ✅ DONE 2026-09-12 (0.43.0)
+- R6 egyik fele már kész volt (180ca06 / 0.41.1 — hash-gate túléli a reconcile-t). A többi:
+- [x] **Drive-lapozás — ez volt a legnagyobb fogás.** `listWithAliases` 100-as oldalt kért és nem követte a `nextPageToken`-t. A People mappában **274 dosszié van**, tehát **174 ember egyáltalán nem jutott el a capture-time Haiku-prompthoz.** A cron minden körben `100 people`-t írt — pontosan a lapméret, ami egy csendes plafon látképe. Egy közös `listAllMdFiles` lapozó; mindkét olvasó ezen megy át. Fake-Drive teszt 0/1/99/100/101/274/311/1000 fájlon: pontos darabszám, nincs duplikátum, nincs elszálló ciklus.
+  **Élesben mérve, előtte → utána: `100 people (4 aliases, 1 emails)` → `274 people (134 aliases, 42 emails)`.** Az alias-feloldás gyakorlatilag nem működött (4 alias a 134-ből), és az ismert-személy e-mail-felismerés is halott volt (1 cím a 42-ből).
+  ⚠️ **Következmény, amire számítani kell:** az outbound-to-known-person auto-capture eddig 1 címre illeszkedett, mostantól 42-re. A következő napokban ezért érezhetően több automatikus Gmail-capture várható. Ha sok a zaj, a `People/*.md` `email:` mezőit kell ritkítani, nem a kódot visszaállítani.
+- [x] Reconcile-törlés csak teljes pillanatképből: `fetchDossiers` mostantól `{dossiers, complete, failures}`-t ad; hibás tartalomletöltésnél a törlés teljesen kimarad (figyelmeztetéssel, a nem olvasható fájlok nevével). Az indexelés megy tovább. Élesben: `complete=true, failures=0, deleted=0, skipped=311`.
+- [x] Chunk-cron kizárja a dossziékat (`kind:'dossier'` a `must_not`-ba).
+- [x] Fireflies race: az `inFlight.set` a `has`-sal azonos szinkron blokkba került. Konkurens harness-szel **reprodukálva**: régi sorrend 2 capture, új sorrend 1 capture + ack.
 
 ### Tudatosan NEM most (a tanulmány javasolja, de gate mögött)
 - B szakasz (tartós forráscollection, állapotgép) — csak ha az A után a fájdalom igazolja.
@@ -66,7 +73,7 @@ A felhasználó jóváhagyta a tanulmány és indokolt terv elkészítését; a 
 
 ---
 
-## Last updated: 2026-09-12 (v0.41.1 — stabilization package channeled from the study; see ACTIVE on top)
+## Last updated: 2026-09-12 (v0.43.0 — stabilization package A shipped and verified; see the DONE block on top)
 
 ---
 
