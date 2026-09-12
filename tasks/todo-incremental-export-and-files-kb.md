@@ -46,7 +46,7 @@ filera. A rendered tartalom md5-je vs. Drive md5 = változásdetektálás, öngy
       egyszer update-elődik, ez rendben van.
 - [x] **6. Log/összegzés frissítése**: `skipped / updated / created / deleted` számok
       a mostani "deleted N / exported N" helyett (cron log + SSE + MCP visszatérés).
-- [ ] **7. Deploy + verifikáció Hetzneren**: két egymás utáni cron-futás — a másodiknak
+- [x] **7. Deploy + verifikáció Hetzneren**: két egymás utáni cron-futás — a másodiknak
       ~0 write-ot kell mutatnia; egy thought PATCH után csak az az egy file frissül;
       lokális sync mappában a dátumok a thought dátumát mutatják.
 
@@ -58,6 +58,14 @@ filera. A rendered tartalom md5-je vs. Drive md5 = változásdetektálás, öngy
 
 ---
 
+### Review (1. fázis — leszállítva 0.40.0, 2026-09-12)
+- Dátum-gyanú megcáfolva méréssel: createdTime/modifiedTime 0.8.0 óta jó volt (Drive API + lokális mtime/birthtime ellenőrizve).
+- Éles verifikáció: 1. futás 6 new / 28 updated / 452 unchanged / 6 orphan (27s);
+  2. futás 0 / 0 / 486 / 0 (8s). Óránkénti Drive-hívás ~970-ről ~5-re esett nyugalmi állapotban.
+- Mellékesen javítva: filename-slug ütközés (determinisztikus suffix), régi duplikátumok orphanként kitakarítva.
+- FELFEDEZETT KÖVETKEZŐ BUG (nem javítva, külön patch): `Dossier reindex: indexed 310, skipped 0`
+  minden órában — a dossier-index hash-skipje sosem skippel, óránként 310 felesleges Gemini embedding-hívás.
+
 ## 2. fázis — Files/ és Repos/ dosszié-szekciók
 
 ### Cél
@@ -67,15 +75,15 @@ A dossziékat kézzel / session-végi szokásként írjuk — NINCS git API-elem
 automatikus csatolmány-feldolgozás v1-ben.
 
 ### Lépések
-- [ ] Két mappa létrehozása a Drive vaultban + folder ID-k a Settings-be
+- [x] Két mappa létrehozása a Drive vaultban + folder ID-k a Settings-be
       (`GOOGLE_DRIVE_FILES_FOLDER_ID`, `GOOGLE_DRIVE_REPOS_FOLDER_ID` — settings.json
       overlay útvonalon, mint a többi)
-- [ ] `fetchDossiers()` specs-lista bővítése: `{ label: 'Files', type: 'file' }`,
+- [x] `fetchDossiers()` specs-lista bővítése: `{ label: 'Files', type: 'file' }`,
       `{ label: 'Repos', type: 'repo' }` (server/drive-context.js) → az óránkénti
       `reindexDossiers` automatikusan embeddel + kereshetővé tesz
-- [ ] Ellenőrzés: `search_brain` visszaad Files/Repos dossziét; a dossier-index
+- [x] Ellenőrzés: `search_brain` visszaad Files/Repos dossziét; a dossier-index
       delete-reconcile működik rájuk
-- [ ] Frontmatter-konvenció dokumentálása (drive_link, project, direction,
+- [x] Frontmatter-konvenció dokumentálása (drive_link, project, direction,
       from, date) — CLAUDE.md vagy a mappa README-je
 - [ ] NEM része: capture-time prompt-injektálás (tokenköltség — csak ha a keresés
       kevésnek bizonyul), Qdrant `files` payload-mező, git API-s elemző cron
@@ -87,6 +95,11 @@ automatikus csatolmány-feldolgozás v1-ben.
 - 2. fázis: minor (új dosszié-típusok a keresésben)
 
 ---
+
+### Review (2. fázis — leszállítva 0.41.0, 2026-09-12)
+- Files/ (19Gy8st6LbCy4TEqWlKLQqo1sFqAgJjgL) és Repos/ (1CRwiVOkZJQO130N1QNfXZNBV27DLeHpc) mappák a vault gyökerében; folder ID-k a settings.json-ban.
+- Seed: Repos/customBrain.md — reindex után azonnal #1 találat "canonical_dossier" evidenciával.
+- Konvenció dokumentálva a CLAUDE.md-ben; NEM épült: git API-elemző, csatolmány-pipeline, capture-prompt injektálás.
 
 ## 3. fázis — Interaktív architektúra-HTML (artifact)
 
