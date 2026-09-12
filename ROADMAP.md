@@ -19,7 +19,25 @@ A gyanú beigazolódott, és rosszabb volt a feltételezettnél. Élesben mindk�
 - [x] **Visszaállíthatóság bizonyítva:** snapshot → `thoughts_restore_test`, majd összehasonlítás az élessel. Egyezik: darabszám, vektorséma, sparse-konfig, mind a 7 payload-index, és 400 mintapontra a payload + dense + sparse kanonikus hash-e (400/400 azonos). Scratch collection utána eldobva.
 - Módszertani tanulság a jövőbeli ellenőrzésekhez: az első két mérés hamis eltérést mutatott (207/400), mert (a) a `/points/scroll` és a `/points` retrieve másképp szerializál — ugyanazt az endpointot kell mindkét oldalon használni —, és (b) a Qdrant hívásonként más kulcssorrendben adja vissza a payloadot, ezért rendezett/kanonikus hash kell. A hibát a **self-comparison kontroll** fogta meg: `thoughts_v2` vs `thoughts_v2` is 207 eltérést jelzett. Bármilyen egyezés-ellenőrzést először önmagával kell validálni.
 
-**Nyitva maradt, felhasználói döntés kell:** a halott `thoughts` collection (596 pont, 34 MB) még a boxon van. A CHANGELOG 0.20.0 szerint "drop it manually once confident" — 4 hónapja. Amíg létezik, ugyanez a csapda újra elsülhet. Törlése destruktív, ezért külön jóváhagyás kell. Ugyanígy: 6 db egyszeri, migráció előtti script (`retry-failed-reprocess.js`, `backfill-gmail-thread-metadata.js`, `backfill-fireflies-meeting-date.js`, `backfill-effective-date.js`, `consolidate-people.js`, `migrate-to-hybrid-collection.js`) még literálisan `thoughts`-ot ír — történelmi futások rekordjai, de ha valaki ma futtatja őket, a halott collectionre mennek.
+**✅ LEZÁRVA 2026-09-12 este — a halott `thoughts` collection eldobva** (a felhasználó jóváhagyásával). A CHANGELOG 0.20.0 négy hónapja azt írta, "drop it manually once confident" — most lett meg a bizonyíték hozzá.
+
+Előtte teljes átfedés-vizsgálat futott, mert felmerült, hogy a migráció esetleg félbemaradt. Az eredmény pont az ellenkezője:
+
+| A `thoughts` 596 pontjából | Eredmény |
+|---|---|
+| Hiányzik a `thoughts_v2`-ből | 71 |
+| Ebből `chunk` (származtatott adat) | **mind a 71** |
+| Hiányzó **nem-chunk** pont (valódi forrástartalom) | **0** |
+| A 71 chunk szülője megvan v2-ben | mind a 71 |
+| A szülőknek van már chunkja v2-ben | mind a 71 |
+
+Vagyis a 0.20.0-s migráció teljes volt; a 71 eltérés elavult chunk a régi darabolási körből, amit a pipeline azóta újragenerált más azonosítókkal. Nulla forrástartalom veszett el a törléssel.
+
+Biztosíték a visszafordíthatatlan lépés előtt: egy `thoughts` snapshot kiemelve a rotáció alól → `backups/archive/thoughts-final-pre-drop-2026-09-12.snapshot.keep` (md5 egyezik az eredetivel; a `rotateLocal` csak `.snapshot` végű fájlokat söpör a `backups/` gyökeréből, alkönyvtárat nem — ellenőrizve a rákövetkező backup-futás után). Drive-on további 14 napig megvan.
+
+Törlés utáni ellenőrzés: `/stats` 491 gondolat, `/search` valódi találat, `/recent` rendben, backup-cron `thoughts_v2 (3802 points)`-ot snapshotol.
+
+**Maradék apróság (nem sürgős):** 5 egyszeri, migráció előtti script (`retry-failed-reprocess.js`, `backfill-gmail-thread-metadata.js`, `backfill-fireflies-meeting-date.js`, `backfill-effective-date.js`, `consolidate-people.js`) még literálisan `thoughts`-ot ír. Történelmi futások rekordjai; mostantól "collection not found"-dal elhasalnak, ami helyesebb, mint a korábbi csendben-rossz-adaton-dolgozás. Szándékosan nem nyúltam hozzájuk.
 
 ### 2. A2-lite — Named token valódi hatóköre (S2) — ✅ DONE 2026-09-12 (0.41.3)
 - Kód-tény volt: `NAMED_TOKEN_PATHS` REST-en `/capture`+`/search`-re szűkít — a kommentje szerint "a leaked token can never reach /settings, /export, or deletes" —, de ez csak REST-re igaz volt: ugyanaz a token `/mcp/http`-n mind a 22 toolt megkapta, benne a közvetlen Gmail/Calendar/Fireflies olvasással. A middleware validálta a tokent, majd **eldobta az identitást**, így lejjebb semmi nem tudta, *melyik* token hív.
