@@ -104,11 +104,16 @@ automatikus csatolmány-feldolgozás v1-ben.
 ## 3. fázis — Interaktív architektúra-HTML (artifact)
 
 Egy interaktív HTML-oldal a customBrain teljes működéséről, tabokkal:
-- [ ] **Intake** — a 4 capture-út (manual/UI/extension/MCP, fireflies webhook, youtube cron, gmail cron) + capture-pipeline (embedding ∥ Haiku metadata, dedup/supersedes, alias-feloldás)
-- [ ] **Export** — vault-rebuild (1. fázis utáni inkrementális működés), index.md, Related thoughts, dossier reindex
-- [ ] **Access/Security** — UI_SECRET vs. named MCP tokenek, webhook HMAC, nginx/pm2, mi nyitott és miért
-- [ ] **MCP** — tool-katalógus (core + hygiene + agent), stdio vs. Streamable HTTP, kettős regisztráció gotcha
-- [ ] **Agent use cases** — retrieval routing létra (quick_lookup → search_brain → get_thought), write-back szintézis, draft-workflow, dossziék
-- [ ] **Gráf** — buildGraph: node-ok, metadata/semantic/supersedes élek, Louvain közösségek
-- [ ] **+ ami hiányzik**: adatmodell (Qdrant payload-konvenciók), komponenstérkép (server/client/agent/cron/extension), verziózás/deploy folyamat
+- [x] **Intake** — a 4 capture-út (manual/UI/extension/MCP, fireflies webhook, youtube cron, gmail cron) + capture-pipeline (embedding ∥ Haiku metadata, dedup/supersedes, alias-feloldás)
+- [x] **Export** — vault-rebuild (1. fázis utáni inkrementális működés), index.md, Related thoughts, dossier reindex
+- [x] **Access/Security** — UI_SECRET vs. named MCP tokenek, webhook HMAC, nginx/pm2, mi nyitott és miért
+- [x] **MCP** — tool-katalógus (core + hygiene + agent), stdio vs. Streamable HTTP, kettős regisztráció gotcha
+- [x] **Agent use cases** — retrieval routing létra (quick_lookup → search_brain → get_thought), write-back szintézis, draft-workflow, dossziék
+- [x] **Gráf** — buildGraph: node-ok, metadata/semantic/supersedes élek, Louvain közösségek
+- [x] **+ ami hiányzik**: adatmodell (Qdrant payload-konvenciók), komponenstérkép (server/client/agent/cron/extension), verziózás/deploy folyamat
 - Forrás: CLAUDE.md + kód; Artifactként publikálva (privát link)
+
+### Review (3. fázis — leszállítva 2026-09-12)
+- Artifact publikálva: https://claude.ai/code/artifact/efda235f-47c8-4f53-a7ee-18dc9caad78e
+- 8 tab: Áttekintés, Intake, Export, Hozzáférés, MCP, Agent-használat, Gráf, Üzemeltetés
+- Tartalom a kódból és a session-verifikációkból (0.41.0 állapot), nem emlékezetből
