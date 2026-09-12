@@ -13,10 +13,10 @@ import { google } from 'googleapis';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(SCRIPT_DIR, '..', '.env') });
 import { applySettingsToEnv } from '../server/config.js';
+import { THOUGHTS as COLLECTION } from '../server/collections.js';
 applySettingsToEnv();
 
 const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
-const COLLECTION = 'thoughts';
 const BACKUPS_DIR = resolve(SCRIPT_DIR, '..', 'backups');
 const LOCAL_KEEP = 3;          // local: count-based, last N snapshots (immediate-recovery safety net)
 const DRIVE_KEEP_DAYS = 14;    // Drive: age-based, delete anything older than N days
@@ -121,7 +121,13 @@ async function run() {
     log(`Created backups dir: ${BACKUPS_DIR}`);
   }
 
-  log(`Triggering snapshot on ${COLLECTION}...`);
+  // Log what we are actually about to snapshot. A wrong-but-existing collection
+  // is the failure this cron shipped with for 118 nights (see server/collections.js);
+  // the point count is what makes that visible in the log instead of silent.
+  const info = await fetch(`${QDRANT_URL}/collections/${COLLECTION}`);
+  if (!info.ok) throw new Error(`Collection ${COLLECTION} not reachable: ${info.status}`);
+  const points = (await info.json()).result.points_count;
+  log(`Triggering snapshot on ${COLLECTION} (${points} points)...`);
   const snapshotName = await createSnapshot();
   log(`Snapshot created: ${snapshotName}`);
 

@@ -1,11 +1,10 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import crypto from 'node:crypto';
+import { THOUGHTS as COLLECTION } from './collections.js';
 
 const qdrant = new QdrantClient({
   url: process.env.QDRANT_URL || 'http://localhost:6333',
 });
-
-const COLLECTION = 'thoughts_v2';
 
 export async function upsertPoint(denseVector, sparseVector, payload, id = null) {
   const pointId = id || crypto.randomUUID();

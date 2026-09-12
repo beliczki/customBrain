@@ -1,7 +1,12 @@
 // Restore a Qdrant collection from a local .snapshot file.
 //
 // Usage:
-//   node scripts/restore-from-snapshot.js <path-to-snapshot> [--dry-run]
+//   node scripts/restore-from-snapshot.js <path-to-snapshot> [--dry-run] [--into <collection>]
+//
+// --into restores to a scratch collection instead of the live one. A restore you
+// have never rehearsed is not a backup, and the rehearsal must not be able to
+// overwrite live data: verify into a scratch name first, compare counts and
+// payload shape, and only then consider a real recovery.
 //
 // Two restore modes documented below. This script does mode A (live, API-driven).
 // Mode B (cold, disaster recovery) requires shell access — see comments at the bottom.
@@ -16,29 +21,42 @@
 //   - Stop Qdrant container: docker compose stop qdrant
 //   - Copy snapshot into the Docker volume:
 //       docker run --rm -v custombrain_qdrant_data:/qdrant/storage -v $(pwd)/backups:/in alpine \
-//         cp /in/<snapshot>.snapshot /qdrant/storage/snapshots/thoughts/
+//         cp /in/<snapshot>.snapshot /qdrant/storage/snapshots/thoughts_v2/
 //   - Start with restore flag (one-shot):
 //       docker run --rm -v custombrain_qdrant_data:/qdrant/storage \
-//         qdrant/qdrant:latest ./qdrant --snapshot /qdrant/storage/snapshots/thoughts/<snapshot>.snapshot:thoughts
+//         qdrant/qdrant:latest ./qdrant --snapshot /qdrant/storage/snapshots/thoughts_v2/<snapshot>.snapshot:thoughts_v2
 //   - Then normal start: docker compose up -d qdrant
 
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, basename, resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
+import { THOUGHTS } from '../server/collections.js';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(SCRIPT_DIR, '..', '.env') });
 
 const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
-const COLLECTION = 'thoughts';
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
-const snapshotPath = resolve(args.find(a => !a.startsWith('--')) || '');
+const intoIdx = args.indexOf('--into');
+const COLLECTION = intoIdx !== -1 ? args[intoIdx + 1] : THOUGHTS;
+// `--into` consumes the value after it; drop both so the positional scan below
+// cannot mistake a scratch collection name for the snapshot path. Guard on
+// intoIdx !== -1: without it the absent-flag case excludes index 0, which is
+// the snapshot path itself.
+const valueIdx = intoIdx !== -1 ? intoIdx + 1 : -1;
+const positional = args.filter((a, i) => !a.startsWith('--') && i !== valueIdx);
+const snapshotPath = resolve(positional[0] || '');
+
+if (intoIdx !== -1 && !COLLECTION) {
+  console.error('--into requires a collection name');
+  process.exit(1);
+}
 
 if (!snapshotPath || !existsSync(snapshotPath)) {
-  console.error(`Usage: node scripts/restore-from-snapshot.js <path> [--dry-run]`);
+  console.error(`Usage: node scripts/restore-from-snapshot.js <path> [--dry-run] [--into <collection>]`);
   console.error(`File not found: ${snapshotPath}`);
   process.exit(1);
 }

@@ -2,6 +2,16 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.41.2 — 2026-09-12
+
+**The nightly Qdrant backup had been snapshotting a dead collection for 118 nights.** `cron/qdrant-backup.js` named `thoughts`; the live server reads and writes `thoughts_v2` (since 0.20.0, 2026-05-17). The old collection was kept on the box as a migration rollback net and never dropped, so every run found a real collection, created a real snapshot, uploaded a real 34 MB file to Drive, and logged `=== Done in 8.8s ===`. Verified on Hetzner today: `thoughts` holds 596 points with the pre-hybrid single unnamed vector; `thoughts_v2` holds 3802 points with named `dense` + sparse `bm25`. Every retained backup — 3 local, 14 on Drive — covers the dead one. Live data had zero backups.
+
+`scripts/restore-from-snapshot.js` carried the same wrong name, so a real recovery would have restored 596 stale points over the live collection.
+
+- **`server/collections.js`** — single source of truth for the collection name, imported by `server/qdrant.js`, `scripts/init-collection.js`, `cron/qdrant-backup.js` and `scripts/restore-from-snapshot.js`. No imports, no side effects: cron entry points import it before `dotenv.config()`/`applySettingsToEnv()` run, and a module-level QdrantClient there would capture an unloaded `QDRANT_URL`. One-shot pre-migration scripts under `scripts/` still name `thoughts` literally — those are historical records of a run against that collection, not live paths.
+- **Backup logs the point count** before snapshotting, and fails loudly if the collection is unreachable. A wrong-but-existing collection is exactly what stayed invisible; the count is the cheapest detector for the recurrence.
+- **`restore-from-snapshot.js --into <collection>`** — rehearse a restore into a scratch collection instead of the live one. A restore never rehearsed is not a backup, and the rehearsal must not be able to overwrite live data.
+
 ## 0.41.1 — 2026-09-12
 
 The hourly dossier reindex re-embedded all ~310 dossiers every run — `indexed 310, skipped 0` in every cron log line, ~310 pointless Gemini calls an hour. Root cause: `reconcile:true` (what the cron passes for orphan cleanup) also bypassed the content-hash gate, because one flag carried two unrelated meanings — "delete points for removed files" and "force re-embed everything". Decoupled: the hash gate now applies on every run, `reconcile` only controls orphan deletion + manifest pruning, and a new explicit `force` option covers the legitimate bypass case (e.g. after an embedding-model change). `POST /reindex` and the `reindex_dossiers` MCP tool (both registrations) accept `force`.

@@ -1,11 +1,10 @@
 import 'dotenv/config';
 import { QdrantClient } from '@qdrant/js-client-rest';
+import { THOUGHTS as COLLECTION } from '../server/collections.js';
 
 const qdrant = new QdrantClient({
   url: process.env.QDRANT_URL || 'http://localhost:6333',
 });
-
-const COLLECTION = 'thoughts_v2';
 
 async function ensureIndex(field, schema) {
   try {
