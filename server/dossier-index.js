@@ -62,7 +62,7 @@ function dossierPointId(path) {
  * @returns {{indexed:number, skipped:number, deleted:number, flagged:Array, total:number}}
  */
 export async function reindexDossiers({ paths = null, types = null, reconcile = false, force = false } = {}) {
-  const dossiers = await fetchDossiers();
+  const { dossiers, complete, failures } = await fetchDossiers();
   const manifest = loadManifest();
   const inScope = dossiers.filter((d) =>
     (!types || types.includes(d.type)) &&
@@ -115,7 +115,17 @@ export async function reindexDossiers({ paths = null, types = null, reconcile = 
   }
 
   let deleted = 0;
-  if (reconcile) {
+  if (reconcile && !complete) {
+    // "Absent from the list" only means "deleted from Drive" when the list is
+    // known to be whole. A file whose content fetch threw is still on Drive —
+    // deleting its index point would quietly drop a curated dossier out of
+    // search, and the next run would have nothing left to notice.
+    console.warn(
+      `[dossier-index] reconcile SKIPPED — ${failures.length} dossier(s) could not be read this run ` +
+      `(${failures.slice(0, 5).join(', ')}${failures.length > 5 ? ', …' : ''}). ` +
+      `Nothing deleted; the snapshot is incomplete, so absence proves nothing.`
+    );
+  } else if (reconcile) {
     // Delete points for dossier files that no longer exist on Drive (renames /
     // deletions the per-path update path can't catch), and prune the manifest.
     const existing = await scrollFilteredRaw({ must: [{ key: 'kind', match: { value: 'dossier' } }] }, 200);

@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.43.0 — 2026-09-12
+
+**174 of 274 people were invisible at capture time.** `listWithAliases` in `server/drive-context.js` asked Drive for one page of 100 files and never followed `nextPageToken`. People holds 274 dossiers, so two thirds of them never reached the capture-time Haiku prompt: their aliases could not resolve, and their names never normalised to canonical form. The cron log said `100 people` every run — exactly the page size, which is what a silent cap looks like. `listDossierFiles` carried the same bug at `pageSize: 1000`; today's 311 dossiers fit under it, so it looked healthy.
+
+- **One paginated reader.** `listAllMdFiles` follows `nextPageToken` to the end, and both folder listings route through it — the page cap is now a property of the code rather than of whoever remembers it at the call site. Verified against a fake Drive at 0/1/99/100/101/274/311/1000 files: exact counts, no duplicates, no runaway loop, correct call counts.
+- **Reconcile no longer deletes on an incomplete snapshot.** `listDossierFiles` dropped any file whose content fetch threw, and reconcile reads "absent from the list" as "deleted from Drive" — so one transient 5xx could delete a curated dossier's index point, and the next run would have nothing left to notice. Folder membership and successful download are now tracked separately; `fetchDossiers` returns `{dossiers, complete, failures}` and reconcile skips deletion entirely (with a warning naming the unreadable files) unless the snapshot is whole. Indexing still proceeds.
+- **The chunk backfill no longer enriches dossiers.** Its filter excluded `kind:'chunk'` but not `kind:'dossier'`, so a long dossier was eligible for thought-enrichment — which rewrites `text` in the index while the Drive original stays put, and the next dossier reindex overwrites the work anyway.
+- **Fireflies duplicate-capture race fixed.** `inFlight.has(meetingId)` and `inFlight.set(...)` were separated by `await findBySourceId(...)`, and an await is a yield: two concurrent fires for one meeting both passed the check, both found no existing point, and both captured. The claim now happens in the same synchronous run as the check. Reproduced both orders against a concurrent harness: old order captures twice, new order captures once and acks the second.
+
 ## 0.42.0 — 2026-09-12
 
 **Gmail bodies were silently cut at 6000 characters, and failed threads were dropped for good.** Both in `cron/gmail-intake.js`, both there since 0.3.0.

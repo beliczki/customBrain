@@ -95,6 +95,13 @@ router.post('/', async (req, res) => {
     console.log(`Fireflies webhook: ${meetingId} already in-flight, acking retry`);
     return res.status(200).json({ ok: true, in_flight: true });
   }
+  // Claim the slot in the SAME synchronous run as the check above. The claim
+  // used to sit after `await findBySourceId(...)`, and an await is a yield: two
+  // concurrent fires for one meeting both passed the has() check, both found no
+  // existing point, and both captured it. Node runs this stretch to completion,
+  // so check-then-claim with no await between them is the whole fix — not a
+  // longer retry delay, which would only make the window harder to hit.
+  inFlight.set(meetingId, Date.now());
 
   try {
     const existing = await findBySourceId('fireflies', meetingId);
@@ -102,10 +109,6 @@ router.post('/', async (req, res) => {
       console.log(`Fireflies webhook: ${meetingId} already captured (${existing.id})`);
       return res.status(200).json({ ok: true, duplicate: true, id: existing.id });
     }
-
-    // Mark in-flight BEFORE starting any slow work. Cleanup in finally
-    // regardless of success/error so we never leak entries.
-    inFlight.set(meetingId, Date.now());
 
     const transcript = await fetchTranscriptWithRetry(meetingId);
     if (!transcript) {

@@ -118,15 +118,39 @@ function parseFrontmatter(text) {
  * for People (drives outbound-mail auto-labeling) but parsed for both
  * uniformly; Projects-folder emails simply go unused today.
  */
-async function listWithAliases(drive, folderId, { withDocuments = false } = {}) {
-  try {
+/**
+ * List EVERY .md file in a Drive folder, following nextPageToken to the end.
+ *
+ * Both readers in this file used to take a single page and stop. `listWithAliases`
+ * asked for 100 — and People holds 274, so 174 people's aliases never reached the
+ * capture-time Haiku prompt and their names never normalised to canonical form.
+ * `listDossierFiles` asked for 1000, which happens to cover today's 311 dossiers,
+ * so it looked fine while carrying the same bug.
+ *
+ * Route every folder listing through here: the page cap then belongs to the
+ * codebase rather than to whoever remembers it at the call site.
+ */
+async function listAllMdFiles(drive, folderId, fileFields) {
+  const files = [];
+  let pageToken = null;
+  do {
     const res = await drive.files.list({
       q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
-      fields: 'files(id, name)',
+      fields: `nextPageToken, files(${fileFields})`,
       pageSize: 100,
       includeItemsFromAllDrives: true,
       supportsAllDrives: true,
+      ...(pageToken ? { pageToken } : {}),
     });
+    files.push(...(res.data.files || []));
+    pageToken = res.data.nextPageToken || null;
+  } while (pageToken);
+  return files;
+}
+
+async function listWithAliases(drive, folderId, { withDocuments = false } = {}) {
+  try {
+    const res = { data: { files: await listAllMdFiles(drive, folderId, 'id, name') } };
     const names = [];
     const aliases = {};
     const emails = {};
@@ -252,15 +276,12 @@ async function listWithAliases(drive, folderId, { withDocuments = false } = {}) 
  * — this returns the raw material the dossier-index embeds and upserts.
  */
 async function listDossierFiles(drive, folderId, folderLabel, type) {
-  const res = await drive.files.list({
-    q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
-    fields: 'files(id, name, modifiedTime)',
-    pageSize: 1000,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
-  });
-  const files = res.data.files || [];
+  const files = await listAllMdFiles(drive, folderId, 'id, name, modifiedTime');
   const out = [];
+  // Content fetches that threw. Folder membership and successful downloads are
+  // two different facts: a file that failed to download still EXISTS on Drive.
+  // Conflating them let one transient 5xx look like a deletion to the reconcile.
+  const failures = [];
   const PARALLEL = 10;
   for (let i = 0; i < files.length; i += PARALLEL) {
     const batch = files.slice(i, i + PARALLEL);
@@ -274,11 +295,11 @@ async function listDossierFiles(drive, folderId, folderLabel, type) {
         return { file, text };
       } catch (err) {
         console.error(`dossier fetch failed ${file.name}: ${err.message}`);
-        return null;
+        return { file, failed: true };
       }
     }));
     for (const r of results) {
-      if (!r) continue;
+      if (r.failed) { failures.push(`${folderLabel}/${r.file.name.replace(/\.md$/, '')}`); continue; }
       const name = r.file.name.replace(/\.md$/, '');
       const fm = parseFrontmatter(r.text);
       const aliases = [];
@@ -299,7 +320,7 @@ async function listDossierFiles(drive, folderId, folderLabel, type) {
       });
     }
   }
-  return out;
+  return { files: out, failures };
 }
 
 /**
@@ -320,12 +341,17 @@ export async function fetchDossiers() {
     { folderId: process.env.GOOGLE_DRIVE_REPOS_FOLDER_ID, label: 'Repos', type: 'repo' },
   ];
   const all = [];
+  const failures = [];
   for (const s of specs) {
     if (!s.folderId) continue;
-    const files = await listDossierFiles(drive, s.folderId, s.label, s.type);
-    all.push(...files);
+    const res = await listDossierFiles(drive, s.folderId, s.label, s.type);
+    all.push(...res.files);
+    failures.push(...res.failures);
   }
-  return all;
+  // `complete` is the caller's licence to treat this list as the full truth of
+  // what is on Drive. Reconcile deletes index points for anything missing from
+  // it — that inference is only sound when nothing was dropped on the way.
+  return { dossiers: all, complete: failures.length === 0, failures };
 }
 
 export async function getVaultContext() {

@@ -31,7 +31,18 @@ async function scrollThoughts() {
       limit: 100,
       with_payload: true,
       offset,
-      filter: { must_not: [{ key: 'kind', match: { value: 'chunk' } }] },
+      // Exclude dossiers as well as chunks. Dossiers live in the same
+      // collection but are human-owned Drive files, not captured thoughts:
+      // enriching one rewrites `text` in the index while the Drive original
+      // stays put, so the next dossier reindex overwrites the work anyway.
+      // Long dossiers do deserve chunking — on a path built for them, not by
+      // falling through a filter that only remembered to exclude chunks.
+      filter: {
+        must_not: [
+          { key: 'kind', match: { value: 'chunk' } },
+          { key: 'kind', match: { value: 'dossier' } },
+        ],
+      },
     });
     all.push(...b.points);
     if (!b.next_page_offset) break;
