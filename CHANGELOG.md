@@ -2,6 +2,17 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.41.3 — 2026-09-12
+
+**A named token was restricted over REST and unrestricted over MCP.** `NAMED_TOKEN_PATHS` in `server/index.js` limits a token from `state/mcp-tokens.json` to `/capture` and `/search` — and the comment there says a leaked token "can never reach /settings, /mcp-tokens management, /export, or deletes". True for REST, and only REST: the same token on `/mcp/http` received all 22 tools, including direct Gmail, Calendar and Fireflies reads and the mutating brain tools. The middleware validated the token and then dropped the identity, so nothing downstream knew *which* token was calling. Six tokens were live, none scoped, one of them a third-party test connector.
+
+- **`server/mcp-scopes.js`** — four capabilities (`capture`, `brain-read`, `curate`, `live-provider-read`) and a complete tool→scope map. Enforcement is by non-registration: a connection whose token lacks a scope never has that tool registered, so `tools/list` hides it *and* a direct `tools/call` fails as unknown. `applyScopeGate` wraps `server.tool` before any registration runs, so the 22 call sites across `mcp.js`, `mcp-stdio.js` and `agent/register.js` stay untouched — annotating them would mean doing it three times and keeping it in sync. A tool with no mapping **throws at registration**, so a new tool cannot silently inherit full access; that check is what catches `mcp.js` and `mcp-stdio.js` drifting apart.
+- **Sessions are bound to the token that opened them.** `httpTransports` was keyed by session id alone, so any valid token could attach to another token's session and inherit its tool set — which would have handed a narrow token a broad one's scopes. Mismatched reuse now returns 403.
+- **`PATCH /mcp-tokens/:id`** with `{scopes: [...]}` narrows a token, `{scopes: null}` reopens it. Takes effect on the next MCP connection; an open session keeps the tool set it was built with, so revoke when the change is urgent.
+- **Backwards compatible:** `scopes: null` (every pre-0.41.3 token) means unrestricted. Narrowing a token is a deliberate act, not a side effect of upgrading.
+
+Verified: unrestricted registers 22 tools, `['capture','brain-read']` registers 11 with Gmail/Calendar/curate absent, `['brain-read']` registers 9 with `capture_thought` absent; all 22 registered tools have a scope mapping and the two registries have zero drift.
+
 ## 0.41.2 — 2026-09-12
 
 **The nightly Qdrant backup had been snapshotting a dead collection for 118 nights.** `cron/qdrant-backup.js` named `thoughts`; the live server reads and writes `thoughts_v2` (since 0.20.0, 2026-05-17). The old collection was kept on the box as a migration rollback net and never dropped, so every run found a real collection, created a real snapshot, uploaded a real 34 MB file to Drive, and logged `=== Done in 8.8s ===`. Verified on Hetzner today: `thoughts` holds 596 points with the pre-hybrid single unnamed vector; `thoughts_v2` holds 3802 points with named `dense` + sparse `bm25`. Every retained backup — 3 local, 14 on Drive — covers the dead one. Live data had zero backups.

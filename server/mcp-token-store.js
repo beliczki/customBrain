@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from '
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
+import { SCOPES, isValidScopeList } from './mcp-scopes.js';
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = resolve(MODULE_DIR, '..', 'state', 'mcp-tokens.json');
@@ -69,6 +70,9 @@ function publicShape(t, { reveal = false } = {}) {
     // OAuth metadata (since 0.25.0). null for manually-minted tokens.
     oauth_client_id: t.oauth_client_id || null,
     expires_at: t.expires_at || null,
+    // Capability scopes (since 0.41.3). null = unrestricted, which is what every
+    // token minted before then carries — narrowing one is a deliberate act.
+    scopes: t.scopes || null,
   };
 }
 
@@ -107,7 +111,7 @@ export function listTokens({ reveal = false, revealId = null } = {}) {
   });
 }
 
-export function createToken(name, { oauth_client_id = null, expires_at = null } = {}) {
+export function createToken(name, { oauth_client_id = null, expires_at = null, scopes = null } = {}) {
   if (!name || typeof name !== 'string' || name.trim() === '') {
     throw new Error('Token name required');
   }
@@ -131,10 +135,29 @@ export function createToken(name, { oauth_client_id = null, expires_at = null } 
     last_used_at: null,
     oauth_client_id,
     expires_at,
+    scopes,
   };
   store.tokens.push(record);
   flush();
   return publicShape(record, { reveal: true });
+}
+
+/**
+ * Narrow (or reopen) a token's capabilities. `scopes: null` restores
+ * unrestricted access. Returns the updated public shape, or null if no such id.
+ * Takes effect on the next MCP connection — an open session keeps the tool set
+ * it was built with, so revoke the token instead when the change is urgent.
+ */
+export function setTokenScopes(id, scopes) {
+  const store = getCache();
+  const found = store.tokens.find((t) => t.id === id);
+  if (!found) return null;
+  if (scopes !== null && !isValidScopeList(scopes)) {
+    throw new Error(`scopes must be null or a non-empty subset of: ${SCOPES.join(', ')}`);
+  }
+  found.scopes = scopes;
+  flush();
+  return publicShape(found);
 }
 
 export function revokeToken(id) {

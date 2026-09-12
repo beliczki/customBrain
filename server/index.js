@@ -127,7 +127,15 @@ app.use((req, res, next) => {
     : (req.query.token || '');
 
   if (req.path === '/mcp/http') {
-    if (rawToken && validateMcpToken(rawToken)) return next();
+    // Carry the validated record through to handleMcpHttp: which tools get
+    // registered, and which session this caller may reuse, both depend on WHICH
+    // token this is — not merely that it was valid. Validating and then dropping
+    // the identity is what let a clipper token reach the Gmail tools (0.41.3).
+    const record = rawToken ? validateMcpToken(rawToken) : null;
+    if (record) {
+      req.mcpPrincipal = record;
+      return next();
+    }
     return res.status(401).json({ error: 'MCP requires a named token from /mcp-tokens (master secret does not authorize MCP)' });
   }
 

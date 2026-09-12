@@ -17,13 +17,21 @@ import { getAgenda } from './routes/agenda.js';
 import { runHealthCheck } from './brain-health.js';
 import { quickLookup } from './quick-lookup.js';
 import { reindexDossiers } from './dossier-index.js';
+import { applyScopeGate } from './mcp-scopes.js';
 
-export function createMcpServer() {
+/**
+ * @param {string[]|null} scopes Capability scopes of the calling token, or null
+ *   for unrestricted (stdio, and tokens minted before scopes existed).
+ */
+export function createMcpServer(scopes = null) {
   const server = new McpServer({
     name: 'customBrain',
     version: '1.0.0',
     icons: [{ src: 'https://brain.beliczki.hu/favicon-96x96.png', sizes: ['96x96'], mimeType: 'image/png' }],
   });
+
+  // Must run before any server.tool(...) below — it wraps the registration fn.
+  applyScopeGate(server, scopes);
 
   server.tool(
     'capture_thought',
@@ -267,12 +275,26 @@ export function createMcpServer() {
 const httpTransports = new Map();
 
 export async function handleMcpHttp(req, res) {
+  // Set by the auth middleware in server/index.js, which has already validated
+  // the bearer against the named-token store. Absent = the middleware was
+  // bypassed; fail closed rather than serve an unidentified caller.
+  const principal = req.mcpPrincipal;
+  if (!principal) {
+    return res.status(401).json({ error: 'MCP requires an identified named token' });
+  }
+
   // Check for existing session
   const sessionId = req.headers['mcp-session-id'];
 
   if (sessionId && httpTransports.has(sessionId)) {
-    const transport = httpTransports.get(sessionId);
-    await transport.handleRequest(req, res);
+    const entry = httpTransports.get(sessionId);
+    // A session is bound to the token that opened it. Without this, any valid
+    // token could attach to another token's session and inherit its tool set —
+    // which would hand a narrowly-scoped token the scopes of a broad one.
+    if (entry.tokenId !== principal.id) {
+      return res.status(403).json({ error: 'Session belongs to a different token' });
+    }
+    await entry.transport.handleRequest(req, res);
     return;
   }
 
@@ -281,11 +303,11 @@ export async function handleMcpHttp(req, res) {
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (sid) => {
-      httpTransports.set(sid, transport);
+      httpTransports.set(sid, { transport, tokenId: principal.id });
     },
   });
 
-  const server = createMcpServer();
+  const server = createMcpServer(principal.scopes || null);
 
   transport.onclose = () => {
     const sid = transport.sessionId;

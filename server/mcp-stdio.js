@@ -17,12 +17,19 @@ import { runHealthCheck } from './brain-health.js';
 import { quickLookup } from './quick-lookup.js';
 import { reindexDossiers } from './dossier-index.js';
 import { registerAgentTools } from '../agent/register.js';
+import { applyScopeGate } from './mcp-scopes.js';
 
 const server = new McpServer({
   name: 'customBrain',
   version: '1.0.0',
   icons: [{ src: 'https://brain.beliczki.hu/favicon-96x96.png', sizes: ['96x96'], mimeType: 'image/png' }],
 });
+
+// stdio is a local, unauthenticated transport — the principal is the user at the
+// keyboard, so no scope is withheld (null). The gate still runs: it throws on a
+// tool with no TOOL_SCOPES entry, which is what catches this file drifting out
+// of sync with server/mcp.js — the two register the same tools separately.
+applyScopeGate(server, null);
 
 server.tool(
   'capture_thought',
