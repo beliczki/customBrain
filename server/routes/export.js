@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'node:crypto';
 import { google } from 'googleapis';
 import { getAllWithVectors } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
@@ -178,27 +179,27 @@ export async function rebuildVault(onLog) {
   const folderId = await getOrCreateSubfolder(drive, rootFolderId, 'customBrain');
   emit(`[${ts()}] Found customBrain folder`);
 
-  // Step 1: Delete all existing .md files
-  emit(`[${ts()}] Scanning for old files...`);
-  let existingFiles = [];
+  // Step 1: List existing .md files WITH md5Checksum — the diff baseline.
+  // Incremental since 0.40.0: the old flow deleted every file and recreated
+  // it on each run (~2N Drive calls hourly even when nothing changed), which
+  // also churned local sync clients through a full re-download. Drive stores
+  // an md5Checksum for every binary file, so rendered content is diffed
+  // against it directly — no local manifest, self-healing (a hand-edited
+  // file simply differs and gets rewritten on the next run).
+  emit(`[${ts()}] Listing existing files...`);
+  const existingFiles = [];
   let pageToken;
   do {
     const res = await drive.files.list({
       q: `'${folderId}' in parents and name contains '.md' and trashed=false`,
-      fields: 'nextPageToken, files(id, name)',
+      fields: 'nextPageToken, files(id, name, md5Checksum)',
       pageSize: 100,
       pageToken,
     });
     existingFiles.push(...res.data.files);
     pageToken = res.data.nextPageToken;
   } while (pageToken);
-
-  emit(`[${ts()}] Deleting ${existingFiles.length} old files...`);
-  for (let i = 0; i < existingFiles.length; i += 10) {
-    const batch = existingFiles.slice(i, i + 10);
-    await Promise.all(batch.map((f) => drive.files.delete({ fileId: f.id })));
-  }
-  emit(`[${ts()}] Old files deleted`);
+  emit(`[${ts()}] Found ${existingFiles.length} existing files`);
 
   // Step 2: Fetch all thoughts + vectors from Qdrant (vectors needed for
   // semantic autolinks below).
@@ -209,59 +210,55 @@ export async function rebuildVault(onLog) {
   emit(`[${ts()}] Found ${thoughts.length} active thoughts (${rawPoints.length - thoughts.length} archived skipped)`);
 
   if (thoughts.length === 0) {
-    emit(`[${ts()}] Nothing to export`);
-    return { ok: true, rebuilt: true, deleted: existingFiles.length, exported_count: 0, files: [] };
+    emit(`[${ts()}] Nothing to export — removing ${existingFiles.length} orphaned files`);
+    for (let i = 0; i < existingFiles.length; i += 10) {
+      const batch = existingFiles.slice(i, i + 10);
+      await Promise.all(batch.map((f) => drive.files.delete({ fileId: f.id })));
+    }
+    return { ok: true, rebuilt: true, created: 0, updated: 0, skipped: 0, deleted: existingFiles.length, exported_count: 0, files: [] };
   }
 
-  // Step 3: Build filenames and attach to points for neighbor lookup
-  const filenames = thoughts.map((p) => thoughtFilename(p.payload));
+  // Step 3: Build filenames and attach to points for neighbor lookup.
+  // Collisions (two titles slugifying identically) used to silently produce
+  // two same-named Drive files; under name-keyed diffing that would mispair,
+  // so disambiguate deterministically: date suffix first, id prefix second.
+  const usedNames = new Set();
+  const filenames = thoughts.map((p) => {
+    let name = thoughtFilename(p.payload);
+    if (usedNames.has(name)) {
+      const stem = name.replace(/\.md$/, '');
+      name = `${stem}-${String(p.payload.created_at || '').slice(0, 10)}.md`;
+      if (usedNames.has(name)) name = `${stem}-${String(p.id).slice(0, 8)}.md`;
+    }
+    usedNames.add(name);
+    return name;
+  });
   thoughts.forEach((p, i) => { p.filename = filenames[i]; });
   emit(`[${ts()}] Filenames built — neighbor search will run per-thought (cosine)`);
 
-  // Step 4: Write all thoughts as .md files with semantic Related thoughts.
-  // Batched-parallel uploads (mirror the delete batch above) — sequential
-  // awaits made this loop the dominant cost as N grew past a few hundred.
-  emit(`[${ts()}] Writing ${thoughts.length} thought files...`);
-  const files = new Array(thoughts.length);
-  const UPLOAD_BATCH = 10;
-  for (let i = 0; i < thoughts.length; i += UPLOAD_BATCH) {
-    const batch = thoughts.slice(i, i + UPLOAD_BATCH);
-    await Promise.all(batch.map(async (p, j) => {
-      const idx = i + j;
-      const t = p.payload;
-      const filename = filenames[idx];
-
-      const frontmatter = toFrontmatter(t);
-      const links = buildLinksSection({ id: p.id, vector: p.vector, payload: t }, filename, thoughts);
-      const dateStr = formatDate(t.created_at);
-      const content = `${frontmatter}\n\n*${dateStr}*\n\n${t.text}\n${links}\n`;
-
-      await drive.files.create({
-        requestBody: {
-          name: filename,
-          mimeType: 'text/markdown',
-          parents: [folderId],
-          createdTime: t.created_at,
-          modifiedTime: t.updated_at || t.created_at,
-        },
-        media: {
-          mimeType: 'text/markdown',
-          body: content,
-        },
-      });
-
-      files[idx] = filename;
-      emit(`[${ts()}]   ✓ ${filename}`);
-    }));
-  }
+  // Step 4: Render every file in memory. Rendering stays global on purpose —
+  // a new thought can change OTHER thoughts' Related sections, so a content
+  // watermark would lie; only the Drive WRITES below are selective.
+  const entries = thoughts.map((p, idx) => {
+    const t = p.payload;
+    const frontmatter = toFrontmatter(t);
+    const links = buildLinksSection({ id: p.id, vector: p.vector, payload: t }, filenames[idx], thoughts);
+    const dateStr = formatDate(t.created_at);
+    return {
+      filename: filenames[idx],
+      content: `${frontmatter}\n\n*${dateStr}*\n\n${t.text}\n${links}\n`,
+      createdTime: t.created_at,
+      modifiedTime: t.updated_at || t.created_at,
+    };
+  });
+  const files = filenames.slice();
 
   // Step 4b: index.md — one line per thought (P7e revived, new rationale: the
   // original P7e died as a HUMAN-facing catalogue; this one is the AGENT-facing
   // routing map from the second-brain playbook — "check the index first, open
-  // files second". Regenerated inside the atomic full rebuild, so it can never
+  // files second". Rides the same diff as every other file, so it can never
   // drift from the vault. Zero model calls: title IS the one-liner (Haiku wrote
   // it at capture time).
-  emit(`[${ts()}] Writing index.md (${thoughts.length} entries)...`);
   const indexLines = thoughts
     .slice()
     .sort((a, b) => String(b.payload.effective_date || b.payload.created_at || '')
@@ -285,11 +282,78 @@ export async function rebuildVault(onLog) {
     ...indexLines,
     '',
   ].join('\n');
-  await drive.files.create({
-    requestBody: { name: 'index.md', mimeType: 'text/markdown', parents: [folderId] },
-    media: { mimeType: 'text/markdown', body: indexContent },
-  });
-  emit(`[${ts()}]   ✓ index.md`);
+  entries.push({ filename: 'index.md', content: indexContent });
+
+  // Step 4c: Diff rendered entries against Drive by (name, md5), then apply.
+  // Unchanged files cost zero API calls; changed files are updated IN PLACE
+  // (stable fileId → sync clients see an edit, not a delete + re-download).
+  const byName = new Map();
+  for (const f of existingFiles) {
+    if (!byName.has(f.name)) byName.set(f.name, []);
+    byName.get(f.name).push(f);
+  }
+
+  const toCreate = [];
+  const toUpdate = [];
+  const toDelete = [];
+  let skippedCount = 0;
+  for (const entry of entries) {
+    const candidates = byName.get(entry.filename) || [];
+    byName.delete(entry.filename);
+    const current = candidates.shift();
+    // Same-named leftovers are relics of the pre-dedupe collision bug.
+    toDelete.push(...candidates);
+    if (!current) {
+      toCreate.push(entry);
+      continue;
+    }
+    const md5 = crypto.createHash('md5').update(Buffer.from(entry.content, 'utf8')).digest('hex');
+    if (current.md5Checksum === md5) {
+      skippedCount++;
+      continue;
+    }
+    toUpdate.push({ ...entry, fileId: current.id });
+  }
+  // Anything left on Drive with no rendered counterpart: renamed titles,
+  // deleted or archived thoughts.
+  for (const leftover of byName.values()) toDelete.push(...leftover);
+
+  emit(`[${ts()}] Diff: ${toCreate.length} new · ${toUpdate.length} changed · ${skippedCount} unchanged · ${toDelete.length} orphaned`);
+
+  const UPLOAD_BATCH = 10;
+  for (let i = 0; i < toCreate.length; i += UPLOAD_BATCH) {
+    await Promise.all(toCreate.slice(i, i + UPLOAD_BATCH).map(async (e) => {
+      await drive.files.create({
+        requestBody: {
+          name: e.filename,
+          mimeType: 'text/markdown',
+          parents: [folderId],
+          ...(e.createdTime && { createdTime: e.createdTime }),
+          ...(e.modifiedTime && { modifiedTime: e.modifiedTime }),
+        },
+        media: { mimeType: 'text/markdown', body: e.content },
+      });
+      emit(`[${ts()}]   + ${e.filename}`);
+    }));
+  }
+  for (let i = 0; i < toUpdate.length; i += UPLOAD_BATCH) {
+    await Promise.all(toUpdate.slice(i, i + UPLOAD_BATCH).map(async (e) => {
+      await drive.files.update({
+        fileId: e.fileId,
+        // modifiedTime pins the thought's own date; createdTime is immutable
+        // on update, but existing files were created with it already set.
+        requestBody: e.modifiedTime ? { modifiedTime: e.modifiedTime } : {},
+        media: { mimeType: 'text/markdown', body: e.content },
+      });
+      emit(`[${ts()}]   ~ ${e.filename}`);
+    }));
+  }
+  for (let i = 0; i < toDelete.length; i += UPLOAD_BATCH) {
+    await Promise.all(toDelete.slice(i, i + UPLOAD_BATCH).map(async (f) => {
+      await drive.files.delete({ fileId: f.id });
+      emit(`[${ts()}]   - ${f.name}`);
+    }));
+  }
 
   // Step 5: People & Projects
   const allPeople = new Set();
@@ -397,7 +461,7 @@ export async function rebuildVault(onLog) {
   const skippedNote = projectsResult.skipped.length
     ? ` · ${projectsResult.skipped.length} unknown projects skipped`
     : '';
-  emit(`  ${files.length} thoughts · ${existingFiles.length} deleted · ${peopleResult.created.length} new people · ${projectsResult.created.length} new projects${skippedNote}`);
+  emit(`  ${files.length} thoughts · ${toCreate.length} new · ${toUpdate.length} updated · ${skippedCount} unchanged · ${toDelete.length} deleted · ${peopleResult.created.length} new people · ${projectsResult.created.length} new projects${skippedNote}`);
   emit(`  Types: ${Object.entries(typeCounts).map(([k, v]) => `${k}(${v})`).join(' · ')}`);
   emit(`  People: ${[...allPeople].join(', ')}`);
   emit(`  Projects: ${[...allProjects].join(', ')}`);
@@ -406,7 +470,10 @@ export async function rebuildVault(onLog) {
   return {
     ok: true,
     rebuilt: true,
-    deleted: existingFiles.length,
+    created: toCreate.length,
+    updated: toUpdate.length,
+    skipped: skippedCount,
+    deleted: toDelete.length,
     exported_count: files.length,
     files,
     by_type: typeCounts,

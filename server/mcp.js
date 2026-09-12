@@ -213,7 +213,7 @@ export function createMcpServer() {
 
   server.tool(
     'rebuild_obsidian_vault',
-    'Rebuild the full Obsidian vault on Google Drive — deletes old files and writes all thoughts as linked markdown with YAML frontmatter',
+    'Sync the Obsidian vault on Google Drive — incremental md5 diff: writes only new/changed thoughts as linked markdown with YAML frontmatter, deletes orphans',
     {},
     async () => {
       const results = await exportThoughts();

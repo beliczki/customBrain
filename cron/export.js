@@ -17,7 +17,7 @@ async function run() {
   const onLog = (line) => console.log(line);
   try {
     const result = await rebuildVault(onLog);
-    console.log(`Exported ${result.exported_count} thoughts to Google Drive`);
+    console.log(`Vault sync: ${result.exported_count} thoughts — ${result.created} new, ${result.updated} updated, ${result.skipped} unchanged, ${result.deleted} deleted`);
   } catch (err) {
     console.error('Cron export failed:', err.message);
     process.exit(1);

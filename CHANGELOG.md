@@ -2,6 +2,18 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.40.0 — 2026-09-12
+
+The hourly vault export stopped rewriting the world. The old `rebuildVault` deleted every `.md` in the Drive folder and recreated all of them on each run — ~2N Drive calls per hour even when nothing had changed, and every local sync client re-downloaded the full vault hourly because each file was, from Drive's point of view, a brand-new object.
+
+**Incremental sync via Drive's own md5Checksum.** Rendering stays global on purpose (a new thought can change *other* thoughts' `Related thoughts` sections, so a content watermark would lie), but the writes are now a diff: the rendered content's md5 is compared against the `md5Checksum` Drive already stores per file. Unchanged → zero API calls. Changed → `files.update` in place, so the fileId stays stable and sync clients see an edit, not a delete + re-download. New → `files.create` with `createdTime`/`modifiedTime` pinned to the thought's own dates, as before. On Drive but not in the render (renamed titles, deleted or archived thoughts) → deleted as orphans. `index.md` rides the same diff. No local manifest — the diff base lives on Drive itself, so a hand-edited file simply differs and gets rewritten on the next run.
+
+Fact-check that preceded this: the "export stamps fresh dates" suspicion was tested and is *not* true — `createdTime`/`modifiedTime` have been set to the thought's dates since 0.8.0, verified now via Drive API metadata and local sync mtimes/birthtimes. The churn, not the dates, was the real cost.
+
+**Filename-collision fix along the way.** Two titles slugifying to the same filename used to silently produce two same-named Drive files; under name-keyed diffing that would mispair, so collisions now get a deterministic suffix (created-at date, then id prefix). Pre-existing same-named relics are cleaned up as orphans on the first run.
+
+Result shape gained `created` / `updated` / `skipped` alongside `deleted`; the Export tab, the cron log line, and the `rebuild_obsidian_vault` MCP descriptions (both `mcp.js` and `mcp-stdio.js`) now speak the same language.
+
 ## 0.39.4 — 2026-09-03
 
 The UI locked itself out, and then crashed instead of saying so. Two separate bugs, one visible symptom: a white screen with `l.map is not a function` on the Recent tab.

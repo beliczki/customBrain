@@ -80,9 +80,11 @@ export default function Export() {
         <div className="text-sm">
           <div className="py-4 border-t border-[var(--border)]">
             <p className="text-green-600 dark:text-green-400 font-medium mb-2">
-              Vault rebuilt — {result.exported_count} thoughts exported
+              Vault synced — {result.exported_count} thoughts
             </p>
-            <p className="text-txt-ter">{result.deleted} old files deleted</p>
+            <p className="text-txt-ter">
+              {result.created} new · {result.updated} updated · {result.skipped} unchanged · {result.deleted} deleted
+            </p>
           </div>
 
           {result.by_type && (

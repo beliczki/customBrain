@@ -212,7 +212,7 @@ server.tool(
 
 server.tool(
   'rebuild_obsidian_vault',
-  'Rebuild the full Obsidian vault on Google Drive',
+  'Sync the Obsidian vault on Google Drive (incremental md5 diff — only new/changed files are written)',
   {},
   async () => {
     const results = await exportThoughts();
