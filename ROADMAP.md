@@ -17,11 +17,18 @@ A gyanú beigazolódott, és rosszabb volt a feltételezettnél. Élesben mindk�
 
 **Nyitva maradt, felhasználói döntés kell:** a halott `thoughts` collection (596 pont, 34 MB) még a boxon van. A CHANGELOG 0.20.0 szerint "drop it manually once confident" — 4 hónapja. Amíg létezik, ugyanez a csapda újra elsülhet. Törlése destruktív, ezért külön jóváhagyás kell. Ugyanígy: 6 db egyszeri, migráció előtti script (`retry-failed-reprocess.js`, `backfill-gmail-thread-metadata.js`, `backfill-fireflies-meeting-date.js`, `backfill-effective-date.js`, `consolidate-people.js`, `migrate-to-hybrid-collection.js`) még literálisan `thoughts`-ot ír — történelmi futások rekordjai, de ha valaki ma futtatja őket, a halott collectionre mennek.
 
-### 2. A2-lite — Named token valódi hatóköre (S2)
-- Kód-tény: `NAMED_TOKEN_PATHS` (`server/index.js`) REST-en `/capture`+`/search`-re szűkít, de ugyanaz a token `/mcp/http`-n a TELJES toolkészletet eléri (Gmail/Calendar-olvasás, update_thought, stb.).
-- [ ] `scopes` mező a `state/mcp-tokens.json` tokenjein (pl. `capture,search` a clipper-tokennek; teljes jog az agent-tokennek); toolhívásnál ellenőrzés az MCP-oldalon (`server/mcp.js` ÉS `server/mcp-stdio.js` — dupla regisztráció!).
-- [ ] Kész: clipper-tokennel capture/search megy, közvetlen Gmail-tool és update_thought tiltott; scope nélküli régi token viselkedése eldöntendő (javaslat: teljes jog marad = backwards compatible, de a clipper-token kap szűkítést).
-- NEM kell hozzá a terv teljes A2-je (OAuth-átépítés, hash-tárolás, rate-limit-átdolgozás) — az később, külön.
+### 2. A2-lite — Named token valódi hatóköre (S2) — ✅ DONE 2026-09-12 (0.41.3)
+- Kód-tény volt: `NAMED_TOKEN_PATHS` REST-en `/capture`+`/search`-re szűkít — a kommentje szerint "a leaked token can never reach /settings, /export, or deletes" —, de ez csak REST-re igaz volt: ugyanaz a token `/mcp/http`-n mind a 22 toolt megkapta, benne a közvetlen Gmail/Calendar/Fireflies olvasással. A middleware validálta a tokent, majd **eldobta az identitást**, így lejjebb semmi nem tudta, *melyik* token hív.
+- [x] `server/mcp-scopes.js` — 4 képesség (`capture`, `brain-read`, `curate`, `live-provider-read`) + teljes tool→scope térkép. **Kikényszerítés nem-regisztrációval:** akinek nincs meg a scope, annak a tool létre sem jön, így a `tools/list` elrejti ÉS a közvetlen `tools/call` is elbukik. `applyScopeGate` a `server.tool`-t csomagolja a regisztrációk előtt, ezért a 22 hívási hely három fájlban érintetlen maradt. Leképezés nélküli tool **hibát dob** regisztrációkor — ez fogja el a `mcp.js` ↔ `mcp-stdio.js` elcsúszást is.
+- [x] **Session a tokenhez kötve.** A `httpTransports` csak session-id-vel volt kulcsolva, így bármely érvényes token ráülhetett más session-jére és megörökölte annak toolkészletét. Most 403.
+- [x] `PATCH /mcp-tokens/:id {scopes}` szűkít, `{scopes:null}` visszanyit. A következő MCP-kapcsolattól hat; nyitott session a saját toolkészletét tartja — sürgős esetben revoke kell.
+- [x] Backwards compatible: `scopes:null` (minden 0.41.3 előtti token) = korlátlan. A szűkítés tudatos aktus.
+- [x] **Élesben igazolva** valódi MCP-hívásokkal: scoped tokennel `tools/list` 11 toolt ad (Gmail/Calendar/curate nincs köztük), közvetlen `tools/call get_gmail_threads` és `update_thought` → `isError=true, "Tool not found"`, `search_brain` viszont valódi találatot ad; scope nélküli token 22 toolt lát; kereszt-session újrahasználat → HTTP 403.
+- [x] A **Chrome Extension Token** élesben `capture+brain-read`-re szűkítve. A REST-útját ez nem érinti (azt továbbra is `NAMED_TOKEN_PATHS` szabályozza), csak az MCP-n át elérhető Gmail-t veszi el.
+
+**Nyitva maradt, felhasználói döntés kell:** öt token még korlátlan, köztük a **"Grok Test MCP connector"** (xAI, ma 15:13-kor használva) — jelenleg olvashatja a Gmailt, a naptárat és módosíthatja a gondolatokat. Javaslat: `brain-read`. Nem állítottam át, mert aktívan használt integráció szűkítése megtörheti a workflow-t. Egysoros: `PATCH /mcp-tokens/<id> {"scopes":["brain-read"]}`. Ugyanígy mérlegelendő a `Codex MCP bearer` / `OAuth: Codex` / `Claude` / `OAuth: Claude` — ezek saját agentek, ott a teljes jog védhető.
+
+**Follow-up (nem sürgős):** a Settings UI tokenlistája még nem jeleníti meg és nem szerkeszti a scope-okat; az API (`GET`/`POST`/`PATCH /mcp-tokens`) már visszaadja és fogadja őket.
 
 ### 3. Gmail adatvesztés megállítása (I2-ből a fájó rész)
 - Kód-tény: `cron/gmail-intake.js:19` `MAX_BODY_CHARS = 6000`, `slice(0, 6000)` — a hosszú szál vége (tipikusan a döntés) visszahozhatatlanul elveszik. A watermark hibás szál-feldolgozás után is előrelép.
