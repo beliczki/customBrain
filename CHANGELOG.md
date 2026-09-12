@@ -2,6 +2,13 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.42.0 — 2026-09-12
+
+**Gmail bodies were silently cut at 6000 characters, and failed threads were dropped for good.** Both in `cron/gmail-intake.js`, both there since 0.3.0.
+
+- **`MAX_BODY_CHARS` 6000 → 180000**, matching `MAX_TRANSCRIPT_CHARS` in the Fireflies webhook — a safety ceiling rather than an editorial limit. The old value cut real threads in half, and it cut them at the worst possible place: the decision in a long email thread lives at the END. Truncation is now logged loudly instead of happening in silence, and long text is handled downstream by the summary + chunk pipeline exactly as Fireflies transcripts already are. Measured damage on the live brain: of 149 captured Gmail threads, **5 have a body pinned at exactly 6000 characters, each ending mid-word** — `ERSTE — Erste World Wealth kampány`, `Koordináció vs szubsztrát vita`, `ERSTE Személyi kölcsön — SZK DCO feed frissítés`, `ERSTE — 2026 kampány setup és line itemek`, `ConfAI — Digital-Media Hungary egyeztetés`. Re-fetching those from Gmail is a separate decision: their current text carries prepended summaries that a re-capture would overwrite.
+- **Failed threads now survive the tick.** The watermark advanced unconditionally, so a thread that threw was skipped permanently — nothing would mention it again unless it happened to get new activity. `state/gmail-watermark.json` gains `retry_thread_ids`; failures are carried into the next run and logged. The watermark still advances, deliberately: holding it back would stall every later message behind one poison thread, and the history API drops events older than 7 days, so a stalled watermark loses more than it saves. Old-format watermark files (no `retry_thread_ids`) read correctly.
+
 ## 0.41.3 — 2026-09-12
 
 **A named token was restricted over REST and unrestricted over MCP.** `NAMED_TOKEN_PATHS` in `server/index.js` limits a token from `state/mcp-tokens.json` to `/capture` and `/search` — and the comment there says a leaked token "can never reach /settings, /mcp-tokens management, /export, or deletes". True for REST, and only REST: the same token on `/mcp/http` received all 22 tools, including direct Gmail, Calendar and Fireflies reads and the mutating brain tools. The middleware validated the token and then dropped the identity, so nothing downstream knew *which* token was calling. Six tokens were live, none scoped, one of them a third-party test connector.

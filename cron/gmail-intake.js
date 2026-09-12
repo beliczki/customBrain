@@ -16,23 +16,39 @@ import { findBySourceIdRaw } from '../server/qdrant.js';
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = join(MODULE_DIR, '..', 'state');
 const WATERMARK_PATH = join(STATE_DIR, 'gmail-watermark.json');
-const MAX_BODY_CHARS = 6000;
+// Safety ceiling, not an editorial limit — same value as MAX_TRANSCRIPT_CHARS in
+// server/routes/fireflies-webhook.js. It was 6000 until 0.41.4, which silently
+// cut real threads in half: the decision in a long email thread lives at the END,
+// so the truncation removed precisely the part worth capturing, and no later
+// re-embedding could bring it back. Long text is handled downstream by the
+// summary + chunk pipeline, exactly as Fireflies transcripts are.
+const MAX_BODY_CHARS = 180000;
 
 async function readWatermark() {
   try {
     const raw = await readFile(WATERMARK_PATH, 'utf-8');
     const data = JSON.parse(raw);
-    return data.history_id ? String(data.history_id) : null;
+    return {
+      historyId: data.history_id ? String(data.history_id) : null,
+      // Threads whose processing threw on an earlier tick. The watermark moved
+      // past their history event, so nothing else will ever mention them again —
+      // carrying the ids forward is what keeps them from vanishing silently.
+      retryThreadIds: Array.isArray(data.retry_thread_ids) ? data.retry_thread_ids : [],
+    };
   } catch (err) {
-    if (err.code === 'ENOENT') return null;
+    if (err.code === 'ENOENT') return { historyId: null, retryThreadIds: [] };
     throw err;
   }
 }
 
-async function writeWatermark(historyId) {
+async function writeWatermark(historyId, retryThreadIds = []) {
   await mkdir(STATE_DIR, { recursive: true });
   const body = JSON.stringify(
-    { history_id: String(historyId), updated_at: new Date().toISOString() },
+    {
+      history_id: String(historyId),
+      retry_thread_ids: retryThreadIds,
+      updated_at: new Date().toISOString(),
+    },
     null,
     2,
   );
@@ -112,7 +128,11 @@ async function buildThreadText(thread) {
     return { empty: true, stats };
   }
 
-  const body = cleaned.slice(0, MAX_BODY_CHARS);
+  let body = cleaned;
+  if (body.length > MAX_BODY_CHARS) {
+    console.warn(`  WARNING: body ${body.length} chars exceeds ceiling ${MAX_BODY_CHARS} — truncating "${subject}"`);
+    body = body.slice(0, MAX_BODY_CHARS);
+  }
   const text = `# ${subject || '(no subject)'}\nFrom: ${from}\n${date}\n\n${body}`;
   return { empty: false, text, stats, last_message_from: lastFrom };
 }
@@ -280,7 +300,7 @@ async function run() {
 
   const ctx = { brainLabelId, capturedLabelId, emptyLabelId, peopleEmails };
 
-  const watermark = await readWatermark();
+  const { historyId: watermark, retryThreadIds } = await readWatermark();
   let threadIds;
   let newWatermark;
 
@@ -301,9 +321,18 @@ async function run() {
     }
   }
 
+  // Threads that failed on an earlier tick go back into this run. The watermark
+  // has already moved past their history event, so this list is the only thing
+  // that still knows about them.
+  if (retryThreadIds.length) {
+    console.log(`Gmail intake: ${retryThreadIds.length} thread(s) carried over from a previous failure`);
+  }
+  threadIds = [...new Set([...retryThreadIds, ...threadIds])];
+
   console.log(`Gmail intake: ${threadIds.length} affected threads since historyId=${watermark || '(bootstrap)'}`);
 
   const counts = { captured: 0, refreshed: 0, duplicate: 0, unchanged: 0, empty: 0, ignored: 0, failed: 0 };
+  const failedThreadIds = [];
 
   for (const threadId of threadIds) {
     try {
@@ -311,6 +340,7 @@ async function run() {
       counts[result.status] = (counts[result.status] || 0) + 1;
     } catch (err) {
       counts.failed++;
+      failedThreadIds.push(threadId);
       const cause = err.cause ? ` (cause: ${err.cause.code || err.cause.message || err.cause})` : '';
       console.error(`  failed: thread ${threadId} — ${err.message}${cause}`);
       if (err.stack) console.error(err.stack.split('\n').slice(0, 5).join('\n'));
@@ -318,8 +348,15 @@ async function run() {
   }
 
   if (newWatermark) {
-    await writeWatermark(newWatermark);
+    // The watermark still advances even when threads failed — holding it back
+    // would stall every later message behind one poison thread, and the history
+    // API drops events older than 7 days, so a stalled watermark loses MORE than
+    // it saves. The failed ids ride along instead, so nothing is dropped.
+    await writeWatermark(newWatermark, failedThreadIds);
     console.log(`Gmail intake: watermark advanced to ${newWatermark}`);
+    if (failedThreadIds.length) {
+      console.warn(`Gmail intake: ${failedThreadIds.length} thread(s) pending retry next tick: ${failedThreadIds.join(', ')}`);
+    }
   }
 
   console.log(`Gmail intake done: ${Object.entries(counts).map(([k, v]) => `${k}=${v}`).join(' ')}`);
