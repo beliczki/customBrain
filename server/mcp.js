@@ -246,14 +246,15 @@ export function createMcpServer() {
 
   server.tool(
     'reindex_dossiers',
-    'Re-index the canonical People/Projects/Topics/Files/Repos dossiers into the search index so their content is retrievable by search_brain. Call this right after editing a dossier `.md` on Drive so the change is searchable immediately (don\'t wait for the hourly reconcile). No args = re-index only files whose content changed since last run. Optional: paths (e.g. ["Projects/Bizi"]) or types (["person"|"project"|"topic"|"file"|"repo"]) to scope; reconcile=true forces a full re-embed in scope AND deletes points for dossiers removed from Drive.',
+    'Re-index the canonical People/Projects/Topics/Files/Repos dossiers into the search index so their content is retrievable by search_brain. Call this right after editing a dossier `.md` on Drive so the change is searchable immediately (don\'t wait for the hourly reconcile). No args = re-index only files whose content changed since last run. Optional: paths (e.g. ["Projects/Bizi"]) or types (["person"|"project"|"topic"|"file"|"repo"]) to scope; reconcile=true deletes points for dossiers removed from Drive (the hash gate still skips unchanged files); force=true re-embeds even unchanged dossiers (e.g. after an embedding-model change).',
     {
       paths: z.array(z.string()).optional().describe('Specific dossier paths, e.g. ["Projects/Bizi", "People/Porkoláb Dávid"]'),
       types: z.array(z.enum(['person', 'project', 'topic', 'file', 'repo'])).optional(),
-      reconcile: z.boolean().optional().describe('Force full re-embed + delete orphaned points (default false)'),
+      reconcile: z.boolean().optional().describe('Also delete orphaned points for dossiers removed from Drive (default false)'),
+      force: z.boolean().optional().describe('Re-embed even content-unchanged dossiers (default false)'),
     },
-    async ({ paths, types, reconcile }) => {
-      const result = await reindexDossiers({ paths, types, reconcile: !!reconcile });
+    async ({ paths, types, reconcile, force }) => {
+      const result = await reindexDossiers({ paths, types, reconcile: !!reconcile, force: !!force });
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     }
   );

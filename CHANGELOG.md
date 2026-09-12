@@ -2,6 +2,12 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.41.1 — 2026-09-12
+
+The hourly dossier reindex re-embedded all ~310 dossiers every run — `indexed 310, skipped 0` in every cron log line, ~310 pointless Gemini calls an hour. Root cause: `reconcile:true` (what the cron passes for orphan cleanup) also bypassed the content-hash gate, because one flag carried two unrelated meanings — "delete points for removed files" and "force re-embed everything". Decoupled: the hash gate now applies on every run, `reconcile` only controls orphan deletion + manifest pruning, and a new explicit `force` option covers the legitimate bypass case (e.g. after an embedding-model change). `POST /reindex` and the `reindex_dossiers` MCP tool (both registrations) accept `force`.
+
+Same disease the 0.40.0 export fix cured — a scheduled job rewriting the world when a cheap diff says nothing changed.
+
 ## 0.41.0 — 2026-09-12
 
 Two new dossier sections beside People/Projects/Topics: **`Files/`** (one `.md` per delivered/received document — what it is, where it lives on Drive, which task it belongs to) and **`Repos/`** (one `.md` per repository — purpose, stack, deploy, state). Wired into `fetchDossiers()` so the hourly dossier reindex embeds them and `search_brain` finds them; `reindex_dossiers` accepts the new `file` / `repo` types (both MCP registrations). Settings gained `GOOGLE_DRIVE_FILES_FOLDER_ID` / `GOOGLE_DRIVE_REPOS_FOLDER_ID`.

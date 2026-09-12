@@ -54,11 +54,14 @@ function dossierPointId(path) {
  * @param {object} opts
  * @param {string[]} [opts.paths]  Only these dossier paths (e.g. ['Projects/Bizi']).
  * @param {string[]} [opts.types]  Only these types ('person'|'project'|'topic'|'file'|'repo').
- * @param {boolean}  [opts.reconcile]  Force re-embed all in scope AND delete
- *                                     points for dossiers no longer on Drive.
+ * @param {boolean}  [opts.reconcile]  Also delete points for dossiers no longer
+ *                                     on Drive and prune the manifest. Does NOT
+ *                                     bypass the hash gate (that's `force`).
+ * @param {boolean}  [opts.force]      Re-embed even content-unchanged dossiers
+ *                                     (e.g. after an embedding-model change).
  * @returns {{indexed:number, skipped:number, deleted:number, flagged:Array, total:number}}
  */
-export async function reindexDossiers({ paths = null, types = null, reconcile = false } = {}) {
+export async function reindexDossiers({ paths = null, types = null, reconcile = false, force = false } = {}) {
   const dossiers = await fetchDossiers();
   const manifest = loadManifest();
   const inScope = dossiers.filter((d) =>
@@ -76,8 +79,13 @@ export async function reindexDossiers({ paths = null, types = null, reconcile = 
       flagged.push({ path: d.path, length: d.body.length });
     }
 
+    // The hash gate applies on EVERY run — including the hourly reconcile.
+    // Before 0.41.1 `reconcile` bypassed it, so the cron re-embedded all ~310
+    // dossiers every hour (310 pointless Gemini calls; the log's telltale was
+    // `indexed 310, skipped 0`). Orphan deletion and forced re-embedding are
+    // separate concerns; only an explicit `force` skips the gate now.
     const prev = manifest[d.path];
-    if (!reconcile && prev && prev.hash === d.hash) {
+    if (!force && prev && prev.hash === d.hash) {
       skipped++;
       continue;
     }
