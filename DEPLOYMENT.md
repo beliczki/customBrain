@@ -3,7 +3,7 @@
 Production at `brain.beliczki.hu`, one Docker Compose stack.
 
 ## Process management
-pm2 manages the server process. Restart with `pm2 restart all --cwd /root/customBrain/server`. Nginx reverse-proxies port 3000.
+pm2 manages the server process (`custombrain`). Only ever touch that one: `pm2 stop custombrain` → `fuser -k 3000/tcp` → `pm2 start custombrain`. Never `pm2 stop/restart all` — other projects' apps run under the same pm2. Nginx reverse-proxies port 3000.
 
 ## Build
 **Stop all services before `npm run build`** — CX22 has 4GB RAM, will OOM otherwise.

@@ -197,4 +197,4 @@ You have SSH access to the production host:
 ```bash
 ssh -i ~/.ssh/id_ed25519_hetzner root@brain.beliczki.hu
 ```
-Repo path on server: `/root/customBrain`. Each SSH command still needs the user's per-action approval (production reads/writes are never blanket-authorized). Default to the **least invasive read** first — confirm state before changing anything — and always follow the `feedback_hetzner_restart.md` rule on restart: `pm2 stop all` + `fuser -k 3000/tcp` BEFORE `pm2 start`.
+Repo path on server: `/root/customBrain`. Each SSH command still needs the user's per-action approval (production reads/writes are never blanket-authorized). Default to the **least invasive read** first — confirm state before changing anything — and always follow the `feedback_hetzner_restart.md` rule on restart: `pm2 stop custombrain` + `fuser -k 3000/tcp` BEFORE `pm2 start custombrain`. Never `pm2 stop/restart all` — the box also runs other projects' apps (mm-server-erste, mm-server-proficio, mm6-erste, …).
