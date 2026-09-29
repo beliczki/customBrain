@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getAllPayloads } from '../qdrant.js';
+import { summarizeUsage } from '../anthropic-usage.js';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get('/stats', async (req, res) => {
     const results = await getStats();
     // Deliberately added on the route, not in getStats() — the MCP brain_stats
     // tool calls getStats() directly and its response shape stays untouched.
-    res.json({ ...results, version: VERSION });
+    res.json({ ...results, version: VERSION, anthropic_usage: summarizeUsage() });
   } catch (err) {
     console.error('Stats error:', err.message);
     res.status(500).json({ error: err.message });

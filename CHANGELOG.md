@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.44.0 — 2026-09-29
+
+**Anthropic spend is now visible per call site.** Aug 31 – Sep 12 the brain burned ~7–8M Sonnet tokens a day (~$30/day, ~$400 over the Console's 30-day window) in a loop nobody saw: `backfill-chunks` enriched long dossiers, the hourly dossier reindex (hash gate bypassed, fixed in 0.41.1) overwrote them and wiped `has_v2_summary`, and the next backfill tick re-chunked the same files. 0.41.1 + 0.43.0 closed it. The Console showed the spend but not which of our call sites produced it — nothing in our own logs recorded token usage at all.
+
+- **Token ledger.** `server/anthropic-usage.js` appends one line per Messages API call to `state/anthropic-usage.jsonl`: `ts, site, model, input/output tokens, cache read/write tokens`. One shared file because the calls run in four processes (pm2 server, gmail/youtube/export crons, backfill-chunks). Sites: `extract_metadata`, `check_contradiction`, `suggest_metadata_fix` (Haiku, `server/metadata.js`), `chunking` (Sonnet, `server/reprocess-v2.js`), `gmail_clean` (Haiku, `agent/tools/gmail-clean.js`).
+- **Stats tab: "Anthropic API usage".** Last 30 / 60 days totals with a per-site breakdown, plus a daily list. Served on the `/stats` HTTP route only (like `version`); the MCP `brain_stats` shape is unchanged.
+- **CLI report.** `node scripts/anthropic-usage-report.js [days]` — per day × site × model.
+- Cost is computed on read from one price table (Haiku 4.5 $1/$5, Sonnet 4.6 $3/$15 per MTok), never stored; an unpriced model throws instead of silently counting as $0. History starts at this deploy — earlier spend lives only in the Console.
+
 ## 0.43.0 — 2026-09-12
 
 **174 of 274 people were invisible at capture time.** `listWithAliases` in `server/drive-context.js` asked Drive for one page of 100 files and never followed `nextPageToken`. People holds 274 dossiers, so two thirds of them never reached the capture-time Haiku prompt: their aliases could not resolve, and their names never normalised to canonical form. The cron log said `100 people` every run — exactly the page size, which is what a silent cap looks like. `listDossierFiles` carried the same bug at `pageSize: 1000`; today's 311 dossiers fit under it, so it looked healthy.

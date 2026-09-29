@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { logAnthropicUsage } from './anthropic-usage.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -150,6 +151,7 @@ Reply ONLY with a JSON object: {"contradicts": true/false, "reason": "one senten
   }
 
   const json = await res.json();
+  logAnthropicUsage('check_contradiction', json);
   const raw = json.content[0].text;
   const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
   return JSON.parse(match[1].trim());
@@ -302,6 +304,7 @@ Respond with JSON ONLY, matching this schema exactly:
   }
 
   const json = await res.json();
+  logAnthropicUsage('suggest_metadata_fix', json);
   const raw = json.content[0].text;
   const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
   const parsed = JSON.parse(match[1].trim());
@@ -351,6 +354,7 @@ export async function extractMetadata(text, vaultContext) {
   }
 
   const json = await res.json();
+  logAnthropicUsage('extract_metadata', json);
   const raw = json.content[0].text;
   const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
   const metadata = JSON.parse(match[1].trim());

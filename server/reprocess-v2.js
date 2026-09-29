@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { logAnthropicUsage } from './anthropic-usage.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -274,6 +275,7 @@ export async function reprocessThought(text, vaultContext) {
   }
 
   const json = await res.json();
+  logAnthropicUsage('chunking', json);
   const toolUse = json.content.find((c) => c.type === 'tool_use');
   if (!toolUse) {
     throw new Error(`No tool_use in response: ${JSON.stringify(json.content)}`);

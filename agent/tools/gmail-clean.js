@@ -1,3 +1,5 @@
+import { logAnthropicUsage } from '../../server/anthropic-usage.js';
+
 export const BOILERPLATE_PATTERNS = [
   // English legal/confidentiality footer
   /this (e-?mail|message|communication)[\s\S]{0,250}?(confidential|intended recipient|privileged|proprietary)[\s\S]{0,2000}?(?=\n\s*\n|$)/gi,
@@ -137,6 +139,7 @@ ${cleaned}`;
   }
 
   const json = await res.json();
+  logAnthropicUsage('gmail_clean', json);
   return (json.content[0]?.text || '').trim();
 }
 
