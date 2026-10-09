@@ -39,6 +39,9 @@ Két javítás jöhet szóba:
     - Nyitott tervezési kérdés: a szó szerinti chunkok hosszabbak lesznek, a Gemini embedding bemeneti korlátja pedig ~2048 token. Hosszú szövegnél ezért több és rövidebb chunk kell, különben az embedding hívás csendben levág. Ezt implementálás előtt ellenőrizni kell, a BM25-öt nem érinti.
     - Utána backfill a 436 hosszú gondolatra, Sonnet-költséggel. Becslés előtte.
   - [x] **0.46.0 — megépítve:** sections + kódos vágás, `stop_reason`-őr, `scripts/rechunk-content.js` (csak tartalom-chunkok, ~$11 becslés 435 thoughtra a ~$60-as teljes reprocess helyett). ~~Döntés: ez a 3-as mérés (baseline) **előtt** vagy **után** jöjjön?~~ Javaslat: a baseline előtt mérjük meg (Hit@10 a hosszú-meeting kérdéseken), és csak utána javítsunk, hogy a hatás kimutatható legyen.
+- [x] 3 thoughton élesben újrachunkolva, ellenőrizve. A 102k-s Humanody-meeting 32 chunkot kapott, a korábban lefedetlen részlet most `bm25_exact` 1. találat. A promptba minimum szakaszméret került: egy 6k-s levélből 24 helyett 7 chunk lett.
+- [ ] **Teljes újrachunkolás (~432 thought, ~$11), Robi go-jára vár.**
+- [ ] **ÚJ LELET:** a `search_brain` a találat TELJES szövegét adja vissza. limit=2 → 121 000 karakter, mert egy 107k-s átirat teljes egészében jön. A válaszban a `matched_chunk_text` már benne van. Javaslat: a teljes szöveg helyett összefoglaló + illeszkedő chunk, a többi a `get_thought` `from_line` lapozással. (Spec 5.2, korlátos kimenet.)
 - [ ] **Mellékmegfigyelés a 3-as méréshez:** a mai manuális capture-ök `total` ideje 33–43 másodperc, ebből `vault_ctx` 25–40 másodperc (pm2-log). A 11. fejezet célja: ack p95 ≤ 1 s. Ez lesz a mérés egyik első tétele.
 
 > **DÖNTÖTT 2026-10-09: a 3-as mérés FÉLRETÉVE** (Robi: „bonyi, lassú”). Építünk, Robi használat közben jelzi a problémákat, és a kész felületet teszteli. A kérdésbank-tervezetek a `tasks/evaluator/` alatt maradnak, ha később kellenek. Új sorrend: 2(d) chunk-javítás → 6 stateless MCP → 4 Files-katalógus → 5a–5c gráf → 5f /dream.
@@ -155,6 +158,8 @@ Mai állapot:
 - Skálázásban nem nyerünk: egy gép, egy példány.
 
 **A kockázat, amit komolyan kell venni:** a 0.32.0 pont *stateless → stateful* váltás volt, mert a `tools/call` „not connected”-del elbukott. Ugyanaznap derült ki egy második, független ok: a pont a claude.ai connector nevében (memória: `reference_mcp_stateless_session_bug`). **Hipotézis, nem bizonyított:** lehet, hogy az eredeti hiba valójában a pont volt, nem a stateless mód. A brandBrain stateless módban működik claude.ai-jal. Amíg ezt valós hívással nem igazoljuk, az átállás visszahozhatja a 0.32.0-s hibát.
+
+- [x] **0.46.1, már élesítve:** ismeretlen session-id → 404 (spec szerint), nem 400. A 0.46.0-s restart után élőben láttuk, hogy a claude.ai connector „Server not initialized” hibával beragadt. 0.46.1 után magától helyreállt: valós `search_brain` hívás sikerült.
 
 **Kár nélküli átállás:**
 - [ ] Mérés előtte: a `httpTransports` mérete és élettartama, valamint mely kliensek (claude.ai, Claude Code, Codex, Grok) mit küldenek. Ehhez nginx-log és `Mcp-Session-Id` kell.
