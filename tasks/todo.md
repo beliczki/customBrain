@@ -188,6 +188,11 @@ Mai állapot:
   - restart után is működik, és nginx-en át is (22 tool);
   - token nélkül 401.
   - A stateful régi session restart után 404-et kap (0.46.1).
+- [x] **Codex** (2026-10-09, 0.49.2): valódi `tools/call` az nginx-logban, 30–82 KB-os válaszok, `?token=` URL-lel. Előbb két javítás kellett: a GET 406 → 405, majd üres SSE-stream, mert a Codex alpha a 405-öt is auth-hibának vette.
+- [x] **claude.ai** (2026-10-09): `Claude-User` 160.79.106.x-ről, valódi `tools/call` (30 KB, 122 KB), a token **fejlécben** (`Authorization: Bearer`), nem az URL-ben.
+- [ ] Claude Code, Grok: még hátra van.
+- [ ] A claude.ai connector-beállításáról készült képernyőképen látszott egy teljes token → új tokent kell csinálni, és a régit vissza kell vonni, ha már egyik kliens sem használja (Robi döntése).
+- [ ] Új lelet: a `quick_lookup` limit=50-re 122 KB-ot adott (teljes action_items stb. 20 thoughtra). Ugyanaz a minta, mint a `search_brain` 0.48.0 előtt; mérni és dönteni kell.
 - [ ] Minden kliensnél **valós `tools/call` az nginx-logban** (nem a modell önbevallása alapján; memória-szabály), mind a 4 kliensre.
 - [ ] Csak ezután váltjuk a fő végpontot. A stateful kód egy kiadáson át megmarad visszakapcsolhatóként.
 - [ ] Nem része: SDK-major vagy az új spec bevezetése. Az csak akkor jön, ha az SDK kiadja.
