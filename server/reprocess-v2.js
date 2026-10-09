@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolveAliases, stripAccents } from './names.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logAnthropicUsage } from './anthropic-usage.js';
@@ -13,17 +14,6 @@ function loadContext() {
   }
 }
 
-function resolveAliases(names, aliases) {
-  if (!aliases || !names?.length) return names;
-  const resolved = names.map((n) => {
-    const lower = n.toLowerCase();
-    for (const [alias, canonical] of Object.entries(aliases)) {
-      if (alias.toLowerCase() === lower) return canonical;
-    }
-    return n;
-  });
-  return [...new Set(resolved)];
-}
 
 /**
  * Verify a tagged canonical person actually appears in the text in some form.
@@ -33,22 +23,16 @@ function resolveAliases(names, aliases) {
  */
 function verifyPersonInText(canonicalName, text, vaultAliases) {
   if (canonicalName === 'Me') return true;
-  const lowerText = text.toLowerCase();
-  if (lowerText.includes(canonicalName.toLowerCase())) return true;
-
+  // Accent-insensitive: the vault spells "Miklos Kun", transcripts say "Miklós Kun".
+  const norm = (x) => stripAccents(x).toLowerCase();
+  const haystack = norm(text);
   const parts = canonicalName.split(/\s+/).filter(Boolean);
-  if (parts.length === 2) {
-    const reversed = `${parts[1]} ${parts[0]}`;
-    if (lowerText.includes(reversed.toLowerCase())) return true;
+  const forms = [canonicalName];
+  if (parts.length === 2) forms.push(`${parts[1]} ${parts[0]}`);
+  for (const [alias, canonical] of Object.entries(vaultAliases || {})) {
+    if (canonical === canonicalName) forms.push(alias);
   }
-
-  if (vaultAliases) {
-    for (const [alias, canonical] of Object.entries(vaultAliases)) {
-      if (canonical === canonicalName && lowerText.includes(alias.toLowerCase())) return true;
-    }
-  }
-
-  return false;
+  return forms.some((f) => haystack.includes(norm(f)));
 }
 
 function filterHallucinatedPeople(people, text, vaultAliases) {
@@ -427,8 +411,8 @@ export async function reprocessThought(text, vaultContext, { model = CHUNK_MODEL
   parsed.content_chunks = sectionsToChunks(text, parsed.content_sections);
 
   if (parsed.metadata) {
-    parsed.metadata.people = resolveAliases(parsed.metadata.people, vaultContext?.aliases);
-    parsed.metadata.projects = resolveAliases(parsed.metadata.projects, vaultContext?.projectAliases);
+    parsed.metadata.people = resolveAliases(parsed.metadata.people, vaultContext?.aliases, vaultContext?.people);
+    parsed.metadata.projects = resolveAliases(parsed.metadata.projects, vaultContext?.projectAliases, vaultContext?.projects);
 
     const { kept, rejected } = filterHallucinatedPeople(parsed.metadata.people, text, vaultContext?.aliases);
     parsed.metadata.people = kept;

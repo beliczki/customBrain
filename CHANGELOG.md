@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.47.2 — 2026-10-09
+
+**Real participants were dropped from `people` when the model wrote their name in a different order or without accents.** Alias resolution (duplicated in `metadata.js` and `reprocess-v2.js`) matched names by exact lowercase only, and the hallucination filter checked the text for the exact canonical spelling. In the reprocess A/B the model wrote "Kun Miklos" for the vault's "Miklos Kun", whose meetings say "Miklós Kun": unresolved, then rejected as "not in the text" — a real participant gone. Now one `nameKey` (accents stripped, lowercase, name parts sorted) in `server/names.js` drives a single shared `resolveAliases`, which also maps names spelled differently from a canonical person or project (the vault's people/project lists are passed in, not only the alias map); the verifier compares accent-insensitively, both name orders and every alias. Unknown names still pass through unchanged and absent people are still rejected.
+
 ## 0.47.1 — 2026-10-09
 
 **Re-chunking runs on Claude Haiku 5.5 (low effort), and both section prompts get the language and size from code.** A second A/B round on the same six thoughts: given the language as a stated fact (detected in code from the share of Hungarian accented letters), a target section count from the text length, and a self-check list (labels in that language, increasing start lines, no tiny sections), Haiku 5.5 kept Hungarian labels on every Hungarian text (it had translated them to English when left to infer the language) with sensible boundaries in 1.5–3 s per text, at ~1/20 of Sonnet 5.5's price — about $0.50 for the whole backfill instead of ~$9. High effort was slower (up to 21 s) and over-split, not better. The full reprocess (summary + metadata + sections) stays on Sonnet 5.5; it gets the same `sectionGuidance`. Usage ledger prices `claude-haiku-5-5` ($0.10 / $0.50 per MTok up to 100K-token prompts).

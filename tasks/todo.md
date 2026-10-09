@@ -44,7 +44,7 @@ Két javítás jöhet szóba:
   - Utómérés ugyanazzal a scripttel: 441 hosszú gondolat, chunk nélküli 0 (korábban 47), olyan, amelynek a vége egyetlen chunkban sincs benne: **0 (korábban 156; Fireflies 0/139, korábban 104/128)**.
   - A chunk/szöveg hossz-arány mediánja 60k felett 0,20 → 0,95. Az 1-nél kisebb arány oka, hogy a tárolt szövegben az összefoglaló is benne van.
 - [x] Reprocess modell-A/B: marad Sonnet 5.5 medium. A Haiku low hibázott a személyek kanonizálásán és a projektcímkézésen, a Haiku high hosszú átiraton 1–2 percig futott.
-- [ ] Névszűrő: ékezet- és sorrendfüggetlen egyezés (pl. „Kun Miklos” ↔ „Miklós Kun”). A Haiku-tesztben emiatt esett ki egy valódi résztvevő.
+- [x] (0.47.2) Névszűrő: ékezet- és sorrendfüggetlen egyezés (pl. „Kun Miklos” ↔ „Miklós Kun”). A Haiku-tesztben emiatt esett ki egy valódi résztvevő.
 - [ ] **ÚJ LELET:** a `search_brain` a találat TELJES szövegét adja vissza. limit=2 → 121 000 karakter, mert egy 107k-s átirat teljes egészében jön. A válaszban a `matched_chunk_text` már benne van. Javaslat: a teljes szöveg helyett összefoglaló + illeszkedő chunk, a többi a `get_thought` `from_line` lapozással. (Spec 5.2, korlátos kimenet.)
 - [ ] **Mellékmegfigyelés a 3-as méréshez:** a mai manuális capture-ök `total` ideje 33–43 másodperc, ebből `vault_ctx` 25–40 másodperc (pm2-log). A 11. fejezet célja: ack p95 ≤ 1 s. Ez lesz a mérés egyik első tétele.
 

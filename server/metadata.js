@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolveAliases } from './names.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logAnthropicUsage } from './anthropic-usage.js';
@@ -157,17 +158,6 @@ Reply ONLY with a JSON object: {"contradicts": true/false, "reason": "one senten
   return JSON.parse(match[1].trim());
 }
 
-function resolveAliases(names, aliases) {
-  if (!aliases || !names?.length) return names;
-  const resolved = names.map((n) => {
-    const lower = n.toLowerCase();
-    for (const [alias, canonical] of Object.entries(aliases)) {
-      if (alias.toLowerCase() === lower) return canonical;
-    }
-    return n;
-  });
-  return [...new Set(resolved)];
-}
 
 /**
  * Brain-hygiene suggestion: given a thought's text + its current metadata,
@@ -314,10 +304,10 @@ Respond with JSON ONLY, matching this schema exactly:
   // side-by-side after Haiku returns an un-resolved alias.
   if (parsed.proposed) {
     if (parsed.proposed.people) {
-      parsed.proposed.people = resolveAliases(parsed.proposed.people, vaultContext?.aliases);
+      parsed.proposed.people = resolveAliases(parsed.proposed.people, vaultContext?.aliases, vaultContext?.people);
     }
     if (parsed.proposed.projects) {
-      parsed.proposed.projects = resolveAliases(parsed.proposed.projects, vaultContext?.projectAliases);
+      parsed.proposed.projects = resolveAliases(parsed.proposed.projects, vaultContext?.projectAliases, vaultContext?.projects);
     }
     if (parsed.proposed.topics) {
       parsed.proposed.topics = resolveAliases(parsed.proposed.topics, vaultContext?.topicAliases);
@@ -358,8 +348,8 @@ export async function extractMetadata(text, vaultContext) {
   const raw = json.content[0].text;
   const match = raw.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, raw];
   const metadata = JSON.parse(match[1].trim());
-  metadata.people = resolveAliases(metadata.people, vaultContext?.aliases);
-  metadata.projects = resolveAliases(metadata.projects, vaultContext?.projectAliases);
+  metadata.people = resolveAliases(metadata.people, vaultContext?.aliases, vaultContext?.people);
+  metadata.projects = resolveAliases(metadata.projects, vaultContext?.projectAliases, vaultContext?.projects);
   metadata.topics = resolveAliases(metadata.topics, vaultContext?.topicAliases);
   metadata._prompt = buildPrompt(text, localCtx, vaultContext);
   return metadata;
