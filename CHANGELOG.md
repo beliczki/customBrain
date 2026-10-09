@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.49.0 — 2026-10-09
+
+**Stateless MCP endpoint, in parallel: `/mcp/http-stateless`.** Each request gets a fresh MCP server + transport (SDK stateless mode, `sessionIdGenerator: undefined`) — no `Mcp-Session-Id`, no in-memory session map, so a deploy restart is invisible to clients, and every request is authorised and scope-gated on its own named/OAuth token (nothing to hijack across sessions). Same auth, raw-body handling and tool set as `/mcp/http`, which stays unchanged as the rollback. Why parallel rather than a switch: 0.32.0 moved *away* from stateless after `tools/call` failed from claude.ai, and the same day a second, independent cause turned up (a dot in the connector name) — whether stateless itself was ever at fault is unproven, so every client (claude.ai, Claude Code, Codex, Grok) must show a real `tools/call` on the new URL in the nginx log before `/mcp/http` changes. This is the current 2025-11-25 protocol in the SDK's stateless mode, not the 2026-07-28 stateless spec (no SDK release implements that yet).
+
 ## 0.48.0 — 2026-10-09
 
 **`search_brain` could return more than an agent can read.** Each hit carried its full stored text; two hits came to 121k chars because one was a 107k-char meeting transcript, past the MCP client's tool-result limit — the agent received a file pointer instead of results. Now, on both MCP surfaces, a hit's full text is included only up to 8000 chars. A longer hit comes back as its stored `summary` (or a 2000-char `text_head` if it has none), the `matched_chunk_text` that explains why it matched, and `text_omitted {chars, lines, read_with}` pointing to `get_thought` paging. Short thoughts are unchanged on purpose — agents need the context; only the outliers are capped. The REST `/search` used by the UI is unchanged.

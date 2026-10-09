@@ -22,7 +22,10 @@ import reindexRouter from './routes/reindex.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import mcpTokensRouter from './routes/mcp-tokens.js';
 import oauthRouter from './routes/oauth.js';
-import { handleMcpHttp } from './mcp.js';
+import { handleMcpHttp, handleMcpHttpStateless } from './mcp.js';
+
+// Stateful (session) MCP and its stateless sibling share auth and raw-body handling.
+const MCP_PATHS = new Set(['/mcp/http', '/mcp/http-stateless']);
 import { validateToken as validateMcpToken } from './mcp-token-store.js';
 import { isBlocked as rateLimitCheck, recordSuccess as rateLimitOk, recordFailure as rateLimitBad } from './rate-limiter.js';
 
@@ -126,7 +129,7 @@ app.use((req, res, next) => {
     ? req.headers.authorization.slice(7)
     : (req.query.token || '');
 
-  if (req.path === '/mcp/http') {
+  if (MCP_PATHS.has(req.path)) {
     // Carry the validated record through to handleMcpHttp: which tools get
     // registered, and which session this caller may reuse, both depend on WHICH
     // token this is — not merely that it was valid. Validating and then dropping
@@ -180,7 +183,7 @@ app.use((req, res, next) => {
 // also posts urlencoded by default. Without urlencoded parser these reach the
 // route handler with an empty req.body and silently fail with "unknown client_id".
 app.use((req, res, next) => {
-  if (req.path === '/mcp/http') return next();
+  if (MCP_PATHS.has(req.path)) return next();
   express.json()(req, res, (err) => {
     if (err) return next(err);
     express.urlencoded({ extended: true })(req, res, next);
@@ -204,6 +207,7 @@ app.use(oauthRouter);
 
 // MCP endpoint (Streamable HTTP only)
 app.all('/mcp/http', handleMcpHttp);
+app.all('/mcp/http-stateless', handleMcpHttpStateless);
 
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`Open Brain server running on 127.0.0.1:${PORT} (nginx reverse-proxies from 443) [config: ${settingsLoad.applied} from ${settingsLoad.source}]`);

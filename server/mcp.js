@@ -327,3 +327,28 @@ export async function handleMcpHttp(req, res) {
   await server.connect(transport);
   await transport.handleRequest(req, res);
 }
+
+// === Stateless Streamable HTTP (parallel endpoint, /mcp/http-stateless) ===
+// A fresh server + transport per request: no Mcp-Session-Id, nothing held in
+// memory, so a deploy restart is invisible to clients and every request is
+// authorised (and scope-gated) on its own token — there is no session to
+// hijack. Runs beside the stateful /mcp/http until every client (claude.ai,
+// Claude Code, Codex, Grok) is verified on it with a real tools/call in the
+// nginx log; /mcp/http stays the rollback. The 2026-07-28 MCP spec removes
+// protocol sessions altogether (SEP-2567/2575); this is the SDK's stateless
+// mode on the current 2025-11-25 protocol, not that spec.
+export async function handleMcpHttpStateless(req, res) {
+  const principal = req.mcpPrincipal;
+  if (!principal) {
+    return res.status(401).json({ error: 'MCP requires an identified named token' });
+  }
+  const server = createMcpServer(principal.scopes || null);
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  res.on('close', () => {
+    transport.close();
+    server.close();
+  });
+  await server.connect(transport);
+  await transport.handleRequest(req, res);
+}
+
