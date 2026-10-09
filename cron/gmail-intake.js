@@ -183,7 +183,7 @@ async function processThread(gmail, threadId, { brainLabelId, capturedLabelId, e
     return { status: 'empty', stats: built.stats };
   }
 
-  console.log(`  ${threadId}: raw=${built.stats.raw_chars} dedup=${built.stats.after_dedup} regex=${built.stats.after_regex} haiku=${built.stats.after_haiku ?? '-'} kept=${built.stats.kept}`);
+  console.log(`  ${threadId}: raw=${built.stats.raw_chars} dedup=${built.stats.after_dedup} regex=${built.stats.after_regex} haiku=${built.stats.haiku_verdict ?? '-'} kept=${built.stats.kept}`);
 
   const extraPayload = {
     thread_id: threadId,

@@ -60,7 +60,11 @@ function buildText(t) {
     `Participants: ${(t.participants || []).join(', ')}`,
     '',
   ].join('\n');
-  const body = (t.transcript_text || '').slice(0, MAX_TRANSCRIPT_CHARS);
+  let body = t.transcript_text || '';
+  if (body.length > MAX_TRANSCRIPT_CHARS) {
+    console.warn(`  WARNING: transcript ${body.length} chars exceeds ceiling ${MAX_TRANSCRIPT_CHARS} — truncating "${t.title}"`);
+    body = body.slice(0, MAX_TRANSCRIPT_CHARS);
+  }
   return `${head}\n${body}`;
 }
 

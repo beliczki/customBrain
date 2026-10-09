@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.45.0 — 2026-10-09
+
+**Long Gmail threads were still cut, just more quietly.** 0.42.0 raised the 6000-char ceiling, but every body over 1500 chars then went through a Haiku "content extractor" whose output *became the stored text* — capped at `max_tokens: 4096`, with no `stop_reason` check. A long thread was rewritten by the model and lost its end once the rewrite hit the cap, with no signal; and even below the cap, model text replaced the source.
+
+- **Haiku only decides, never writes.** `agent/tools/gmail-clean.js` asks Haiku a one-word question (`CONTENT` / `__NO_CONTENT__`, `max_tokens: 16`); the stored body is always the deterministic dedup + regex output. This closes the whole family at once: no cap-truncation, no paraphrase, no dropped sentences. An unexpected verdict throws, so the thread lands on the 0.42.0 retry list instead of being stored wrong. Longer stored bodies are what the summary + chunk pipeline is for. Verified against a fake Anthropic API: an 86k-char thread survives to its last paragraph. The cron log line now prints `haiku=content|no_content|-` instead of a length.
+- **Fireflies truncation is logged.** The 180k-char safety ceiling in the webhook used to slice silently; it now warns with the meeting title, as the Gmail cron does.
+- **`get_gmail_threads` pages instead of cutting at 10k.** Search results still preview each body up to ~10k chars (now on a line boundary), but every result carries `body_slice {from_line, lines_returned, total_lines, truncated, next_from_line}`; calling with `thread_id` + `from_line` (+ optional `max_lines`) reads the rest — the same window shape as `get_thought`. Verified: paging a 500-line body in 100-line windows reassembles it exactly.
+- **Ops decisions closed (no code):** the Grok MCP token stays unrestricted (it researches and writes); the 5 threads pinned at 6000 chars in 0.42.0 will not be re-fetched (obsolete).
+
 ## 0.44.0 — 2026-09-29
 
 **Anthropic spend is now visible per call site.** Aug 31 – Sep 12 the brain burned ~7–8M Sonnet tokens a day (~$30/day, ~$400 over the Console's 30-day window) in a loop nobody saw: `backfill-chunks` enriched long dossiers, the hourly dossier reindex (hash gate bypassed, fixed in 0.41.1) overwrote them and wiped `has_v2_summary`, and the next backfill tick re-chunked the same files. 0.41.1 + 0.43.0 closed it. The Console showed the spend but not which of our call sites produced it — nothing in our own logs recorded token usage at all.

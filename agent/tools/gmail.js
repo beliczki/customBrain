@@ -89,6 +89,59 @@ export async function ensureLabel(gmail, name) {
   return createRes.data.id;
 }
 
+// Search results preview each body up to this many chars (cut on a line
+// boundary). Not a hard limit: the response says truncated + next_from_line,
+// and get_gmail_threads with thread_id + from_line pages through the rest —
+// same window shape as get_thought's text_slice.
+const PREVIEW_CHARS = 10000;
+
+function sliceLines(text, fromLine, maxLines, maxChars) {
+  const lines = text.split('\n');
+  const start = Math.max(1, fromLine);
+  let slice = maxLines != null ? lines.slice(start - 1, start - 1 + maxLines) : lines.slice(start - 1);
+  if (maxChars != null) {
+    let chars = 0;
+    let n = 0;
+    while (n < slice.length && (n === 0 || chars + slice[n].length + 1 <= maxChars)) {
+      chars += slice[n].length + 1;
+      n++;
+    }
+    slice = slice.slice(0, n);
+  }
+  const end = start - 1 + slice.length;
+  return {
+    text: slice.join('\n'),
+    body_slice: {
+      from_line: start,
+      lines_returned: slice.length,
+      total_lines: lines.length,
+      truncated: end < lines.length,
+      next_from_line: end < lines.length ? end + 1 : null,
+    },
+  };
+}
+
+function threadToResult(threadData, window) {
+  const firstMsg = threadData.messages?.[0];
+  if (!firstMsg) return null;
+
+  const from = getHeader(firstMsg.payload.headers, 'From');
+  const bodyParts = threadData.messages
+    .map((msg) => extractBody(msg.payload))
+    .filter(Boolean);
+  const { text, body_slice } = sliceLines(bodyParts.join('\n---\n'), window.fromLine, window.maxLines, window.maxChars);
+
+  return {
+    thread_id: threadData.id,
+    subject: getHeader(firstMsg.payload.headers, 'Subject'),
+    from,
+    date: getHeader(firstMsg.payload.headers, 'Date'),
+    snippet: firstMsg.snippet || '',
+    body_text: text,
+    body_slice,
+  };
+}
+
 export async function getGmailThreads(query, maxResults = 10) {
   const gmail = getGmail();
 
@@ -110,23 +163,22 @@ export async function getGmailThreads(query, maxResults = 10) {
 
     const firstMsg = threadRes.data.messages?.[0];
     if (!firstMsg) continue;
-
     const from = getHeader(firstMsg.payload.headers, 'From');
     if (SKIP_SENDERS.some((s) => from.toLowerCase().includes(s))) continue;
 
-    const bodyParts = threadRes.data.messages
-      .map((msg) => extractBody(msg.payload))
-      .filter(Boolean);
-
-    results.push({
-      thread_id: thread.id,
-      subject: getHeader(firstMsg.payload.headers, 'Subject'),
-      from,
-      date: getHeader(firstMsg.payload.headers, 'Date'),
-      snippet: firstMsg.snippet || '',
-      body_text: bodyParts.join('\n---\n').substring(0, 10000),
-    });
+    results.push(threadToResult(threadRes.data, { fromLine: 1, maxLines: null, maxChars: PREVIEW_CHARS }));
   }
 
   return results;
+}
+
+// One thread, a window of its body by lines (default: everything from from_line).
+export async function getGmailThreadSlice(threadId, fromLine = 1, maxLines = null) {
+  const gmail = getGmail();
+  const threadRes = await gmail.users.threads.get({
+    userId: 'me',
+    id: threadId,
+    format: 'full',
+  });
+  return threadToResult(threadRes.data, { fromLine, maxLines, maxChars: null });
 }

@@ -102,16 +102,17 @@ export function applyRegexStrip(raw) {
   return cleaned;
 }
 
-async function haikuExtract(cleaned, { subject, from }) {
-  const prompt = `This is an email thread body after boilerplate removal and paragraph deduplication. Extract ONLY the substantive human content: decisions, questions, opinions, facts, action items, news, dates, numbers, names.
+// Haiku only DECIDES whether a long body carries human content; it never
+// produces the stored text. The stored text is always the deterministic
+// dedup+regex output. Letting the model rewrite the body (the pre-0.45 design)
+// replaced source with model text and silently cut long threads at its output
+// cap — a 4096-token rewrite of a 30k-char thread lost the end with no signal.
+async function haikuHasContent(cleaned, { subject, from }) {
+  const prompt = `This is an email thread body after boilerplate removal and paragraph deduplication. Does it contain ANY substantive human content — decisions, questions, opinions, facts, action items, news, dates, numbers, names?
 
-Preserve EVERY meaningful word — the input has already been aggressively deduped, so what remains is signal-dense. Do NOT summarize or paraphrase. Only strip:
-- Any remaining legal/confidentiality/disclaimer text that got through
-- Boilerplate signatures that survived (job title lines, phone numbers repeated across messages, "Sent from my iPhone", etc.)
-- Meeting invite machinery (ics blobs, calendar links, "Join Zoom Meeting")
-- Pure pleasantries that carry no information ("Thanks!", "Best regards", "Hope you're well")
+Answer NO_CONTENT only if it is entirely legal/confidentiality text, signatures, meeting-invite machinery, marketing/unsubscribe footers or pure pleasantries.
 
-Respond in the ORIGINAL language (Hungarian or English). If there is no substantive content at all, respond with exactly: ${NO_CONTENT_MARKER}
+Respond with exactly one word: CONTENT or ${NO_CONTENT_MARKER}
 
 Email:
 Subject: ${subject || ''}
@@ -128,7 +129,7 @@ ${cleaned}`;
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
+      max_tokens: 16,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -140,14 +141,18 @@ ${cleaned}`;
 
   const json = await res.json();
   logAnthropicUsage('gmail_clean', json);
-  return (json.content[0]?.text || '').trim();
+  const verdict = (json.content[0]?.text || '').trim();
+  if (verdict.includes(NO_CONTENT_MARKER)) return false;
+  if (verdict.includes('CONTENT')) return true;
+  throw new Error(`Gmail cleaner Haiku returned an unexpected verdict: ${JSON.stringify(verdict)}`);
 }
 
 /**
  * cleanEmailBody accepts either:
  *   - an array of message bodies (ordered oldest → newest), or
  *   - a single pre-joined string (backward-compatible)
- * Returns { text, stats } where stats has { raw_chars, after_dedup, after_regex, after_haiku, kept }.
+ * Returns { text, stats } where stats has { raw_chars, after_dedup, after_regex, haiku_verdict, kept }.
+ * text is always the deterministic dedup+regex output (or NO_CONTENT_MARKER).
  */
 export async function cleanEmailBody(input, { subject, from } = {}) {
   const bodies = Array.isArray(input) ? input : [input];
@@ -160,7 +165,7 @@ export async function cleanEmailBody(input, { subject, from } = {}) {
     raw_chars: totalRawChars,
     after_dedup: deduped.length,
     after_regex: afterRegex.length,
-    after_haiku: null,
+    haiku_verdict: null,
     kept: true,
   };
 
@@ -169,13 +174,13 @@ export async function cleanEmailBody(input, { subject, from } = {}) {
     return { text: stats.kept ? afterRegex : NO_CONTENT_MARKER, stats };
   }
 
-  const haikuOut = await haikuExtract(afterRegex, { subject, from });
-  stats.after_haiku = haikuOut.length;
+  const hasContent = await haikuHasContent(afterRegex, { subject, from });
+  stats.haiku_verdict = hasContent ? 'content' : 'no_content';
 
-  if (haikuOut === NO_CONTENT_MARKER || haikuOut.includes(NO_CONTENT_MARKER)) {
+  if (!hasContent) {
     stats.kept = false;
     return { text: NO_CONTENT_MARKER, stats };
   }
 
-  return { text: haikuOut, stats };
+  return { text: afterRegex, stats };
 }

@@ -1,6 +1,6 @@
 import { getFirefliesTranscripts } from './tools/fireflies.js';
 import { getYoutubeLikes } from './tools/youtube.js';
-import { getGmailThreads } from './tools/gmail.js';
+import { getGmailThreads, getGmailThreadSlice } from './tools/gmail.js';
 import { getCalendarEvents } from './tools/calendar.js';
 import { getEventContext } from './tools/context.js';
 import { getTaskContext } from './tools/task-context.js';
@@ -27,12 +27,19 @@ export function registerAgentTools(server, z) {
 
   server.tool(
     'get_gmail_threads',
-    'Search Gmail threads by query and return subjects, senders, and body text',
+    'Search Gmail threads by query and return subjects, senders, and body text. Each body is previewed up to ~10k chars; when body_slice.truncated is true, call again with thread_id and from_line = body_slice.next_from_line (optionally max_lines) to page through the rest.',
     {
-      query: z.string().describe('Gmail search query'),
+      query: z.string().optional().describe('Gmail search query (required unless thread_id is set)'),
       max_results: z.number().optional().describe('Max threads to return, default 10'),
+      thread_id: z.string().optional().describe('Read one thread by id instead of searching; pair with from_line/max_lines to page'),
+      from_line: z.number().optional().describe('1-indexed first body line to return (thread_id mode, default 1)'),
+      max_lines: z.number().optional().describe('How many body lines to return (thread_id mode, default: all remaining)'),
     },
-    async ({ query, max_results }) => json(await getGmailThreads(query, max_results))
+    async ({ query, max_results, thread_id, from_line, max_lines }) => {
+      if (thread_id) return json(await getGmailThreadSlice(thread_id, from_line ?? 1, max_lines ?? null));
+      if (!query) throw new Error('get_gmail_threads needs either query or thread_id');
+      return json(await getGmailThreads(query, max_results));
+    }
   );
 
   server.tool(
