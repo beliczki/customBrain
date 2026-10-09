@@ -298,6 +298,16 @@ export async function handleMcpHttp(req, res) {
     return;
   }
 
+  // A session id we don't hold (the process restarted, or it was closed). The
+  // Streamable HTTP spec requires 404 here: that is the client's signal to
+  // re-initialize. Falling through instead handed the request to a fresh,
+  // uninitialized transport, which answers 400 "Server not initialized" — and
+  // clients don't recover from a 400, so every deploy stranded the claude.ai
+  // connector until it was reconnected by hand.
+  if (sessionId) {
+    return res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Session not found' }, id: null });
+  }
+
   // New session — stateful: the SDK issues an Mcp-Session-Id on initialize and
   // routes subsequent tools/call requests back to this same initialized transport.
   const transport = new StreamableHTTPServerTransport({

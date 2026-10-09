@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.46.1 — 2026-10-09
+
+**Every deploy stranded the claude.ai MCP connector.** After a restart the in-memory session map is empty, so a client's next request carries a session id the server no longer holds. `handleMcpHttp` fell through to creating a fresh, uninitialized transport, which answered **400 "Server not initialized"** — and clients do not recover from a 400. Observed live today right after the 0.46.0 restart: two `search_brain` calls from claude.ai both failed that way. The Streamable HTTP spec requires **404** for an unknown session id, which is the client's signal to re-initialize; that is what it returns now. (Stateless transport, which removes the failure class entirely, is planned separately.)
+
 ## 0.46.0 — 2026-10-09
 
 **Long thoughts were mostly invisible to search.** The chunking prompt asked Sonnet to *rewrite* the original text into "2-10 chunks ≤ 2000 chars" — at most ~20k chars, so a 100k-char meeting transcript was condensed into a fraction of itself. The parent point's dense and BM25 vectors are built from the summary, so whatever the chunks dropped reached no index at all. Measured on the live brain (read-only, 2026-10-09): of 389 long thoughts with chunks, 156 had text that no content chunk contained — 104 of 128 Fireflies transcripts; chunk/text length ratio median 0.20 above 60k chars. Not truncation: none of the last 46 chunking calls hit the output cap; the model condensed because the prompt left it no room.
