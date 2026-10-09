@@ -110,40 +110,47 @@ async function gmailRecords() {
   console.log(`gmail: ${threadIds.length} ${capturedName} threads`);
 
   const records = [];
-  const PARALLEL = 5;
-  for (let i = 0; i < threadIds.length; i += PARALLEL) {
-    await Promise.all(threadIds.slice(i, i + PARALLEL).map(async (threadId) => {
-      const [thread, thought] = await Promise.all([
-        gmail.users.threads.get({ userId: 'me', id: threadId, format: 'full', fields: 'messages(id,internalDate,payload)' }),
-        findBySourceIdRaw('gmail', threadId),
-      ]);
-      for (const msg of thread.data.messages) {
-        const from = getHeader(msg.payload.headers, 'From') || '';
-        for (const part of attachmentParts(msg.payload)) {
-          const kind = fileKind(part.mimeType, part.filename);
-          if (!kind) continue;
-          records.push({
-            id: `gmail:${msg.id}:${part.partId}`,
-            source: 'gmail',
-            name: part.filename,
-            kind,
-            mime: part.mimeType,
-            size: part.body.size,
-            modified: new Date(Number(msg.internalDate)).toISOString(),
-            path: '',
-            link: `https://mail.google.com/mail/u/0/#all/${threadId}`,
-            // A captured thread normally has its thought; if it was deleted
-            // from the brain, the attachment is still catalogued, unattributed.
-            projects: thought ? thought.projects || [] : [],
-            direction: from.toLowerCase().includes(me) ? 'delivered' : 'received',
-            from,
-            thread_id: threadId,
-            md5: null,
-            variant_group: variantKey(part.filename),
-          });
-        }
+  // Gmail's per-user quota here is 6000 query-cost units per minute
+  // (totalQueryCostPerMinutePerUser, read off the 403 on 2026-10-09), shared
+  // with the 10-minute intake cron. Five parallel full-thread reads over the
+  // 181 threads exhausted it, so threads are read one at a time at a fixed
+  // pace that leaves the cron its share. No retry: a quota error still aborts
+  // the run before anything is written.
+  const THREAD_INTERVAL_MS = 1500;
+  for (const threadId of threadIds) {
+    const started = Date.now();
+    const [thread, thought] = await Promise.all([
+      gmail.users.threads.get({ userId: 'me', id: threadId, format: 'full', fields: 'messages(id,internalDate,payload)' }),
+      findBySourceIdRaw('gmail', threadId),
+    ]);
+    for (const msg of thread.data.messages) {
+      const from = getHeader(msg.payload.headers, 'From');
+      for (const part of attachmentParts(msg.payload)) {
+        const kind = fileKind(part.mimeType, part.filename);
+        if (!kind) continue;
+        records.push({
+          id: `gmail:${msg.id}:${part.partId}`,
+          source: 'gmail',
+          name: part.filename,
+          kind,
+          mime: part.mimeType,
+          size: part.body.size,
+          modified: new Date(Number(msg.internalDate)).toISOString(),
+          path: '',
+          link: `https://mail.google.com/mail/u/0/#all/${threadId}`,
+          // A captured thread normally has its thought; if it was deleted
+          // from the brain, the attachment is still catalogued, unattributed.
+          projects: thought ? thought.projects || [] : [],
+          direction: from.toLowerCase().includes(me) ? 'delivered' : 'received',
+          from,
+          thread_id: threadId,
+          md5: null,
+          variant_group: variantKey(part.filename),
+        });
       }
-    }));
+    }
+    const wait = THREAD_INTERVAL_MS - (Date.now() - started);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   }
   return records;
 }
