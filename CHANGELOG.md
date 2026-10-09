@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.46.0 — 2026-10-09
+
+**Long thoughts were mostly invisible to search.** The chunking prompt asked Sonnet to *rewrite* the original text into "2-10 chunks ≤ 2000 chars" — at most ~20k chars, so a 100k-char meeting transcript was condensed into a fraction of itself. The parent point's dense and BM25 vectors are built from the summary, so whatever the chunks dropped reached no index at all. Measured on the live brain (read-only, 2026-10-09): of 389 long thoughts with chunks, 156 had text that no content chunk contained — 104 of 128 Fireflies transcripts; chunk/text length ratio median 0.20 above 60k chars. Not truncation: none of the last 46 chunking calls hit the output cap; the model condensed because the prompt left it no room.
+
+- **The model marks boundaries, the code cuts the text.** `content_chunks` is replaced in the tool schema by `content_sections: [{label, start_line}]` over a line-numbered copy of the text; `sectionsToChunks` slices the original by those lines, so every line lands in a chunk. Sonnet still decides where topics change (LLM-judgment boundaries are kept on purpose); there is no longer a cap on the number of sections. Sections over 4000 chars are split on line boundaries (sentence ends for newline-poor text) so no chunk exceeds what gemini-embedding-001 embeds (2,048 input tokens). Invalid section lists (not starting at 1, non-increasing, out of range, empty) throw instead of producing partial coverage.
+- **`stop_reason: max_tokens` now fails the reprocess** instead of being ignored — a cut-off tool call is a partial section list.
+- **`scripts/rechunk-content.js`** re-cuts content chunks of existing long thoughts with a sections-only Sonnet call (`markContentSections`, ledger site `rechunk`): no vault context, no summary, no metadata — ~1/5 the cost of a full reprocess, and it leaves curated titles/metadata and summary chunks untouched. Marks done thoughts `content_chunking: 'sections-v1'` (new payload field; also set by the chunking cron on new thoughts). `--dry-run`, `--limit N`, `--ids`.
+
 ## 0.45.0 — 2026-10-09
 
 **Long Gmail threads were still cut, just more quietly.** 0.42.0 raised the 6000-char ceiling, but every body over 1500 chars then went through a Haiku "content extractor" whose output *became the stored text* — capped at `max_tokens: 4096`, with no `stop_reason` check. A long thread was rewritten by the model and lost its end once the rewrite hit the cap, with no signal; and even below the cap, model text replaced the source.

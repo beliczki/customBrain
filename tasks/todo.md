@@ -38,8 +38,10 @@ Két javítás jöhet szóba:
   - Alapos javítás: a Sonnet a határokat adja vissza (horgony vagy offset), a chunk-szöveget pedig determinisztikusan vágjuk az eredetiből. Így 100% a lefedettség, és a határokról továbbra is a Sonnet dönt (memória: LLM-judgment chunking).
     - Nyitott tervezési kérdés: a szó szerinti chunkok hosszabbak lesznek, a Gemini embedding bemeneti korlátja pedig ~2048 token. Hosszú szövegnél ezért több és rövidebb chunk kell, különben az embedding hívás csendben levág. Ezt implementálás előtt ellenőrizni kell, a BM25-öt nem érinti.
     - Utána backfill a 436 hosszú gondolatra, Sonnet-költséggel. Becslés előtte.
-  - [ ] Döntés: ez a 3-as mérés (baseline) **előtt** vagy **után** jöjjön? Javaslat: a baseline előtt mérjük meg (Hit@10 a hosszú-meeting kérdéseken), és csak utána javítsunk, hogy a hatás kimutatható legyen.
+  - [x] **0.46.0 — megépítve:** sections + kódos vágás, `stop_reason`-őr, `scripts/rechunk-content.js` (csak tartalom-chunkok, ~$11 becslés 435 thoughtra a ~$60-as teljes reprocess helyett). ~~Döntés: ez a 3-as mérés (baseline) **előtt** vagy **után** jöjjön?~~ Javaslat: a baseline előtt mérjük meg (Hit@10 a hosszú-meeting kérdéseken), és csak utána javítsunk, hogy a hatás kimutatható legyen.
 - [ ] **Mellékmegfigyelés a 3-as méréshez:** a mai manuális capture-ök `total` ideje 33–43 másodperc, ebből `vault_ctx` 25–40 másodperc (pm2-log). A 11. fejezet célja: ack p95 ≤ 1 s. Ez lesz a mérés egyik első tétele.
+
+> **DÖNTÖTT 2026-10-09: a 3-as mérés FÉLRETÉVE** (Robi: „bonyi, lassú”). Építünk, Robi használat közben jelzi a problémákat, és a kész felületet teszteli. A kérdésbank-tervezetek a `tasks/evaluator/` alatt maradnak, ha később kellenek. Új sorrend: 2(d) chunk-javítás → 6 stateless MCP → 4 Files-katalógus → 5a–5c gráf → 5f /dream.
 
 ## 3. A tanulmány 11. fejezetének mérése → `docs/custombrain-meres-2026-10.html`
 A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`):

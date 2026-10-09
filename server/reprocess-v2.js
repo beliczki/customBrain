@@ -65,6 +65,85 @@ function filterHallucinatedPeople(people, text, vaultAliases) {
   return { kept, rejected };
 }
 
+// Content chunks are cut from the ORIGINAL text by code; the model only marks
+// where topics change. Until 0.46 the model re-wrote the text into "2-10 chunks
+// ≤ 2000 chars", which for a 100k-char transcript could hold at most ~20% of it:
+// the rest was condensed away and never reached any vector (measured 2026-10-09:
+// 156 of 389 long thoughts had text no chunk contained, 104 of 128 Fireflies).
+// Cutting by line number keeps Sonnet's semantic boundaries and covers every line.
+//
+// gemini-embedding-001 accepts 2,048 input tokens (ai.google.dev embeddings
+// docs); 4000 chars of Hungarian stays well under that, so no chunk is
+// truncated at embed time.
+export const MAX_CHUNK_CHARS = 4000;
+
+function numberLines(text) {
+  return text.split('\n').map((line, i) => `${i + 1}| ${line}`).join('\n');
+}
+
+// A single line longer than the cap (newline-poor text) is split at sentence
+// ends, and a sentence longer than the cap at the cap itself.
+function splitLongLine(line) {
+  const pieces = [];
+  let cur = '';
+  for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+    for (let i = 0; i < sentence.length; i += MAX_CHUNK_CHARS) {
+      const part = sentence.slice(i, i + MAX_CHUNK_CHARS);
+      if (cur && cur.length + 1 + part.length > MAX_CHUNK_CHARS) { pieces.push(cur); cur = ''; }
+      cur = cur ? `${cur} ${part}` : part;
+    }
+  }
+  if (cur) pieces.push(cur);
+  return pieces;
+}
+
+function packLines(lines) {
+  const out = [];
+  let cur = [];
+  let len = 0;
+  for (const line of lines) {
+    const parts = line.length > MAX_CHUNK_CHARS ? splitLongLine(line) : [line];
+    for (const part of parts) {
+      if (cur.length && len + 1 + part.length > MAX_CHUNK_CHARS) { out.push(cur.join('\n')); cur = []; len = 0; }
+      cur.push(part);
+      len += (cur.length > 1 ? 1 : 0) + part.length;
+    }
+  }
+  if (cur.length) out.push(cur.join('\n'));
+  return out;
+}
+
+export function sectionsToChunks(text, sections) {
+  const lines = text.split('\n');
+  if (!Array.isArray(sections) || sections.length === 0) {
+    throw new Error('reprocess returned no content_sections');
+  }
+  const starts = sections.map((s) => s.start_line);
+  if (starts[0] !== 1) throw new Error(`content_sections must start at line 1, got ${starts[0]}`);
+  for (let i = 0; i < starts.length; i++) {
+    if (!Number.isInteger(starts[i]) || starts[i] < 1 || starts[i] > lines.length) {
+      throw new Error(`content_sections[${i}].start_line ${starts[i]} is outside 1..${lines.length}`);
+    }
+    if (i > 0 && starts[i] <= starts[i - 1]) {
+      throw new Error(`content_sections start lines must increase: ${starts[i - 1]} then ${starts[i]}`);
+    }
+  }
+  const chunks = [];
+  sections.forEach((s, i) => {
+    const end = i + 1 < sections.length ? starts[i + 1] - 1 : lines.length;
+    const pieces = packLines(lines.slice(s.start_line - 1, end)).filter((p) => p.trim());
+    pieces.forEach((p, k) => chunks.push({ label: pieces.length > 1 ? `${s.label} (${k + 1}/${pieces.length})` : s.label, text: p }));
+  });
+  return chunks;
+}
+
+const CONTENT_SECTION_RULES = `**content_sections**:
+- Every line of the original text below is prefixed with its line number and a bar (\`17| \`). The prefix is a marker, not content — never copy it into any other output.
+- Return the line number where each topic section STARTS, in increasing order. The first section starts at line 1. A section runs until the next section's start line; the last one runs to the end. Do NOT return any text — the system cuts the sections from the original itself, so the whole text is always covered.
+- Place a start at every SEMANTIC TURNING POINT: topic transitions, agenda items, a new email in a thread, a new speaker block on a new subject. Not at fixed lengths — a 30-line agenda item is one section.
+- There is no upper limit on the number of sections: a long meeting transcript typically needs many (one per agenda item / subject change). Very long sections are split further by the system on line boundaries.
+- Each \`label\` should be 2-6 words describing the section's topic`;
+
 function buildMegaPrompt(text, localCtx, vaultCtx) {
   let contextBlock = '';
 
@@ -118,7 +197,7 @@ function buildMegaPrompt(text, localCtx, vaultCtx) {
 1. **metadata** — same shape as our existing capture pipeline produces
 2. **summary** — a chronological, content-focused summary (≤ 6000 chars)
 3. **summary_chunks** — split the summary by topic
-4. **content_chunks** — split the ORIGINAL text by topic transitions
+4. **content_sections** — mark where the ORIGINAL text changes topic (line numbers only, no text)
 
 Return ONLY valid JSON with this exact shape:
 
@@ -136,8 +215,8 @@ Return ONLY valid JSON with this exact shape:
   "summary_chunks": [
     { "label": "short descriptive label in same language as text", "text": "chunk text (≤ 1500 chars)" }
   ],
-  "content_chunks": [
-    { "label": "short descriptive label in same language as text", "text": "chunk text (≤ 2000 chars)" }
+  "content_sections": [
+    { "label": "short descriptive label in same language as text", "start_line": 1 }
   ]
 }
 \`\`\`
@@ -184,22 +263,15 @@ RULES:
 - Together they should cover the full summary
 - Each \`label\` should be 2-6 words describing the chunk's topic
 
-**content_chunks**:
-- 2-10 chunks for a typical thought, split at topic transitions / speaker turns / agenda-item boundaries
-- 1 chunk if the thought is short or single-topic
-- Each chunk ≤ 2000 chars
-- Together they should cover the full original text (some overlap OK at boundaries; small omissions of pure boilerplate are OK)
-- Each \`label\` should be 2-6 words describing the chunk's topic
-- IMPORTANT: chunk by SEMANTIC TURNING POINTS in the content, not by fixed length. A 30-line agenda-item is one chunk; an email-reply within a thread is one chunk.
-
+${CONTENT_SECTION_RULES}
 **Shortcuts for short/simple thoughts**:
-- If text is < 1000 chars: \`summary\` = text itself; \`summary_chunks\` = [{label: "fő", text: summary}]; \`content_chunks\` = [{label: "fő", text: text}].
-- If text is single-topic regardless of length: still produce a summary, but both chunk arrays may be length 1.
+- If text is < 1000 chars: \`summary\` = text itself; \`summary_chunks\` = [{label: "fő", text: summary}]; \`content_sections\` = [{label: "fő", start_line: 1}].
+- If text is single-topic regardless of length: still produce a summary, but \`summary_chunks\` and \`content_sections\` may be length 1.
 ${contextBlock}
 
-Original thought text:
+Original thought text (line-numbered):
 """
-${text}
+${numberLines(text)}
 """`;
 }
 
@@ -208,7 +280,7 @@ const TOOL_SCHEMA = {
   description: 'Submit the reprocessed metadata, summary, and topic-chunked text for a thought.',
   input_schema: {
     type: 'object',
-    required: ['metadata', 'summary', 'summary_chunks', 'content_chunks'],
+    required: ['metadata', 'summary', 'summary_chunks', 'content_sections'],
     properties: {
       metadata: {
         type: 'object',
@@ -234,14 +306,14 @@ const TOOL_SCHEMA = {
           },
         },
       },
-      content_chunks: {
+      content_sections: {
         type: 'array',
         items: {
           type: 'object',
-          required: ['label', 'text'],
+          required: ['label', 'start_line'],
           properties: {
             label: { type: 'string', description: '2-6 word topic label, same language as input' },
-            text: { type: 'string', description: '≤2000 chars' },
+            start_line: { type: 'integer', description: '1-based line number where this section starts; strictly increasing, first is 1' },
           },
         },
       },
@@ -276,6 +348,9 @@ export async function reprocessThought(text, vaultContext) {
 
   const json = await res.json();
   logAnthropicUsage('chunking', json);
+  // A cut-off tool call is a partial section list: the tail of the text would
+  // silently get no chunk. Fail loudly; the cron marks the thought and moves on.
+  if (json.stop_reason === 'max_tokens') throw new Error('reprocessThought hit max_tokens — output incomplete');
   const toolUse = json.content.find((c) => c.type === 'tool_use');
   if (!toolUse) {
     throw new Error(`No tool_use in response: ${JSON.stringify(json.content)}`);
@@ -284,7 +359,7 @@ export async function reprocessThought(text, vaultContext) {
 
   // Defensive: Haiku occasionally returns chunk arrays as stringified JSON
   // even with tool_use schema. Recover when possible.
-  for (const field of ['summary_chunks', 'content_chunks']) {
+  for (const field of ['summary_chunks', 'content_sections']) {
     if (typeof parsed[field] === 'string') {
       try {
         const recovered = JSON.parse(parsed[field]);
@@ -301,6 +376,8 @@ export async function reprocessThought(text, vaultContext) {
     }
   }
 
+  parsed.content_chunks = sectionsToChunks(text, parsed.content_sections);
+
   if (parsed.metadata) {
     parsed.metadata.people = resolveAliases(parsed.metadata.people, vaultContext?.aliases);
     parsed.metadata.projects = resolveAliases(parsed.metadata.projects, vaultContext?.projectAliases);
@@ -314,4 +391,53 @@ export async function reprocessThought(text, vaultContext) {
   parsed._usage = json.usage;
   parsed._stop_reason = json.stop_reason;
   return parsed;
+}
+
+// Content sections only — no metadata, no summary, no vault context. Used to
+// re-chunk thoughts that already carry a summary and curated metadata, which a
+// full reprocess would overwrite; and it costs ~1/5 of one (the vault context
+// alone is ~23k input tokens per reprocess call).
+const SECTIONS_TOOL = {
+  name: 'submit_content_sections',
+  description: 'Submit where each topic section of the text starts.',
+  input_schema: {
+    type: 'object',
+    required: ['content_sections'],
+    properties: { content_sections: TOOL_SCHEMA.input_schema.properties.content_sections },
+  },
+};
+
+export async function markContentSections(text) {
+  const prompt = `Split the text below into topic sections for retrieval indexing.
+
+${CONTENT_SECTION_RULES}
+
+**Language**: labels in the dominant language of the text; never translate.
+
+Text (line-numbered):
+"""
+${numberLines(text)}
+"""`;
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8192,
+      tools: [SECTIONS_TOOL],
+      tool_choice: { type: 'tool', name: 'submit_content_sections' },
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!res.ok) throw new Error(`markContentSections failed: ${await res.text()}`);
+  const json = await res.json();
+  logAnthropicUsage('rechunk', json);
+  if (json.stop_reason === 'max_tokens') throw new Error('markContentSections hit max_tokens — section list incomplete');
+  const toolUse = json.content.find((c) => c.type === 'tool_use');
+  if (!toolUse) throw new Error(`No tool_use in response: ${JSON.stringify(json.content).slice(0, 300)}`);
+  return sectionsToChunks(text, toolUse.input.content_sections);
 }

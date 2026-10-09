@@ -168,6 +168,7 @@ export async function enrichWithChunks(id) {
     action_items: art.metadata.action_items || [],
     has_v2_summary: true,
     pipeline_version: 'v2',
+    content_chunking: 'sections-v1', // content chunks cut from the original (0.46.0); rechunk-content.js skips these
     chunk_count: art.chunkSpecs.length,
     summary_appended_at: now,
   };
