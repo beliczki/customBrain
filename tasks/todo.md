@@ -109,9 +109,13 @@ A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`)
 - **Szándékosan nem épült:** csatolmány-pipeline, automatikus Drive `/data`, `/docs` feltérképezés, capture-time prompt-bekötés (`tasks/todo-incremental-export-and-files-kb.md`, 2. fázis).
 - Ezen túl nem találtam elkezdett tervet. Ha máshol van (brain TODO-marker vagy másik repó), mutasd meg.
 - **DÖNTÖTT (2026-10-09): először csak katalógus.** Utána megbeszéljük, mely fájlokból kell kivonat, és mire kell figyelni (méret, formátum, titkos tartalom, duplikált PDF/PPTX-változatok).
-- [ ] Leltár, csak olvasva:
-  - a Drive `/data` és `/docs` mappáinak szerkezete, fájlszám és típusmegoszlás;
-  - a Gmail-csatolmányok száma és típusa a brain-címkés szálakon.
+- [x] Leltár, csak olvasva (2026-10-09, helyi Drive-szinkron `~/GoogleDrive` + Gmail connector):
+  - **`Docs`: 10 758 fájl, 21 GB.** Ebből `Archive/` 5954, `Csalad/` 2115, `_customBrain/` 996 (a vault), `ME/` 928, `Grafia/` 405, `iroda/` 155. Típus: vcf 3579 + vmg 2241 (telefonmentés), jpg 1711, md 970, pdf 622, png 155, cdr 124, psd 89, xlsx 60, docx 52.
+  - **`Data`: 55 535 fájl, 539 GB.** `_archive 2026/` 19 025, `Telekom/` 14 167, `ERSTE HU/` 11 281, `ESRTE SK/` 3167, `_archive/` 3019, `Agaurg/` 2397, `szivesseg/` 711, `ERSTE CZ/` 469, `Beliczki Műhely/` 461, `Proficio/` 417, `Sahar by Attraction/` 298. Archívumok nélkül: png 8975, jpg 6997, url 2631, mp4 1710, svg 1616, psd 942, pdf 435, txt 338, html 333 — túlnyomóan kreatív asset, nem dokumentum.
+  - **A My Drive gyökerében** 687 laza fájl: xlsx 257, pptx 209, docx 72, jpg 46, mp4 19, pdf 15 (pl. ConfAI-, ERSTE-, Telekom-, Cordia-anyagok, sok „Copy of …” verzió) — ez a legdokumentumszerűbb réteg.
+  - Bizonytalan: a Google-natív fájlok (Docs/Sheets/Slides) a helyi `find`-ban nem jelennek meg külön kiterjesztéssel — a natív dokumentumok száma ebből nem látszik, Drive API-listázás kellene hozzá.
+  - **Gmail:** `brain/captured` 181 szálából **142-ben van csatolmány** (1622 üzenet, ~672 MB, 2025-09-09 → 2026-10-09). A `has:attachment` az inline aláíráskép-eket is számolja, így a valódi dokumentum-csatolmányok száma ennél kevesebb. Típus a keresésből nem jön; szálanként `get_thread` vagy szerveroldali Gmail-API-listázás kellene.
+  - Következmény a (a)/(b) kérdésre: 66k fájlra az 1 fájl = 1 `.md` (a) nem működik. → (b) katalógusfájl, vagy (a) csak egy szűk, dokumentum-típusú részhalmazra (pptx/docx/xlsx/pdf/md, archívumok és assetek nélkül).
 - [ ] Katalógus-terv: egy rekord = név, Drive-link / Gmail-szál, mime, méret, módosítás, projekt (mappából vagy szálból), irány, forrás. Nyitott, hova kerüljön:
   - (a) generált `Files/` dossziék — a meglévő reindex kezeli őket, de 1 fájl = 1 .md, ami sok fájlnál zajos;
   - (b) egy katalógusfájl, amit a `get_brain_ontology` olvas.
