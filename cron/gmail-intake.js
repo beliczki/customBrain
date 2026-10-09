@@ -333,7 +333,7 @@ async function run() {
 
   console.log(`Gmail intake: ${threadIds.length} affected threads since historyId=${watermark || '(bootstrap)'}`);
 
-  const counts = { captured: 0, refreshed: 0, duplicate: 0, unchanged: 0, empty: 0, ignored: 0, failed: 0 };
+  const counts = { captured: 0, refreshed: 0, duplicate: 0, unchanged: 0, empty: 0, ignored: 0, gone: 0, failed: 0 };
   const failedThreadIds = [];
 
   for (const threadId of threadIds) {
@@ -341,6 +341,15 @@ async function run() {
       const result = await processThread(gmail, threadId, ctx);
       counts[result.status] = (counts[result.status] || 0) + 1;
     } catch (err) {
+      // 404 = the thread no longer exists in Gmail (deleted/purged). Retrying
+      // can never succeed; carrying it forward made the retry list grow
+      // forever (18 dead ids retried every 10 min by 2026-10-09). Let it go.
+      // An already-captured thought for it stays in the brain.
+      if (err.code === 404 || err.response?.status === 404) {
+        counts.gone++;
+        console.warn(`  gone: thread ${threadId} no longer exists in Gmail — dropped from retry`);
+        continue;
+      }
       counts.failed++;
       failedThreadIds.push(threadId);
       const cause = err.cause ? ` (cause: ${err.cause.code || err.cause.message || err.cause})` : '';

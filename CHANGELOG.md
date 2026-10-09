@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.47.4 — 2026-10-09
+
+**The Gmail retry list kept 18 deleted threads alive forever.** 0.42.0 carries failed threads into the next tick; a thread deleted in Gmail fails with 404 "Requested entity was not found" on every tick, so it never left the list — 16 → 18 ids, all retried every 10 minutes, every run logging `failed=18` (which also hid real failures). A 404 now counts as `gone`, is logged once and dropped. Any thought already captured from such a thread stays in the brain.
+
 ## 0.47.3 — 2026-10-09
 
 **Gmail threads stored the quoted history of every reply, plus signatures and link wrappers.** Since 0.45.0 the deterministic cleaner output is what gets stored, and on long Outlook-heavy threads half of it was noise: every reply carries a quoted copy of all earlier messages, and paragraph dedup missed the copies whenever Outlook re-wrapped them or rewrote links (`urldefense`, `safelinks`, `<mailto:…>`, signature images). Measured on two live 45- and 65-message ERSTE threads: 73k and 75k chars cleaned, ~52% and ~61% signatures/quoted headers/link noise.
