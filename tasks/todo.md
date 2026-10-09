@@ -47,7 +47,7 @@ A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`)
 - osztályzat: helyes / részleges / téves / tartózkodás;
 - a hivatkozás minőségét 0–2 skálán pontozzuk;
 - minden számot n/N formában, nevezővel közlünk.
-- [ ] **Kérdésbank** 40–60 kérdéssel, a meglévő 8 p8.2-es és ~14 `questions.yaml`-os kérdésre építve. Kategóriák a fejezet szerint: alias, pontos fájlnév, HU–EN parafrázis, régi döntés, mai állapot, hosszú levél vége, dosszié, vélemény vs. referencia, valóban hiányzó válasz. **Én jelölteket és javasolt helyes ID-ket adok; a helyes választ te hagyod jóvá.** Ez a te munkád, nem tudom kiváltani.
+- [~] **Kérdésbank-TERVEZET kész (2026-10-09): `tasks/evaluator/ch11-bank-2026-10.yaml`.** 55 új kérdés, seedelt, rétegzett korpuszmintából (nem keresési találatokból), plusz 7 p8.2 és 6 válaszszintű `questions.yaml` kérdés. Ebből 12 hosszú-meeting kérdés olyan részletre, amit ma egyetlen chunk sem fed le (a chunk-javítás előtt/után mérésére), 8 held-out. A rögzítéshez Robi jóváhagyása kell. A tervezett eredeti szöveg: **Kérdésbank** 40–60 kérdéssel, a meglévő 8 p8.2-es és ~14 `questions.yaml`-os kérdésre építve. Kategóriák a fejezet szerint: alias, pontos fájlnév, HU–EN parafrázis, régi döntés, mai állapot, hosszú levél vége, dosszié, vélemény vs. referencia, valóban hiányzó válasz. **Én jelölteket és javasolt helyes ID-ket adok; a helyes választ te hagyod jóvá.** Ez a te munkád, nem tudom kiváltani.
 - [ ] **Gépi mérések, gold nélkül:**
   - capture ack p95;
   - indexelési idő;
