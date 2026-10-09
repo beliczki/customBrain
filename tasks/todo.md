@@ -40,7 +40,11 @@ Két javítás jöhet szóba:
     - Utána backfill a 436 hosszú gondolatra, Sonnet-költséggel. Becslés előtte.
   - [x] **0.46.0 — megépítve:** sections + kódos vágás, `stop_reason`-őr, `scripts/rechunk-content.js` (csak tartalom-chunkok, ~$11 becslés 435 thoughtra a ~$60-as teljes reprocess helyett). ~~Döntés: ez a 3-as mérés (baseline) **előtt** vagy **után** jöjjön?~~ Javaslat: a baseline előtt mérjük meg (Hit@10 a hosszú-meeting kérdéseken), és csak utána javítsunk, hogy a hatás kimutatható legyen.
 - [x] 3 thoughton élesben újrachunkolva, ellenőrizve. A 102k-s Humanody-meeting 32 chunkot kapott, a korábban lefedetlen részlet most `bm25_exact` 1. találat. A promptba minimum szakaszméret került: egy 6k-s levélből 24 helyett 7 chunk lett.
-- [ ] **Teljes újrachunkolás (~432 thought, ~$11), Robi go-jára vár.**
+- [x] **Teljes újrachunkolás lefutott (2026-10-09, 0.47.1, Haiku 5.5 low): 421/421 OK, 0 hiba, 427 hívás, 3,80M input + 72k output token ≈ $0,42.**
+  - Utómérés ugyanazzal a scripttel: 441 hosszú gondolat, chunk nélküli 0 (korábban 47), olyan, amelynek a vége egyetlen chunkban sincs benne: **0 (korábban 156; Fireflies 0/139, korábban 104/128)**.
+  - A chunk/szöveg hossz-arány mediánja 60k felett 0,20 → 0,95. Az 1-nél kisebb arány oka, hogy a tárolt szövegben az összefoglaló is benne van.
+- [x] Reprocess modell-A/B: marad Sonnet 5.5 medium. A Haiku low hibázott a személyek kanonizálásán és a projektcímkézésen, a Haiku high hosszú átiraton 1–2 percig futott.
+- [ ] Névszűrő: ékezet- és sorrendfüggetlen egyezés (pl. „Kun Miklos” ↔ „Miklós Kun”). A Haiku-tesztben emiatt esett ki egy valódi résztvevő.
 - [ ] **ÚJ LELET:** a `search_brain` a találat TELJES szövegét adja vissza. limit=2 → 121 000 karakter, mert egy 107k-s átirat teljes egészében jön. A válaszban a `matched_chunk_text` már benne van. Javaslat: a teljes szöveg helyett összefoglaló + illeszkedő chunk, a többi a `get_thought` `from_line` lapozással. (Spec 5.2, korlátos kimenet.)
 - [ ] **Mellékmegfigyelés a 3-as méréshez:** a mai manuális capture-ök `total` ideje 33–43 másodperc, ebből `vault_ctx` 25–40 másodperc (pm2-log). A 11. fejezet célja: ack p95 ≤ 1 s. Ez lesz a mérés egyik első tétele.
 
