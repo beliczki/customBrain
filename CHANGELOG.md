@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.48.0 — 2026-10-09
+
+**`search_brain` could return more than an agent can read.** Each hit carried its full stored text; two hits came to 121k chars because one was a 107k-char meeting transcript, past the MCP client's tool-result limit — the agent received a file pointer instead of results. Now, on both MCP surfaces, a hit's full text is included only up to 8000 chars. A longer hit comes back as its stored `summary` (or a 2000-char `text_head` if it has none), the `matched_chunk_text` that explains why it matched, and `text_omitted {chars, lines, read_with}` pointing to `get_thought` paging. Short thoughts are unchanged on purpose — agents need the context; only the outliers are capped. The REST `/search` used by the UI is unchanged.
+
 ## 0.47.4 — 2026-10-09
 
 **The Gmail retry list kept 18 deleted threads alive forever.** 0.42.0 carries failed threads into the next tick; a thread deleted in Gmail fails with 404 "Requested entity was not found" on every tick, so it never left the list — 16 → 18 ids, all retried every 10 minutes, every run logging `failed=18` (which also hid real failures). A 404 now counts as `gone`, is logged once and dropped. Any thought already captured from such a thread stays in the brain.

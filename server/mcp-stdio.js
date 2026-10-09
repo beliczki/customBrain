@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { searchThoughts, searchThoughtsMulti } from './routes/search.js';
+import { searchThoughts, searchThoughtsMulti, forAgent } from './routes/search.js';
 import { getRecent, updateThought, getThoughtSlice } from './routes/recent.js';
 import { getStats } from './routes/stats.js';
 import { exportThoughts } from './routes/export.js';
@@ -44,7 +44,7 @@ server.tool(
 
 server.tool(
   'search_brain',
-  'Search your brain. Simple: pass query (hybrid dense+BM25, RRF-fused). Advanced: pass queries=[{type:"lex"|"vec",q}] to compose your own retrieval legs — lex is BM25-only (exact words, names, IDs), vec is dense-only (meaning, paraphrase) — fused server-side (RRF k=60). Every hit carries an evidence tag: exact_title | bm25_exact | high_dense | weak_semantic — WHY it surfaced, so you can weigh hits categorically instead of by raw score.',
+  'Search your brain. Simple: pass query (hybrid dense+BM25, RRF-fused). Advanced: pass queries=[{type:"lex"|"vec",q}] to compose your own retrieval legs — lex is BM25-only (exact words, names, IDs), vec is dense-only (meaning, paraphrase) — fused server-side (RRF k=60). Every hit carries an evidence tag: exact_title | bm25_exact | high_dense | weak_semantic — WHY it surfaced, so you can weigh hits categorically instead of by raw score. Hits longer than 8000 chars come back as summary + matched_chunk_text + text_omitted (page the full text with get_thought from_line/max_lines).',
   {
     query: z.string().optional().describe('Simple-mode query (required unless queries is set)'),
     limit: z.number().optional(),
@@ -60,7 +60,7 @@ server.tool(
     const results = queries?.length
       ? await searchThoughtsMulti(queries, limit ?? 5)
       : await searchThoughts(query, limit ?? 5);
-    return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+    return { content: [{ type: 'text', text: JSON.stringify(forAgent(results), null, 2) }] };
   }
 );
 

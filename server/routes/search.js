@@ -275,3 +275,35 @@ export async function searchThoughtsMulti(subQueries, limit = 5) {
   const decayed = applyTimeDecay(rolled);
   return decayed.slice(0, limit);
 }
+
+// MCP output shape (search_brain, both MCP surfaces). A hit's full text rides
+// along only up to AGENT_TEXT_MAX chars; a longer thought comes back as its
+// stored summary + the matched chunk + a pointer to page the rest with
+// get_thought. Measured 2026-10-09: two hits = 121k chars (one 107k-char
+// transcript), past the client's tool-result limit, so the agent got nothing
+// usable. Short thoughts are unchanged on purpose — agents need the context
+// (see the chunking-purpose memory); this caps only the outliers. The REST
+// /search (UI) keeps full text.
+export const AGENT_TEXT_MAX = 8000;
+const SUMMARY_SEP = '\n\n---\n\n';
+
+export function forAgent(results) {
+  return results.map((r) => {
+    const text = r.text || '';
+    if (text.length <= AGENT_TEXT_MAX) return r;
+    const { text: _omit, ...rest } = r;
+    const hasSummary = (r.has_v2_summary || r.has_auto_summary) && text.includes(SUMMARY_SEP);
+    return {
+      ...rest,
+      ...(hasSummary
+        ? { summary: text.slice(0, text.indexOf(SUMMARY_SEP)) }
+        : { text_head: text.slice(0, 2000) }),
+      text_omitted: {
+        chars: text.length,
+        lines: text.split('\n').length,
+        read_with: `get_thought(thought_id="${r.id}", from_line, max_lines) — page through the full text`,
+      },
+    };
+  });
+}
+
