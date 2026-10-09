@@ -20,7 +20,7 @@ function getOAuth2Client() {
 // 0.39.0 the OAuth2 client holds the full `drive` scope, so the SA is gone.
 // No fallback on purpose: a missing refresh token must fail loudly rather than
 // silently degrade to an identity that may not exist.
-function getDrive() {
+export function getDrive() {
   if (!process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
     throw new Error('GOOGLE_DRIVE_REFRESH_TOKEN is not set — Drive access unavailable');
   }

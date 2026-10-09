@@ -27,6 +27,7 @@ export const TOOL_SCOPES = {
   search_brain: 'brain-read',
   get_thought: 'brain-read',
   quick_lookup: 'brain-read',
+  find_files: 'brain-read', // reads state/files-catalog.json; no provider calls
   list_recent: 'brain-read',
   brain_stats: 'brain-read',
   find_overconnected: 'brain-read',
@@ -57,7 +58,7 @@ export function isValidScopeList(scopes) {
 
 /**
  * Restrict an McpServer to the given scopes by wrapping `server.tool` BEFORE any
- * registration runs. Call sites stay untouched, which is the point: the 22 tools
+ * registration runs. Call sites stay untouched, which is the point: the 23 tools
  * are registered across three files (mcp.js, mcp-stdio.js, agent/register.js),
  * and annotating each one would have to be done — and kept in sync — three times.
  *

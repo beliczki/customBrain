@@ -15,6 +15,7 @@ import { listThoughtsNeedingSummary, setThoughtTextWithSummary } from './routes/
 import { getAgenda } from './routes/agenda.js';
 import { runHealthCheck } from './brain-health.js';
 import { quickLookup } from './quick-lookup.js';
+import { findFiles } from './files-catalog.js';
 import { reindexDossiers } from './dossier-index.js';
 import { registerAgentTools } from '../agent/register.js';
 import { applyScopeGate } from './mcp-scopes.js';
@@ -99,6 +100,27 @@ server.tool(
   },
   async (args) => {
     const result = await quickLookup(args);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  'find_files',
+  'Find documents in the Files catalog: decks, docs, sheets, PDFs and markdown on Drive, plus the attachments of brain-captured Gmail threads. Metadata only (name, Drive path or Gmail thread, projects, direction, link) — no file contents. Use it for "where is the X deck?", "what did Y send us?", "which files belong to project Z?". Copies and re-exports of one document share variant_group. Filters combine; text filters are case- and accent-insensitive substrings. Page with offset/next_offset.',
+  {
+    query: z.string().optional().describe('Substring of file name or Drive path'),
+    project: z.string().optional(),
+    source: z.enum(['drive', 'gmail']).optional(),
+    kind: z.enum(['presentation', 'document', 'spreadsheet', 'pdf', 'markdown']).optional(),
+    direction: z.enum(['received', 'delivered']).optional().describe('Gmail attachments only'),
+    thread_id: z.string().optional().describe('Gmail thread id (= source_id of the gmail thought)'),
+    since: z.string().optional().describe('ISO date lower bound on modified (inclusive)'),
+    until: z.string().optional().describe('ISO date upper bound on modified (inclusive)'),
+    limit: z.number().optional().describe('Rows per page (default 25)'),
+    offset: z.number().optional(),
+  },
+  async (args) => {
+    const result = await findFiles(args);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );

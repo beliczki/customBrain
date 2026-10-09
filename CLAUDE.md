@@ -144,6 +144,8 @@ Route files export an Express router (default) and a named function for core log
 
 Core: `server/mcp.js` — `capture_thought`, `search_brain`, `list_recent`, `brain_stats`, `rebuild_obsidian_vault`.
 
+Files catalog (0.51.0): `find_files` reads `state/files-catalog.json` (`server/files-catalog.js`) — document-type files on My Drive + real attachments of `brain/captured` Gmail threads, metadata only. Built by hand on the server with `node scripts/build-files-catalog.js` (read-only against Drive/Gmail/Qdrant; writes the file only if every source was read completely). No cron yet.
+
 Brain-hygiene trio (also in `server/mcp.js`) — `find_overconnected` → `suggest_metadata_fix` → `update_thought`. Intended workflow: find thoughts linked via over-broad metadata (sorted by hub_score), ask Haiku for tighter metadata, then apply after user review. `update_thought` only touches metadata (people/projects/topics/title/action_items); text/source/timestamps are immutable.
 
 Agent: `agent/register.js` — `get_fireflies_transcripts`, `get_youtube_likes`, `get_gmail_threads`, `get_calendar_events`, `get_event_context`, `get_task_context`, `manage_drafts`. Each tool implemented in its own file under `agent/tools/` (e.g., `calendar.js`, `gmail.js`, `context.js`).

@@ -116,11 +116,20 @@ A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`)
   - Bizonytalan: a Google-natív fájlok (Docs/Sheets/Slides) a helyi `find`-ban nem jelennek meg külön kiterjesztéssel — a natív dokumentumok száma ebből nem látszik, Drive API-listázás kellene hozzá.
   - **Gmail:** `brain/captured` 181 szálából **142-ben van csatolmány** (1622 üzenet, ~672 MB, 2025-09-09 → 2026-10-09). A `has:attachment` az inline aláíráskép-eket is számolja, így a valódi dokumentum-csatolmányok száma ennél kevesebb. Típus a keresésből nem jön; szálanként `get_thread` vagy szerveroldali Gmail-API-listázás kellene.
   - Következmény a (a)/(b) kérdésre: 66k fájlra az 1 fájl = 1 `.md` (a) nem működik. → (b) katalógusfájl, vagy (a) csak egy szűk, dokumentum-típusú részhalmazra (pptx/docx/xlsx/pdf/md, archívumok és assetek nélkül).
-- [ ] Katalógus-terv: egy rekord = név, Drive-link / Gmail-szál, mime, méret, módosítás, projekt (mappából vagy szálból), irány, forrás. Nyitott, hova kerüljön:
-  - (a) generált `Files/` dossziék — a meglévő reindex kezeli őket, de 1 fájl = 1 .md, ami sok fájlnál zajos;
-  - (b) egy katalógusfájl, amit a `get_brain_ontology` olvas.
-  A leltár számai döntik el.
-- [ ] Katalógus-script megírása. A tartalom-kivonat ezen a ponton még NEM része. Referencia a brandBrain-ből: `extract.ts`, `page:N`/`slide:N` locatorok, sha256-os dedup.
+- [x] Katalógus-terv — **DÖNTÖTT (2026-10-09): (b) egy katalógusfájl**, csak dokumentum-típusokra. A terv:
+  - **Hol él:** `state/files-catalog.json` a szerveren (a futásidejű JSON-ok helye). Tartalom-kivonat, embedding, Qdrant-írás nincs.
+  - **Ki írja:** `scripts/build-files-catalog.js`, egyszeri, kézi futtatás a szerveren (ott van az OAuth-token; `applySettingsToEnv()` a dotenv után). Drive-ot és Gmailt csak olvas; egyetlen fájlt ír. Cron nem kell, amíg nem derül ki, hogy a katalógus elavul.
+  - **Drive:** egyetlen, lapozott `files.list` a teljes My Drive-ra (`nextPageToken`-ig, nem mappánként): `trashed=false`, `'me' in owners`, mime ∈ pptx/docx/xlsx/pdf/md + Google Docs/Sheets/Slides. A mappák külön, szintén lapozott listázással jönnek; ezekből áll össze a `path`. Kimarad: `_archive*`, `Archive`, `_customBrain` (a vault, már indexelt), `Colab Notebooks`.
+  - **Gmail:** `brain/captured` szálak → üzenetenként a csatolmány-partok (filename + attachmentId). Kimarad: inline part (`Content-ID`/`inline`), és ami nem dokumentum-mime. A szálhoz tartozó thought a `source_id = threadId`-n át köthető.
+  - **Rekord:** `id` (`drive:<fileId>` | `gmail:<msgId>:<partId>`), `name`, `source`, `link` (Drive `webViewLink` | Gmail szál-URL), `mime`, `size`, `modified`, `path`, `project`, `direction`, `from`, `thread_id`, `md5`, `variant_group`.
+  - **Projekt:** Drive-on a `Data/<ügyfélmappa>` első szintje, a Projects-dossziék nevére és aliasaira illesztve (`resolveAliases`, `server/names.js`). Gmailen a szál thought-jának `projects` mezője. Ha nincs egyezés: `null` — nem találgatunk fájlnévből.
+  - **Irány:** csak Gmailen (`from` = én → `delivered`, más → `received`); Drive-on `null`.
+  - **Változatok:** `variant_group` = normalizált név (`Copy of `, ` - 13 June, 11:29`-féle időbélyeg, `(1)`, dupla kiterjesztés `.xlsx.xlsx`, `.md.docx` levágva); azonos `md5` = pontos duplikátum. Összevonás nincs, csak csoportazonosító.
+  - **Nyitott:** ki olvassa (lent).
+- [x] **Olvasó: új `find_files` MCP tool** (Robi döntése, 2026-10-09) — `server/files-catalog.js`, mindkét regisztrációban, scope `brain-read`.
+- [x] Katalógus-script megírva (0.51.0): `scripts/build-files-catalog.js`. A tartalom-kivonat ezen a ponton még NEM része. Referencia a brandBrain-ből: `extract.ts`, `page:N`/`slide:N` locatorok, sha256-os dedup.
+- [ ] Első futtatás a szerveren + a számok ide; `find_files` valós hívás.
+- [ ] Döntés a számok után: mely fájlokból kell kivonat; kell-e cron a frissítéshez.
 
 ## 5. Gráfbővítés + bejárásos lekérdezés (spec: `docs/mcp-interview-es-grafbejaras-spec-2026-10-09.md`)
 A brandBrain-ből referenciaként átvehető (nem kód, hanem szerződés):
