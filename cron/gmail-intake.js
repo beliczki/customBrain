@@ -113,7 +113,9 @@ async function buildThreadText(thread) {
   const ordered = [...thread.messages].sort((a, b) =>
     Number(a.internalDate || 0) - Number(b.internalDate || 0)
   );
-  const bodies = ordered.map((m) => extractBody(m.payload)).filter(Boolean);
+  const bodies = ordered
+    .map((m) => ({ text: extractBody(m.payload), subject: getHeader(m.payload.headers, 'Subject') }))
+    .filter((b) => b.text);
   // Sender of the newest message in the thread — surfaced in the UI as "who
   // added the latest line". Was previously lost: only the first sender made it
   // into the header and the cleaner strips per-message From: lines.

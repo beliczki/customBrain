@@ -50,6 +50,21 @@ Két javítás jöhet szóba:
 
 > **DÖNTÖTT 2026-10-09: a 3-as mérés FÉLRETÉVE** (Robi: „bonyi, lassú”). Építünk, Robi használat közben jelzi a problémákat, és a kész felületet teszteli. A kérdésbank-tervezetek a `tasks/evaluator/` alatt maradnak, ha később kellenek. Új sorrend: 2(d) chunk-javítás → 6 stateless MCP → 4 Files-katalógus → 5a–5c gráf → 5f /dream.
 
+## 2e. Gmail-tisztítás — ✅ 0.47.3 (2026-10-09)
+- [x] Levelenként csak az új tartalom marad (vágás az első válasz-fejlécnél; a továbbított és inline válaszos levelek egészben maradnak), a linkeket a kód tisztítja, a To/Cc listák törlődnek. 8 éles szálon a szemét kb. 52–61%-ról kb. 2%-ra esett.
+- [ ] Döntés: a meglévő ~109 Gmail-szál újrahúzása az új tisztítóval. Ma a régiek Haiku-átírt, rövidített szöveget hordoznak. Költség: Haiku-osztályozás + embedding + Sonnet reprocess szálanként.
+
+## 7. Repo- és agent-session-logok a brainbe (Robi kérése, 2026-10-09) — TERV, nem kezdve
+Cél: mit csinált az agent, miről beszélgettünk, mit mondott, milyen roadmap-task született — Claude Code és Codex sessionökből is —, és mindez a brain-ontológiában legyen (repo → session → task → döntés).
+- **Visszakérdezés (globális szabály: új capture-út):** mi a legolcsóbb, ami a 80%-ot hozza?
+  - (a) Session-végi összefoglaló: egy Claude Code `SessionEnd`/`Stop` hook vagy szokás, ami `capture_thought`-tal elmenti, mit csinált a session. Új tárolás nem kell.
+  - (b) A nyers transcriptek (`~/.claude/projects/*/…jsonl`, Codex sessionök) teljes betöltése. Nagy, zajos, és titkokat is tartalmazhat.
+  - (c) A git log + CHANGELOG + ROADMAP mint repo-idővonal a `Repos/` dossziéhoz kötve.
+  Javaslat: (a) + (c), a (b) csak keresési forrásként, szűrve.
+- [ ] Források leltára: Claude Code transcript-formátum és -hely, Codex session-hely és -formátum; mennyi és mekkora.
+- [ ] Ontológia (5a-hoz): `repo`, `agent_session`, `task`, `decision` csomópont; élek: session → repo, session → task (létrehozta/lezárta), task → ROADMAP-tétel, commit → session.
+- [ ] Titokszűrés a betöltés előtt (tokenek, kulcsok a transcriptben).
+
 ## 3. A tanulmány 11. fejezetének mérése → `docs/custombrain-meres-2026-10.html`
 A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`):
 - a kérdéssort az eredmények **előtt** lezárjuk;

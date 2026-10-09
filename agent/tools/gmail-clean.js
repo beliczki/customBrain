@@ -18,6 +18,15 @@ export const BOILERPLATE_PATTERNS = [
   /view this (email|message) in your browser[\s\S]{0,200}/gi,
   // "-----Original Message-----" / "---------- Forwarded message ----------"
   /-{3,}\s*(original message|forwarded message|eredeti üzenet|továbbított üzenet)\s*-{3,}/gi,
+  // "Privileged/Confidential Information may be contained in this message…" —
+  // the first pattern needs "this message" BEFORE "confidential"; WPP's footer
+  // has it the other way round.
+  /(privileged|confidential)[^\n]{0,80}?this (e-?mail|message)[\s\S]{0,2000}?(?=\n\s*\n|$)/gi,
+  // Recipient lists in one-line Outlook headers ("*To:* … *Cc:* …", 600+ chars
+  // each, mostly inside forwards). From/Sent stay — who and when is context.
+  /\*?(To|Cc|Címzett|Másolat):\*?[^\n]*?(?=\s\*?(Cc|Subject|Tárgy|Másolat):|\n|$)/gi,
+  // Bare separator lines (Outlook's ____ above a quoted header, ---- rules).
+  /^[ \t]*[_=-]{10,}[ \t]*$/gm,
 ];
 
 // Lines that are reply/forward headers — strip them so the paragraph text below
@@ -62,6 +71,70 @@ function splitIntoParagraphs(text) {
     .split(/\n\s*\n+/)
     .map((p) => p.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim())
     .filter((p) => p.length > 0);
+}
+
+// Reply headers that start the quoted copy of earlier messages, in the shapes
+// seen in real threads (2026-10-09): Outlook "From: … / Sent: …" on two lines or one (also with
+// Hungarian dates), Gmail "On …, Name <addr> wrote:" (often wrapped onto a
+// second line), Hungarian Gmail "… ezt írta:", and "-----Original Message-----".
+const REPLY_HEADERS = [
+  /^[ \t>]*(From|Feladó):[^\n]*\n[ \t>]*(Sent|Date|Küldve|Elküldve|Dátum):/im,
+  // Outlook HTML rendered to text: the header block on ONE line, bold markers kept —
+  // "*From:* Anna Marjan <…> *Sent:* 2026. február 11., szerda 11:23 *To:* …"
+  /^[ \t>]*\*?(From|Feladó):\*?[^\n]{0,400}?\*?(Sent|Date|Küldve|Elküldve|Dátum):\*?/im,
+  /^[ \t>]*On\b[^\n]*(?:\n[^\n]*){0,2}?\bwrote:[ \t]*$/m,
+  /^[ \t>]*[^\n]{0,200}írta:[ \t]*$/m, // no \b: in a non-unicode regex 'í' is not a word char
+  /^[ \t>]*-{2,}\s*(Original Message|Eredeti üzenet)\s*-{2,}/im,
+];
+const FORWARD_MARKER = /(-{2,}\s*(Forwarded message|Továbbított üzenet)|Begin forwarded message)/i;
+const FORWARD_SUBJECT = /^\s*(fw|fwd|tov|továbbítás)\s*:/i;
+// "answers inline / in red below": the reply lives inside the quote, keep it.
+const INLINE_REPLY = /(inline|pirossal|kékkel|alább válaszol|lent válaszol|válaszaim lent|below in (red|blue)|see (my )?(answers|comments) below)/i;
+
+/**
+ * Keep only what a message adds: everything from its first reply header on is
+ * a copy of earlier messages, which the thread already contains. Until 0.47.3
+ * the copies stayed in and paragraph dedup was meant to remove them — but
+ * Outlook re-wraps quotes and rewrites links, so near-copies slipped through
+ * and a 45-message thread stored ~50% signatures, quoted headers and link
+ * wrappers. Forwards are left whole: their content exists nowhere else.
+ */
+export function newContentOfMessage(body, subject = '') {
+  if (FORWARD_SUBJECT.test(subject)) return body;
+  let cut = -1;
+  for (const re of REPLY_HEADERS) {
+    const m = body.match(re);
+    if (m && (cut === -1 || m.index < cut)) cut = m.index;
+  }
+  if (cut === -1) return body;
+  const fwd = body.search(FORWARD_MARKER);
+  if (fwd !== -1 && fwd < cut) return body;
+  if (INLINE_REPLY.test(body.slice(0, cut))) return body;
+  return body.slice(0, cut);
+}
+
+// Link noise: Outlook writes "label<url>" and "addr<mailto:addr>", security
+// gateways wrap URLs (urldefense, safelinks), signatures embed image URLs.
+// Real document links are content (Drive/Docs links feed the Files catalog):
+// unwrap them, keep them once.
+function unwrapUrl(url) {
+  const ud = url.match(/^https?:\/\/urldefense\.com\/v3\/__(.+?)__;/);
+  if (ud) return ud[1].replace(/^(https?):\/(?!\/)/, '$1://');
+  const sl = url.match(/^https?:\/\/[^/]*safelinks\.protection\.outlook\.com\/\?url=([^&]+)/);
+  if (sl) { try { return decodeURIComponent(sl[1]); } catch { return url; } }
+  return url;
+}
+
+export function cleanLinks(text) {
+  return text
+    .replace(/<mailto:[^>\s]*>/gi, '')
+    .replace(/\[(cid:[^\]]*|https?:\/\/[^\]\s]+\.(png|jpe?g|gif|svg)[^\]]*)\]/gi, '')
+    .replace(/[^\n]*reacted via Gmail[^\n]*/gi, '')
+    .replace(/https?:\/\/[^\s<>"\]]+/g, (u) => unwrapUrl(u))
+    // "label<url>": keep the url once, in parentheses, unless the label is the url
+    .replace(/(\S)<(https?:\/\/[^>\s]+)>/g, (m, pre, url) => `${pre} (${unwrapUrl(url)})`)
+    .replace(/<(https?:\/\/[^>\s]+)>/g, (m, url) => unwrapUrl(url))
+    .replace(/(https?:\/\/\S+) \(\1\)/g, '$1');
 }
 
 /**
@@ -155,8 +228,12 @@ ${cleaned}`;
  * text is always the deterministic dedup+regex output (or NO_CONTENT_MARKER).
  */
 export async function cleanEmailBody(input, { subject, from } = {}) {
-  const bodies = Array.isArray(input) ? input : [input];
-  const totalRawChars = bodies.reduce((n, b) => n + (b?.length || 0), 0);
+  // Items are message bodies (strings) or {text, subject}; each keeps only
+  // what it adds to the thread, with link noise removed.
+  const items = Array.isArray(input) ? input : [input];
+  const messages = items.map((it) => (typeof it === 'string' ? { text: it, subject: '' } : it));
+  const totalRawChars = messages.reduce((n, m) => n + (m.text?.length || 0), 0);
+  const bodies = messages.map(({ text, subject: s }) => cleanLinks(newContentOfMessage(text || '', s || '')));
 
   const deduped = dedupeAcrossThread(bodies);
   const afterRegex = applyRegexStrip(deduped);

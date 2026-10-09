@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.47.3 — 2026-10-09
+
+**Gmail threads stored the quoted history of every reply, plus signatures and link wrappers.** Since 0.45.0 the deterministic cleaner output is what gets stored, and on long Outlook-heavy threads half of it was noise: every reply carries a quoted copy of all earlier messages, and paragraph dedup missed the copies whenever Outlook re-wrapped them or rewrote links (`urldefense`, `safelinks`, `<mailto:…>`, signature images). Measured on two live 45- and 65-message ERSTE threads: 73k and 75k chars cleaned, ~52% and ~61% signatures/quoted headers/link noise.
+
+- **Each message keeps only what it adds** (`newContentOfMessage`): cut at the first reply header — Outlook `From:`/`Sent:` on two lines or one (`*From:* … *Sent:* …`, also with Hungarian dates), Gmail `On … wrote:` (wrapped too), Hungarian `… írta:`, `-----Original Message-----`. Everything after is a copy of messages the thread already has. Not cut: forwards (by `Fw:`/`Fwd:` subject or a forward marker before the header — their content exists nowhere else) and messages that announce inline answers.
+- **Links** (`cleanLinks`): security wrappers unwrapped to the real URL, `label<url>` kept once as `label (url)`, `<mailto:…>`, signature images and "reacted via Gmail" lines dropped. Document links are kept — they are content.
+- **Regex additions:** WPP-style "Privileged/Confidential … this message" footers, bare `____`/`----` separator lines, and To/Cc recipient lists in one-line headers (From/Sent stay as context).
+- Measured, read-only, on eight live threads (272 messages): 179k chars total, ~2% noise left by the same heuristic; the first content line of 251 of 253 messages is present. Stored threads change only when they next refresh.
+
 ## 0.47.2 — 2026-10-09
 
 **Real participants were dropped from `people` when the model wrote their name in a different order or without accents.** Alias resolution (duplicated in `metadata.js` and `reprocess-v2.js`) matched names by exact lowercase only, and the hallucination filter checked the text for the exact canonical spelling. In the reprocess A/B the model wrote "Kun Miklos" for the vault's "Miklos Kun", whose meetings say "Miklós Kun": unresolved, then rejected as "not in the text" — a real participant gone. Now one `nameKey` (accents stripped, lowercase, name parts sorted) in `server/names.js` drives a single shared `resolveAliases`, which also maps names spelled differently from a canonical person or project (the vault's people/project lists are passed in, not only the alias map); the verifier compares accent-insensitively, both name orders and every alias. Unknown names still pass through unchanged and absent people are still rejected.
