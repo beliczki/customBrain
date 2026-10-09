@@ -61,6 +61,13 @@ A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`)
     - **mai állapot** (a legfrissebb thoughtok + projekt-dosszié), forrásokkal.
     Robi csak javít, nem nulláról ír. A pontozás azt is nézi, hogy a válasz megkülönbözteti-e az akkorit a maival, és jelzi-e, ha egy forrásállítás téves vagy elavult.
   - A B réteg egyben a gráfbejárás (5. pont) baseline-ja: pont a projekt → szereplők → állapot-idővonal bejárását méri.
+- [~] **B réteg, 1. tervezet kész (2026-10-09): `tasks/evaluator/ch11-ctx-draft-2026-10-09.json`, átnézés: az artifact `ctx` gyűjteménye.**
+  - 20 friss mondat (2026-08-14 után): ERSTE termékenként 7 (Számlák, SZK, Vállalkozók, Hitelkártya, Market, Hitelek, Bird), plus ConfAI 3, Bizi 1, RMT OT 2, Humanody 2, ParlamentAI 1, Telekom 1, MM6 1, Nexus 1, és egy „besorolási csapda” (Grok Secretary, rosszul Bizinek címkézve).
+  - Gold-mezők: projekt, ügyfél, megszólaló, folyamatlépés, előtte, utána, prioritás, akkor, most. Három folyamat-taxonómia tervezete: ERSTE-kampány, fejlesztés, RMT. Robi javítja.
+  - **Mellékleletek a gráfbővítéshez:**
+    - (1) Hibás projektcímkék: a Grok Secretary naptár-thoughtok „Bizi”-ként vannak címkézve.
+    - (2) Az `effective_date` sok Gmail-thoughtnál a mentés vagy frissítés napja, nem az eseményé (pl. júniusi brief szept. 24-i dátummal), ezért ma az előtte/utána sorrend sem megbízható.
+    - (3) Folyamatlépés és prioritás egyáltalán nincs a modellben. Ezek a 5a-séma kötelező új elemei: `process`/`step` típus és `priority` mező.
 - [ ] **Gépi mérések, gold nélkül:**
   - capture ack p95;
   - indexelési idő;

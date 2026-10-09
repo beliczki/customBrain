@@ -1,0 +1,497 @@
+{
+ "items": [
+  {
+   "id": "ctx-01",
+   "order": 0,
+   "group": "ERSTE Számlák",
+   "anchor": "Állítsátok le ezt a kreatívot mindenhol. … A többi always-on diák krea mehet tovább, csak ezzel volt baj. Illetve hónap végéig adjuk még a körvonal kártyát is, így a fókusz krea is mehet.",
+   "anchor_source": "dfaf5bc8-0eee-4f0f-be3c-b225c6b76f34",
+   "gold": {
+    "projekt": "ERSTE Számlák — Diákszámla (always-on)",
+    "ugyfel": "Erste Bank (WPP Media médiával)",
+    "megszolalo": "Brunner Csaba (ERSTE), a kérdező Norbert Vincze (WPP PPC)",
+    "folyamat": "ERSTE kampány-életciklus: 9. karbantartás / leállítás (élő kampányban egy kreatív leállítása)",
+    "elotte": "2026-09-16 DCO kreatív optimalizációs meeting: teljesítmény-átnézés a kreatívokon",
+    "utana": "Október 1-től változó számlaajánlatok (Brunner, 09-29)",
+    "prioritas": "magas — azonnali leállítás „mindenhol”",
+    "akkor": "Diák always-on fut; egy kreatívval baj volt (az ok nincs a levélben)",
+    "most": "Október 1-től ajánlatváltás a számlákon",
+    "kerdes_robinak": "Mi volt a baj azzal a kreatívval? Ha nem tudod, maradjon „nem derül ki”."
+   },
+   "gold_sources": [
+    "dfaf5bc8-0eee-4f0f-be3c-b225c6b76f34",
+    "b1d9c3ae-3cb9-498d-b961-f9b88e6fbb80",
+    "3bc6e6fb-3e7e-4f57-8a27-472e946f5d69"
+   ]
+  },
+  {
+   "id": "ctx-02",
+   "order": 1,
+   "group": "ERSTE Személyi kölcsön",
+   "anchor": "Tervek másnap/azután, jóváhagyást ezen a héten vár, produkciót péntek előtt (madár-projekt előtt) reméli teljesíteni.",
+   "anchor_source": "f8af902b-4092-42b4-bb3f-4c6471b3d2d1",
+   "gold": {
+    "projekt": "ERSTE Személyi kölcsön (SZK) — kamatcsökkentős kreatív",
+    "ugyfel": "Erste Bank",
+    "megszolalo": "Beliczki Róbert (Varfi Tamás kérésére válaszolva)",
+    "folyamat": "ERSTE kampány-életciklus: 2. prioritizálás → 3. koncepció (a közös prioritáskezelő prezentáció szerint 5. hely)",
+    "elotte": "SZK THM-frissítés szept. 21-i hatállyal (reprezentatív THM 13,17%)",
+    "utana": "Varfi jóváhagyta a tervet („Szuper, köszi, lehet mutatni”); a kampány a következő hét elején induljon",
+    "prioritas": "közepes — 5. a sorban; a madár (Bird) kampány elsőbbséget élvez",
+    "akkor": "Igény + specifikáció (invertált szöveg, THM félkövér, nagyító-képötlet, max. 3 verzió)",
+    "most": "Nincs újabb SZK-thought szept. 25. után",
+    "kerdes_robinak": "Elkészült és elindult a kamatcsökkentős krea?"
+   },
+   "gold_sources": [
+    "f8af902b-4092-42b4-bb3f-4c6471b3d2d1",
+    "2696b338-15fe-4ed3-9dfe-aaf2a34c7680"
+   ]
+  },
+  {
+   "id": "ctx-03",
+   "order": 2,
+   "group": "ERSTE Vállakozók",
+   "anchor": "Brunner Csaba az üzlet kérését közvetíti: a Teya-kommunikáció legyen emberközelibb, üzletkategóriákhoz kötött. Példák: kisboltos és pék. Konkrét cselekvés: a pék odanyújtja a terminált, és fizetnek vele.",
+   "anchor_source": "fc76eb52-64d9-4e55-b714-ab5c56e2cccd",
+   "gold": {
+    "projekt": "ERSTE Vállalkozók (VAL) — Mikró / Teya POS kártyaelfogadás",
+    "ugyfel": "Erste Bank (Teya termék, Erste közvetítő)",
+    "megszolalo": "Brunner Csaba (az üzlet kérését közvetíti); kontakt: Porkoláb Dávid",
+    "folyamat": "ERSTE kampány-életciklus: 1. igény/brief → 3. koncepció (emberes, üzletkategóriás kreatívok)",
+    "elotte": "Április 9-i Teya brief (akár 80% a Go terminálra); májusi DCO státusz, ahol a jelenet elhangzott",
+    "utana": "Szept. 21: Teya kártyaelfogadás perszonalizációk elküldve; WMH társasházi banner brief",
+    "prioritas": "közepes",
+    "akkor": "Az üzlet ismételten kéri az emberközelibb Teya-kommunikációt",
+    "most": "Szept. 21-én a perszonalizált Teya-kreatívok elmentek",
+    "kerdes_robinak": "Élesek már az emberes Teya-kreatívok?"
+   },
+   "gold_sources": [
+    "fc76eb52-64d9-4e55-b714-ab5c56e2cccd",
+    "79f3cc38-9389-4499-a9ff-e2ac6820abee",
+    "9bdb648d-a200-4057-862f-876b5b9dbcc6"
+   ]
+  },
+  {
+   "id": "ctx-04",
+   "order": 3,
+   "group": "ERSTE Hitelkártya",
+   "anchor": "A WizzAir co-branded hitelkártya TikTok videójának végén szereplő THM értéket frissíteni kell 44,66%-ról 44,49%-ra, mivel az aktuális THM megváltozott.",
+   "anchor_source": "3bea197e-d39f-4d55-a7d6-68492d6b94a8",
+   "gold": {
+    "projekt": "ERSTE Hitelkártya — WizzAir co-branded (másodlagos a Max mellett)",
+    "ugyfel": "Erste Bank",
+    "megszolalo": "Brunner Csaba (ERSTE) → Róbert",
+    "folyamat": "ERSTE kampány-életciklus: 9. karbantartás (jogi megfelelés: THM-frissítés élő anyagon)",
+    "elotte": "Aug. 28: Easypay kampány indítása a hitelkártya always-on kampányokhoz (HK Wizz & Max)",
+    "utana": "—",
+    "prioritas": "magas — jogi megfelelés, élő hirdetés",
+    "akkor": "TikTok-videó fut a régi THM-mel",
+    "most": "Okt. 8-i kérés; teljesítés nincs rögzítve",
+    "kerdes_robinak": "Kicserélted már?"
+   },
+   "gold_sources": [
+    "3bea197e-d39f-4d55-a7d6-68492d6b94a8",
+    "79710d40-3771-4aa6-9c80-d33987c1727a"
+   ]
+  },
+  {
+   "id": "ctx-05",
+   "order": 4,
+   "group": "ERSTE Market",
+   "anchor": "Síelős kampány csak novembertől induljon. … Paraméterek: param=si param=jacuzzi param=erdo",
+   "anchor_source": "341fe878-254e-4dd6-ab96-8aada2e21179",
+   "gold": {
+    "projekt": "ERSTE Market — Vagyonkezelés őszi-téli kreatívok (a World affluens kampánnyal összefüggésben)",
+    "ugyfel": "Erste Bank (Market / Vagyonkezelés)",
+    "megszolalo": "Beliczki Róbert; kérés: Varfi Tamás; landing-kérdés: Krisztián Simon (WPP)",
+    "folyamat": "ERSTE kampány-életciklus: 4. gyártás → 6. leadás (landing paraméterek, hero-képek)",
+    "elotte": "Szept. 11: Vagyonkezelés remarketing kreatívok elküldve (MessagingMatrix share link)",
+    "utana": "Okt. 8: Varfi új vagyonkezelés-kreatívot kér („Vagyon, amit együtt gyarapítunk”); World affluens kampány",
+    "prioritas": "közepes — a síelős vonal csak novembertől",
+    "akkor": "Őszi és téli kreatívok gyártása, paraméterezett landing",
+    "most": "Okt. 8-án új kreatívkérés érkezett",
+    "kerdes_robinak": "A Market és a World affluens egy projekt vagy kettő?"
+   },
+   "gold_sources": [
+    "341fe878-254e-4dd6-ab96-8aada2e21179",
+    "c003ced5-c87d-4cb6-9d36-bec117e6831e",
+    "7578f88c-402b-4556-b40c-4ed715e257d7",
+    "df16de42-ee59-4663-acf3-d8732f80e934"
+   ]
+  },
+  {
+   "id": "ctx-06",
+   "order": 5,
+   "group": "ERSTE Hitelek",
+   "anchor": "Új üzenetek bevezetése: „igényeld a régi feltételekkel”, „igényeld, amíg még elérhető”, „Ne maradj le róla”.",
+   "anchor_source": "aae5d5fc-c2fb-468a-a733-41d4c05de9b4",
+   "gold": {
+    "projekt": "ERSTE Hitelek — Otthon Start Program (OSP), várható feltételszigorítás",
+    "ugyfel": "Erste Bank",
+    "megszolalo": "Varfi Tamás (ERSTE); szöveg: Norbi (WPP); kreatív: Róbert",
+    "folyamat": "ERSTE kampány-életciklus: 3. üzenet/copy → 5. jogi jóváhagyás → 4. kreatív (2–3 db)",
+    "elotte": "Jelzálog kampány döntések (április); jelzálog natív kreatív (május)",
+    "utana": "Szept. 30: lakáshitel krea + 10 mp-es videók kérés; okt. 8: jelzálog Meta-kampány indul, kreatívrotációval",
+    "prioritas": "magas — időkritikus (szigorítás előtti „ne maradj le”)",
+    "akkor": "Aug. 13–szept. 8: copy-k készülnek, jogi jóváhagyás kisebb módosításokkal",
+    "most": "Okt. 8: jelzálog Meta indul, további kreatívok rotálva",
+    "kerdes_robinak": "Megtörtént azóta az OSP-szigorítás?"
+   },
+   "gold_sources": [
+    "aae5d5fc-c2fb-468a-a733-41d4c05de9b4",
+    "cba103c6-6949-4492-a9fa-f42d650b0bfc",
+    "906d14d5-4e36-499e-8538-103617d905e4"
+   ]
+  },
+  {
+   "id": "ctx-07",
+   "order": 6,
+   "group": "ERSTE (átfogó)",
+   "anchor": "A fő KV-nk igazából jóvá lett hagyva, készülhetnek a mutációk.",
+   "anchor_source": "6f172378-7dbf-4371-9e05-0eb33202cca9",
+   "gold": {
+    "projekt": "ERSTE — Bird („madár”) fókuszkampány, digitális mutációk",
+    "ugyfel": "Erste Bank",
+    "megszolalo": "Brunner Csaba (ERSTE)",
+    "folyamat": "ERSTE kampány-életciklus: 5. KV-jóváhagyás → 4. mutációk gyártása",
+    "elotte": "Szept. 30 DCO státusz: statikus vs. videós bannerek, AI-jelölés, After Effects forrás",
+    "utana": "Okt. 5: külön vállalati Bird fókuszkampány-szál",
+    "prioritas": "magas — a madár elsőbbséget élvez (az SZK-krea is mögé sorolódott)",
+    "akkor": "KV jóváhagyva, mutációk indulnak",
+    "most": "Vállalati Bird szál is fut",
+    "kerdes_robinak": "Kész a mutációk zöme?"
+   },
+   "gold_sources": [
+    "6f172378-7dbf-4371-9e05-0eb33202cca9",
+    "bf44283a-7cc5-4fb5-9bb3-75b8808337c5",
+    "766eff49-b8a0-4d87-b22a-d5af1b68b27f"
+   ]
+  },
+  {
+   "id": "ctx-08",
+   "order": 7,
+   "group": "ConfAI",
+   "anchor": "A H!NT-map modul funkciója: nagy mennyiségű konferencia-szöveget elemez, azonosítja a domináns szemantikai csomópontokat, visszakódolja azokat a teljes előadásszöveg-adatbázisra, és gráfként jeleníti meg.",
+   "anchor_source": "a17e3b0e-8421-4b60-b29e-438dbc53321f",
+   "gold": {
+    "projekt": "ConfAI (Telekom) — H!NT-map gráfmodul az Internet Hungary-ra; metodológia: Humanody",
+    "ugyfel": "Magyar Telekom (BrandComms); Humanody alvállalkozó",
+    "megszolalo": "Kun Miklós (Humanody), szept. 15-i e-mail",
+    "folyamat": "Fejlesztési projekt-életciklus: B. megállapodás/keret (scope-szűkítés: csak H!NT-map a ConfAI-on belül)",
+    "elotte": "Szept. 14: HintMap konferencia-integráció meeting (Robi–Miki–Balázs)",
+    "utana": "Szept. 23: Humanody gráfozó fejlesztés; okt. 6–7. IH éles futás; okt. 8: költség-átadás Humanodynak",
+    "prioritas": "magas — az IH éles futás előfeltétele",
+    "akkor": "Keretmegállapodás: Grafia fővállalkozó, Humanody alvállalkozó",
+    "most": "IH lezajlott (okt. 6–7.); az LLM-költségek és a hosting okt. végéig átkerülnek a Humanodyhoz"
+   },
+   "gold_sources": [
+    "a17e3b0e-8421-4b60-b29e-438dbc53321f",
+    "f5dbbd84-4609-43b6-ae9d-780f8ea9d22d",
+    "a467d1bf-b4a9-4eda-b176-99f6dc432cf3"
+   ]
+  },
+  {
+   "id": "ctx-09",
+   "order": 8,
+   "group": "ConfAI",
+   "anchor": "Recommended activities: analyze program using ConfAI for session recommendations; follow multiple rooms in parallel via live maps on stand and phone; discuss opinions in ConfAI chat during and after conference.",
+   "anchor_source": "ce2ea175-77ef-4f24-bcc3-05bd4795faba",
+   "gold": {
+    "projekt": "ConfAI — Internet Hungary megjelenés (Telekom stand)",
+    "ugyfel": "Magyar Telekom",
+    "megszolalo": "Beliczki Róbert javaslata; jóváhagyta Barta Attila",
+    "folyamat": "Fejlesztési projekt-életciklus: F. élesítés/esemény-előkészítés (aktivációs terv, promóciós videószöveg)",
+    "elotte": "Aug. 28: DHK-esemény előkészítése (Barta Attila)",
+    "utana": "Szept. 26: DHK/IH programzárás és panel; okt. 7: ConfAI wrap-up, jelentéstérképek és bejelentkezés javítása",
+    "prioritas": "magas",
+    "akkor": "Aug. 31-i egyeztetés: termek, felvételi idők, aktivációs javaslat",
+    "most": "Esemény lezajlott; wrap-up okt. 7-én"
+   },
+   "gold_sources": [
+    "ce2ea175-77ef-4f24-bcc3-05bd4795faba",
+    "cee2f778-6a08-493c-b1f0-61af32bb32c4",
+    "c1eef2fb-ccff-4ac3-9300-3d44165ac6aa"
+   ]
+  },
+  {
+   "id": "ctx-10",
+   "order": 9,
+   "group": "ConfAI / Humanody",
+   "anchor": "Szóval, kellene egy humanody-navi nevű git repo, amiben hárman dolgoznak: Balázs, Miki és Róbert.",
+   "anchor_source": "fee3c106-04c1-48d8-b0a5-e6be2aeae213",
+   "gold": {
+    "projekt": "Humanody Navi — ConfAI use case prototípus (DHK-adatból, IH-ra)",
+    "ugyfel": "Humanody–Grafia közös; felhasználás: ConfAI (Telekom)",
+    "megszolalo": "Beliczki Róbert (szept. 12-i e-mail)",
+    "folyamat": "Fejlesztési projekt-életciklus: C. spec/munkamegosztás → D. fejlesztés",
+    "elotte": "Szept. 9: AI fejlesztések check-in (bizonyítékok gráfja, márkatuning)",
+    "utana": "Szept. 14: HintMap integráció meeting; HINT-ökoszisztéma szintézis",
+    "prioritas": "magas — IH határidő (okt. 6–7.)",
+    "akkor": "Szerepek: Balázs mérnöki belső, Róbert UI/API, Miki koncepció",
+    "most": "Az IH-n élesben futott; a költség- és tulajdonviszonyok rendezése folyik"
+   },
+   "gold_sources": [
+    "fee3c106-04c1-48d8-b0a5-e6be2aeae213",
+    "fb72455b-f4dd-4e61-8a7c-883083516f66",
+    "a467d1bf-b4a9-4eda-b176-99f6dc432cf3"
+   ]
+  },
+  {
+   "id": "ctx-11",
+   "order": 10,
+   "group": "Bizi",
+   "anchor": "Open: Daszi stability freeze around Nov 2 campaign launch; possible proactive security content box feature.",
+   "anchor_source": "b8505112-f7b9-49a9-9dcb-2004f9763421",
+   "gold": {
+    "projekt": "Bizi / Dasszisztens (Daszi) — B2B őszi kampány, Norton 360",
+    "ugyfel": "Magyar Telekom (B2B)",
+    "megszolalo": "Kristály Hajnalka (Telekom), Hollósi Istvánnak és László Lizának",
+    "folyamat": "Fejlesztési projekt-életciklus: G. üzemeltetés/kampánytámogatás (stabilitási befagyasztás) + új funkcióötlet (A. igény)",
+    "elotte": "Okt. 7: kampányos vonal szinkron; Hollósi e-mail a B2B kampányról és a ParlamentAI-ról",
+    "utana": "Okt. 8: Liza és Hajnalka átnézte a listát; okt. 9: a Daszi B2B kampány + Norton 360 meeting átütemezve",
+    "prioritas": "magas — nov. 2-i kampányindulás, nincs karbantartás/kísérletezés körülötte",
+    "akkor": "A „C fonál” fejlesztés előtt döntés kell; proaktív biztonsági tartalom ötlete",
+    "most": "Meeting átütemezve okt. 9-ről"
+   },
+   "gold_sources": [
+    "b8505112-f7b9-49a9-9dcb-2004f9763421",
+    "71cb7856-7aee-4b27-96b8-e19874f2e7dc",
+    "e0135332-91dc-4c19-ac3f-99edffcf5d19"
+   ]
+  },
+  {
+   "id": "ctx-12",
+   "order": 11,
+   "group": "Grok Secretary (besorolási csapda)",
+   "anchor": "Slip detector: csak akkor jelezzen, ha egy fontos, Róbertnek assignált ERSTE vagy Telekom teendőre 24 órán belül nem érkezett válasz, naptármozgatás vagy Brain-close jel. Csend = minden rendben.",
+   "anchor_source": "45cf21d6-9110-47e1-a06a-81913e087ff4",
+   "gold": {
+    "projekt": "Saját stack — Grok Secretary / Chief of Staff működési szabályok (NEM Bizi)",
+    "ugyfel": "saját (Grafia OS)",
+    "megszolalo": "Róbert preferenciái, szintézis-note",
+    "folyamat": "Fejlesztési projekt-életciklus: C. működési spec",
+    "elotte": "—",
+    "utana": "Szept. 29-től napi Grok Secretary naptár-delta riportok",
+    "prioritas": "közepes",
+    "akkor": "CoS: nincs reggeli brief, csak slip detector",
+    "most": "Tesztfázisban napi kétszeri naptárfigyelés fut",
+    "megjegyzes": "A brainben ma tévesen „Bizi” projektre van címkézve, ahogy több naptár-delta thought is. Ez a kérdés azt méri, észreveszi-e a brain a rossz besorolást."
+   },
+   "gold_sources": [
+    "45cf21d6-9110-47e1-a06a-81913e087ff4",
+    "3db77154-dc1a-46d7-a994-91dc0dea67d0"
+   ]
+  },
+  {
+   "id": "ctx-13",
+   "order": 12,
+   "group": "RMT Országtuning",
+   "anchor": "~90% bizonytalan település; fixálás leghamarabb október 2. Nagy települések nincsenek benne → pool-ból válogatás, max őszi skin. BB alig; főleg CLP, indoor, inshop.",
+   "anchor_source": "2ae27062-6145-4e1d-8963-6b74481c0fb4",
+   "gold": {
+    "projekt": "RMT Országtuning — novemberi településlista",
+    "ugyfel": "Magyar Telekom (regionális kommunikáció)",
+    "megszolalo": "Sipos Alexandra (Telekom) listája alapján, Róbert összefoglalója",
+    "folyamat": "RMT-ciklus: települési lista → kreatív → jóváhagyás → gyártás → kihelyezés; itt: lista-fixálás előtt",
+    "elotte": "Szept. 26: település- és felületmix korrekció",
+    "utana": "Okt. 7: Sé és Balatonszárszó kreatívok; okt. 8: novemberi kreatívok frissítve; okt. 9: Sipos végső OK",
+    "prioritas": "magas — havi kihelyezési ciklus",
+    "akkor": "A lista 90%-ban bizonytalan, fix okt. 2.",
+    "most": "Okt. 9: a novemberi prezentáció végleg jóváhagyva"
+   },
+   "gold_sources": [
+    "2ae27062-6145-4e1d-8963-6b74481c0fb4",
+    "8a8c3373-6398-46c7-87f5-4d1b063ae8df",
+    "ddd99219-f337-4507-abe4-001f0f9c05f1"
+   ]
+  },
+  {
+   "id": "ctx-14",
+   "order": 13,
+   "group": "RMT Országtuning",
+   "anchor": "OOH szabályozás FYI: közterületi reklám végrehajtási rendelet tervezet — okt 1-től szűkül a klasszikus billboard inventory; irány: jogszerű lokációk, utcabútor/transit/citylight, digitalizálható inventory.",
+   "anchor_source": "2ae27062-6145-4e1d-8963-6b74481c0fb4",
+   "gold": {
+    "projekt": "RMT Országtuning — felületmix / Digital RMT irány",
+    "ugyfel": "Magyar Telekom",
+    "megszolalo": "Sipos Alexandra (FYI, szept. 21.)",
+    "folyamat": "RMT-ciklus: tervezés (felületmix) → stratégia: Digital RMT 2027 WIP deck",
+    "elotte": "—",
+    "utana": "Digital RMT WIP deck (digital primes → ATL hits → digital recapture), indítás 2026 végén",
+    "prioritas": "közepes — stratégiai; a novemberi listát is érinti (BB alig)",
+    "akkor": "Rendelettervezet; billboard szűkül",
+    "most": "Novemberi kreatívok jóváhagyva; a Digital RMT indítása egyeztetés alatt",
+    "kerdes_robinak": "Elfogadták azóta a rendeletet?"
+   },
+   "gold_sources": [
+    "2ae27062-6145-4e1d-8963-6b74481c0fb4"
+   ]
+  },
+  {
+   "id": "ctx-15",
+   "order": 14,
+   "group": "Humanody",
+   "anchor": "humanody.beliczki.hu hosting, database, token costs and control to transfer to humanody.com and Humanody company by end of October.",
+   "anchor_source": "a467d1bf-b4a9-4eda-b176-99f6dc432cf3",
+   "gold": {
+    "projekt": "Humanody — LLM-költség és infrastruktúra-átadás (ConfAI után)",
+    "ugyfel": "Humanody (Kun Miklós); érintett: Telekom/ConfAI",
+    "megszolalo": "Beliczki Róbert (okt. 8-i e-mail)",
+    "folyamat": "Fejlesztési projekt-életciklus: H. utóélet/átadás",
+    "elotte": "Okt. 7: H!NT-map modelltanulmány; okt. 8: H!NT-uition inputoló modul terve",
+    "utana": "Nyitott: Humanody charter jogi review; a további funkciók tulajdon- és pénzügyi keretének egyeztetése",
+    "prioritas": "magas — okt. végi határidő, pénzügyi",
+    "akkor": "A költségek most Róbertnél; átadás okt. végéig",
+    "most": "Ugyanaz (okt. 9.)"
+   },
+   "gold_sources": [
+    "a467d1bf-b4a9-4eda-b176-99f6dc432cf3",
+    "e4e2bf0d-fd76-4961-ad8a-6e7f6b28cfd2",
+    "08fc8c4d-1966-4731-91af-59d8855fc0a7"
+   ]
+  },
+  {
+   "id": "ctx-16",
+   "order": 15,
+   "group": "Humanody",
+   "anchor": "Balázskának a meggyőződésesség … conviction scoring-ja. Tehát, hogy az bent van az új matek.",
+   "anchor_source": "1f18daaa-240c-48b0-8e66-b8dd09e15c6d",
+   "gold": {
+    "projekt": "Humanody — HintMap fejlesztés (conviction scoring, érzelmi diagnosztika)",
+    "ugyfel": "Humanody (ConfAI-felhasználással)",
+    "megszolalo": "Beliczki Róbert, Kun Miklósnak (szept. 28-i fejlesztési napló)",
+    "folyamat": "Fejlesztési projekt-életciklus: D. fejlesztés → E. review",
+    "elotte": "Szept. 26: hintmap.humanody fejlesztési áttekintés",
+    "utana": "Szept. 28: hierarchikus klaszterezés megbeszélés (Miki, Balázs, Róbert)",
+    "prioritas": "közepes",
+    "akkor": "Az új conviction-matek bent van; a medián 6-os érték",
+    "most": "Okt. 7: modelltanulmány; költség-átadás folyamatban"
+   },
+   "gold_sources": [
+    "1f18daaa-240c-48b0-8e66-b8dd09e15c6d",
+    "69cbf0d4-f89e-4691-b516-fe6695982b62"
+   ]
+  },
+  {
+   "id": "ctx-17",
+   "order": 16,
+   "group": "ParlementAI",
+   "anchor": "Hollósi elment a Telekom jogászaihoz: jogi szempontból meddig vihető el a ParlamentAI koncepció konkrétumok nélkül, és vannak-e korai red flag-ek, amelyek miatt nem érdemes elkezdeni a fejlesztést.",
+   "anchor_source": "7bccf01a-fd2d-4d3e-9fac-c13b1136c2c1",
+   "gold": {
+    "projekt": "ParlamentAI (Telekom AI Mesh)",
+    "ugyfel": "Magyar Telekom",
+    "megszolalo": "Hollósi István (Telekom)",
+    "folyamat": "Fejlesztési projekt-életciklus: B. megállapodás/keret — jogi előszűrés fejlesztés előtt",
+    "elotte": "Aug. 7 és szept. 11: jogi és funkcionális szinkronok",
+    "utana": "Okt. 9 délután: ParlamentAI Teams-sync",
+    "prioritas": "magas — go/no-go előfeltétel",
+    "akkor": "Jogi pre-gondolkodás indult",
+    "most": "Okt. 9-i sync után"
+   },
+   "gold_sources": [
+    "7bccf01a-fd2d-4d3e-9fac-c13b1136c2c1",
+    "7277107f-42bc-4941-93c2-8718dcd36cb8",
+    "8a4c4a9d-853c-4ace-8ed0-238bce3feba0"
+   ]
+  },
+  {
+   "id": "ctx-18",
+   "order": 17,
+   "group": "Telekom (AI produkció)",
+   "anchor": "Molnár Zsombor megosztotta: https://fal.ai/h3-max-director — continuous video stream directed as it generates.",
+   "anchor_source": "c17ed626-5208-4af6-8dbb-267f5e0423d6",
+   "gold": {
+    "projekt": "Telekom — AI videógyártás (Katona × Telekom); kapcsolódik: ArtAI",
+    "ugyfel": "Magyar Telekom",
+    "megszolalo": "Molnár Zsombor",
+    "folyamat": "Felderítés/eszközmegosztás (nem projektlépés)",
+    "elotte": "—",
+    "utana": "—",
+    "prioritas": "alacsony — referencia",
+    "akkor": "Szept. 14-i tool-share",
+    "most": "—",
+    "kerdes_robinak": "Lett ebből munka? Ha nem, ez jó példa egy alacsony prioritású elemre."
+   },
+   "gold_sources": [
+    "c17ed626-5208-4af6-8dbb-267f5e0423d6"
+   ]
+  },
+  {
+   "id": "ctx-19",
+   "order": 18,
+   "group": "Messaging matrix",
+   "anchor": "PMMID = generált globális azonosító, ami kimegy a hirdetési rendszerbe és visszajön a riportban.",
+   "anchor_source": "6da7f5d6-43be-4537-a67f-58c3afe335eb",
+   "gold": {
+    "projekt": "Messaging Matrix v6 (MM6) — elsősorban ERSTE-hez (~7 termékvonal)",
+    "ugyfel": "ERSTE (fő felhasználó); saját termék",
+    "megszolalo": "Róbert, állapot- és képességtérkép (szept. 3., v6.39.0)",
+    "folyamat": "Fejlesztési projekt-életciklus: C. dokumentáció/állapotfelmérés (1. csomag; a 2. csomag az ERSTE workflow-terv)",
+    "elotte": "Júl. 27: ERSTE MCP-engedélyezési kérés (Varfi)",
+    "utana": "Szept. 26: MM6 Telekom-nómenklatúra (a v5 kivezetve)",
+    "prioritas": "magas — az ERSTE-szállítás infrastruktúrája",
+    "akkor": "MM6 v6.39.0, ERSTE workflow-terv tervezés alatt",
+    "most": "A v5 kivezetve; MM6 a kanonikus",
+    "kerdes_robinak": "Elkészült a 2. csomag (ERSTE workflow-terv)?"
+   },
+   "gold_sources": [
+    "6da7f5d6-43be-4537-a67f-58c3afe335eb",
+    "c883b690-acba-4bbb-a0a8-91c115b0d5b1",
+    "347f699f-3b5c-498d-ad2a-0998b03d0b31"
+   ]
+  },
+  {
+   "id": "ctx-20",
+   "order": 19,
+   "group": "Nexus / BrandBrain",
+   "anchor": "A gráfképzésnek a próbálkozásai azért van rajta a nepen, mert a konferencián azt képzünk gráfokat, azok a Brandbrain-ben már újra hasznosíthatóak kéne, hogy legyenek.",
+   "anchor_source": "e5323cac-5d48-4757-a7ee-07a9f99c42c9",
+   "gold": {
+    "projekt": "Telekom Nexus / BrandBrain — a ConfAI-gráfok újrahasznosítása",
+    "ugyfel": "Magyar Telekom (BrandComms)",
+    "megszolalo": "Beliczki Róbert, Barta Attilának (szept. 15-i meeting)",
+    "folyamat": "Fejlesztési projekt-életciklus: A. koncepció/architektúra (Nexus ↔ ConfAI ↔ BrandBrain)",
+    "elotte": "Júl. 29: Nexus release/rollback kézikönyv-fejezet",
+    "utana": "Szept. 26: BrandBrain/Nexus menetrend és ConfAI-utóélet (Teams)",
+    "prioritas": "közepes — stratégiai összekötés",
+    "akkor": "A gráfmodul a ConfAI-ba épül, a cél a BrandBrain-újrahasznosítás",
+    "most": "BrandBrain MCP-teszt és Nexus-workshop előkészítés (okt. eleje)"
+   },
+   "gold_sources": [
+    "e5323cac-5d48-4757-a7ee-07a9f99c42c9",
+    "bd4259af-31e7-4d02-8a52-61c36f3ca6b1"
+   ]
+  }
+ ],
+ "taxonomy": {
+  "ERSTE kampány-életciklus": [
+   "1. igény / brief",
+   "2. prioritizálás",
+   "3. koncepció / KV / copy",
+   "4. gyártás és mutációk",
+   "5. jóváhagyás (üzlet + jogi)",
+   "6. leadás / trafficking (WPP: tagek, feed, landing-paraméter)",
+   "7. élesítés",
+   "8. optimalizáció / teljesítmény-review",
+   "9. karbantartás / leállítás (THM, ajánlatváltás, stop)"
+  ],
+  "Fejlesztési projekt-életciklus (Telekom AI Mesh, Humanody, saját stack)": [
+   "A. igény / koncepció",
+   "B. megállapodás / keret (scope, ár, jog)",
+   "C. spec / architektúra",
+   "D. fejlesztés",
+   "E. teszt / review",
+   "F. élesítés / esemény",
+   "G. üzemeltetés / kampánytámogatás",
+   "H. utóélet / átadás"
+  ],
+  "RMT-ciklus": [
+   "települési lista",
+   "kreatív",
+   "jóváhagyás",
+   "gyártás",
+   "kihelyezés"
+  ]
+ }
+}
