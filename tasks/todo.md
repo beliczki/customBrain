@@ -48,6 +48,19 @@ A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`)
 - a hivatkozás minőségét 0–2 skálán pontozzuk;
 - minden számot n/N formában, nevezővel közlünk.
 - [~] **Kérdésbank-TERVEZET kész (2026-10-09): `tasks/evaluator/ch11-bank-2026-10.yaml`.** 55 új kérdés, seedelt, rétegzett korpuszmintából (nem keresési találatokból), plusz 7 p8.2 és 6 válaszszintű `questions.yaml` kérdés. Ebből 12 hosszú-meeting kérdés olyan részletre, amit ma egyetlen chunk sem fed le (a chunk-javítás előtt/után mérésére), 8 held-out. A rögzítéshez Robi jóváhagyása kell. A tervezett eredeti szöveg: **Kérdésbank** 40–60 kérdéssel, a meglévő 8 p8.2-es és ~14 `questions.yaml`-os kérdésre építve. Kategóriák a fejezet szerint: alias, pontos fájlnév, HU–EN parafrázis, régi döntés, mai állapot, hosszú levél vége, dosszié, vélemény vs. referencia, valóban hiányzó válasz. **Én jelölteket és javasolt helyes ID-ket adok; a helyes választ te hagyod jóvá.** Ez a te munkád, nem tudom kiváltani.
+- [x] **1. átnézési kör (2026-10-09), Robi 17/55 után leállt** → `tasks/evaluator/ch11-review-round1-2026-10-09.json`. A tanulság a megjegyzéseiből:
+  - (a) A szövegből kiolvasható „tű” kérdés neki értéktelen (old-01).
+  - (b) A kérdés kontextus nélkül nem ítélhető meg: melyik projekt/termék, kikkel, hogyan jutottunk ide (lm-02).
+  - (c) Az átirat tévedhet. A gold az igazság, nem az elhangzott mondat (lm-01).
+  - (d) A féléves anyag már nem mérvadó, a projekt azóta változott (lm-06).
+- [ ] **ÚJRATERVEZÉS: két réteg**
+  - **A. Automatikus recall-szondák, emberi gold nélkül.** Szó szerinti forrásrészletből generált lekérdezés; a helyes találat maga a forrás-thought, ez gépileg ellenőrizhető. Ez méri a chunk-javítás előtti és utáni Hit@10-et, és Robi idejét nem kéri. Ide kerül a 13 jóváhagyott lm/mail kérdés is.
+  - **B. Kontextuális kérdések, Robi-gold, FRISS anyagból** (alapértelmezett ablak: az utolsó ~8 hét). Minden kérdés mellé kontextuscsomag:
+    - projekt/termék és szereplők;
+    - **akkori állapot** (a kérdés idejének thoughtjai);
+    - **mai állapot** (a legfrissebb thoughtok + projekt-dosszié), forrásokkal.
+    Robi csak javít, nem nulláról ír. A pontozás azt is nézi, hogy a válasz megkülönbözteti-e az akkorit a maival, és jelzi-e, ha egy forrásállítás téves vagy elavult.
+  - A B réteg egyben a gráfbejárás (5. pont) baseline-ja: pont a projekt → szereplők → állapot-idővonal bejárását méri.
 - [ ] **Gépi mérések, gold nélkül:**
   - capture ack p95;
   - indexelési idő;

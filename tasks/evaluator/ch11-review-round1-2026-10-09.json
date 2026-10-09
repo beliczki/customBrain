@@ -1,0 +1,15 @@
+{
+  "source": "https://claude.ai/artifact/QMedcXndhjWX6EevY2QfAF (reviews collection), read 2026-10-09",
+  "reviewed": 17, "of": 55, "stopped_because": "the questions lacked context and were mostly stale; see notes",
+  "decisions": {
+    "active": ["lm-03","lm-04","lm-05","lm-08","lm-09","lm-10","lm-11","lm-12","mail-01","mail-02","mail-03","mail-04","mail-05"],
+    "retired": {
+      "lm-01": "Tárgyi tévedés Róbert részéről a meetingen: az artifact nem lokálisan fut, hanem a claude.ai felhőben; a linken megnyíló a hintmap.beliczki.hu alatti éles rendszer, saját hostingon a Telekom-projektek mellett.",
+      "lm-02": "Nem derül ki, melyik termékről van szó (Otthonstart és lakáshitel). A korábban elkészült kreatívok azért nem futottak, mert a költés átkerült egy olyan sorra (search), amihez nem kell kép; a kampánystruktúra változott.",
+      "old-01": "Értelmetlen: arra kérdez rá, ami nyilvánvalóan benne van az idézett szövegben."
+    },
+    "skipped_with_note": {
+      "lm-06": "Nagyon régi; a Bizi beszélgetési szál azóta továbbfejlődött, más a működése — már nem mérvadó."
+    }
+  }
+}
