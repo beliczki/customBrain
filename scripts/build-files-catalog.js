@@ -14,7 +14,7 @@ import { applySettingsToEnv } from '../server/config.js';
 applySettingsToEnv();
 
 import { getDrive, getGmail, getVaultContext } from '../server/drive-context.js';
-import { findBySourceIdRaw } from '../server/qdrant.js';
+import { scrollFilteredRaw } from '../server/qdrant.js';
 import { resolveAliases } from '../server/names.js';
 import { getHeader } from '../agent/tools/gmail.js';
 import { CATALOG_PATH, DOCUMENT_MIMES, fileKind, variantKey } from '../server/files-catalog.js';
@@ -109,6 +109,15 @@ async function gmailRecords() {
   } while (pageToken);
   console.log(`gmail: ${threadIds.length} ${capturedName} threads`);
 
+  // Thread → projects of its thought, read once up front. A Qdrant call per
+  // thread inside the paced loop below sat idle 1.5 s between requests, and
+  // Qdrant closed the kept-alive socket before the client reused it.
+  const gmailThoughts = await scrollFilteredRaw({
+    must: [{ key: 'source', match: { value: 'gmail' } }],
+    must_not: [{ key: 'kind', match: { value: 'chunk' } }],
+  });
+  const projectsByThread = new Map(gmailThoughts.map((t) => [t.source_id, t.projects || []]));
+
   const records = [];
   // Gmail's per-user quota here is 6000 query-cost units per minute
   // (totalQueryCostPerMinutePerUser, read off the 403 on 2026-10-09), shared
@@ -119,10 +128,7 @@ async function gmailRecords() {
   const THREAD_INTERVAL_MS = 1500;
   for (const threadId of threadIds) {
     const started = Date.now();
-    const [thread, thought] = await Promise.all([
-      gmail.users.threads.get({ userId: 'me', id: threadId, format: 'full', fields: 'messages(id,internalDate,payload)' }),
-      findBySourceIdRaw('gmail', threadId),
-    ]);
+    const thread = await gmail.users.threads.get({ userId: 'me', id: threadId, format: 'full', fields: 'messages(id,internalDate,payload)' });
     for (const msg of thread.data.messages) {
       const from = getHeader(msg.payload.headers, 'From');
       for (const part of attachmentParts(msg.payload)) {
@@ -140,7 +146,7 @@ async function gmailRecords() {
           link: `https://mail.google.com/mail/u/0/#all/${threadId}`,
           // A captured thread normally has its thought; if it was deleted
           // from the brain, the attachment is still catalogued, unattributed.
-          projects: thought ? thought.projects || [] : [],
+          projects: projectsByThread.get(threadId) || [],
           direction: from.toLowerCase().includes(me) ? 'delivered' : 'received',
           from,
           thread_id: threadId,
