@@ -342,13 +342,22 @@ export async function handleMcpHttpStateless(req, res) {
   if (!principal) {
     return res.status(401).json({ error: 'MCP requires an identified named token' });
   }
-  // No standalone server→client stream without a session: the Streamable HTTP
-  // spec says answer GET with 405 so the client carries on over POST. The SDK's
-  // stateless transport answered Codex's GET with 406, which Codex read as an
-  // auth failure and fell into OAuth discovery ("Authenticate", 2026-10-09).
+  // GET = the client's standalone server→client stream. The spec allows either
+  // an SSE stream or 405. Codex (codex-mcp-client 0.162.0-alpha) treats both
+  // the SDK's 406 and a correct 405 as an auth failure and drops into OAuth
+  // discovery ("Authenticate", 2026-10-09), so take the other spec branch: an
+  // open SSE stream that never carries a message (stateless = nothing to push),
+  // only keep-alive comments so proxies don't cut it. No state is held.
+  if (req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+    res.write(': stateless — no server-initiated messages\n\n');
+    const ping = setInterval(() => res.write(': ping\n\n'), 25000);
+    req.on('close', () => clearInterval(ping));
+    return;
+  }
   if (req.method !== 'POST') {
-    res.set('Allow', 'POST');
-    return res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed: stateless endpoint accepts POST only' }, id: null });
+    res.set('Allow', 'GET, POST');
+    return res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed' }, id: null });
   }
   const server = createMcpServer(principal.scopes || null);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });

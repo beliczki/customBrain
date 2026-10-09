@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.49.2 — 2026-10-09
+
+**Codex still dropped into OAuth on the stateless endpoint after 0.49.1.** The nginx log showed its POSTs succeeding (initialize 200, initialized 202, tools/list 200) and the GET for the server→client stream now answered with a correct 405 — which `codex-mcp-client 0.162.0-alpha` also treats as an auth failure. The spec allows two answers to that GET: 405 or an SSE stream. The stateless endpoint now takes the second: an open `text/event-stream` that never carries a message (there is nothing to push without a session) and only sends keep-alive comments every 25 s. Still no server-side state. Other non-POST methods answer 405.
+
 ## 0.49.1 — 2026-10-09
 
 **Codex could not use `/mcp/http-stateless`.** Its POSTs (initialize, tools/list) succeeded, then it opened a GET for the server→client stream; the SDK's stateless transport answered 406, Codex read that as an auth failure and fell into OAuth discovery (all 404) — the "Authenticate" button. The Streamable HTTP spec has a server without a standalone stream answer GET with **405 Method Not Allowed**, which clients treat as "carry on over POST". The stateless endpoint now does that for every non-POST method.
