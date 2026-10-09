@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.49.1 — 2026-10-09
+
+**Codex could not use `/mcp/http-stateless`.** Its POSTs (initialize, tools/list) succeeded, then it opened a GET for the server→client stream; the SDK's stateless transport answered 406, Codex read that as an auth failure and fell into OAuth discovery (all 404) — the "Authenticate" button. The Streamable HTTP spec has a server without a standalone stream answer GET with **405 Method Not Allowed**, which clients treat as "carry on over POST". The stateless endpoint now does that for every non-POST method.
+
 ## 0.49.0 — 2026-10-09
 
 **Stateless MCP endpoint, in parallel: `/mcp/http-stateless`.** Each request gets a fresh MCP server + transport (SDK stateless mode, `sessionIdGenerator: undefined`) — no `Mcp-Session-Id`, no in-memory session map, so a deploy restart is invisible to clients, and every request is authorised and scope-gated on its own named/OAuth token (nothing to hijack across sessions). Same auth, raw-body handling and tool set as `/mcp/http`, which stays unchanged as the rollback. Why parallel rather than a switch: 0.32.0 moved *away* from stateless after `tools/call` failed from claude.ai, and the same day a second, independent cause turned up (a dot in the connector name) — whether stateless itself was ever at fault is unproven, so every client (claude.ai, Claude Code, Codex, Grok) must show a real `tools/call` on the new URL in the nginx log before `/mcp/http` changes. This is the current 2025-11-25 protocol in the SDK's stateless mode, not the 2026-07-28 stateless spec (no SDK release implements that yet).

@@ -342,6 +342,14 @@ export async function handleMcpHttpStateless(req, res) {
   if (!principal) {
     return res.status(401).json({ error: 'MCP requires an identified named token' });
   }
+  // No standalone server→client stream without a session: the Streamable HTTP
+  // spec says answer GET with 405 so the client carries on over POST. The SDK's
+  // stateless transport answered Codex's GET with 406, which Codex read as an
+  // auth failure and fell into OAuth discovery ("Authenticate", 2026-10-09).
+  if (req.method !== 'POST') {
+    res.set('Allow', 'POST');
+    return res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed: stateless endpoint accepts POST only' }, id: null });
+  }
   const server = createMcpServer(principal.scopes || null);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on('close', () => {
