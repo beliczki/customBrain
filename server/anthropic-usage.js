@@ -36,6 +36,8 @@ export const PRICES = [
   { prefix: 'claude-sonnet-4-6', in: 3, out: 15 },
   // Chunking since 0.47.0 (claude-api skill price table, cached 2026-10-06).
   { prefix: 'claude-sonnet-5-5', in: 2, out: 10 },
+  // Up to 100K-token prompts; $0.50 / $2.50 above — our longest is ~57K.
+  { prefix: 'claude-haiku-5-5', in: 0.1, out: 0.5 },
 ];
 
 export function costUsd(r) {

@@ -149,6 +149,31 @@ export const CONTENT_SECTION_RULES = `**content_sections**:
 - There is no upper limit on the number of sections: a long meeting transcript typically needs many (one per agenda item / subject change). Very long sections are split further by the system on line boundaries.
 - Each \`label\` should be 2-6 words describing the section's topic`;
 
+// Language and size are decided in code and handed to the model as facts: in
+// the 2026-10-09 A/B Haiku 5.5 labelled Hungarian transcripts in English when
+// left to infer the language, and with a stated language + target count + a
+// self-check it kept 100% Hungarian labels on every Hungarian text.
+function isHungarian(text) {
+  const letters = (text.match(/\p{L}/gu) || []).length;
+  const accented = (text.match(/[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g) || []).length;
+  return letters > 0 && accented / letters > 0.02;
+}
+
+export function sectionGuidance(text) {
+  const lang = isHungarian(text) ? 'Hungarian' : 'English';
+  const lo = Math.max(1, Math.round(text.length / 5000));
+  const hi = Math.max(1, Math.round(text.length / 2000));
+  return `LANGUAGE (hard rule): the text is ${lang}. Every section label MUST be written in ${lang}${lang === 'Hungarian' ? ' (magyarul!)' : ''}. Never translate a label into another language, even if the text contains English terms.
+
+SIZE: the text is ${text.length} characters. Aim for roughly ${lo}–${hi} content sections (about 2000–5000 characters each), following the real topic changes.
+
+BEFORE YOU ANSWER, check your section list and fix anything that fails:
+1. Every label is in ${lang}.
+2. The first start_line is 1 and the start lines strictly increase.
+3. No section is much shorter than ~1000 characters unless the whole text is short — merge tiny neighbours on the same subject.
+4. Each label names the subject of its section in 2-6 words.`;
+}
+
 function buildMegaPrompt(text, localCtx, vaultCtx) {
   let contextBlock = '';
 
@@ -269,6 +294,9 @@ RULES:
 - Each \`label\` should be 2-6 words describing the chunk's topic
 
 ${CONTENT_SECTION_RULES}
+
+${sectionGuidance(text)}
+
 **Shortcuts for short/simple thoughts**:
 - If text is < 1000 chars: \`summary\` = text itself; \`summary_chunks\` = [{label: "fő", text: summary}]; \`content_sections\` = [{label: "fő", start_line: 1}].
 - If text is single-topic regardless of length: still produce a summary, but \`summary_chunks\` and \`content_sections\` may be length 1.
@@ -336,8 +364,13 @@ const RESPONSE_SCHEMA = {
 // the lever. A refusal or a max_tokens stop is an incomplete answer: throw, so
 // the caller marks the thought instead of indexing half of it.
 const CHUNK_MODEL = 'claude-sonnet-5-5';
+// Sections alone (re-chunking): Haiku 5.5 at low effort. Same A/B, round 2 with
+// sectionGuidance: Hungarian labels on every Hungarian text, sensible
+// boundaries, 1.5-3 s per text and ~1/20 of Sonnet 5.5's price. High effort was
+// slower (up to 21 s) and over-split, not better.
+const SECTIONS_MODEL = 'claude-haiku-5-5';
 
-async function callClaudeJson({ prompt, schema, effort, maxTokens, site }) {
+async function callClaudeJson({ model = CHUNK_MODEL, prompt, schema, effort, maxTokens, site }) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -346,7 +379,7 @@ async function callClaudeJson({ prompt, schema, effort, maxTokens, site }) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: CHUNK_MODEL,
+      model,
       max_tokens: maxTokens,
       output_config: { effort, format: { type: 'json_schema', schema } },
       messages: [{ role: 'user', content: prompt }],
@@ -423,14 +456,14 @@ export async function markContentSections(text) {
 
 ${CONTENT_SECTION_RULES}
 
-**Language**: labels in the dominant language of the text; never translate.
+${sectionGuidance(text)}
 
 Text (line-numbered):
 """
 ${numberLines(text)}
 """`;
   const { parsed } = await callClaudeJson({
-    prompt, schema: SECTIONS_SCHEMA, effort: 'low', maxTokens: 16000, site: 'rechunk',
+    model: SECTIONS_MODEL, prompt, schema: SECTIONS_SCHEMA, effort: 'low', maxTokens: 16000, site: 'rechunk',
   });
   return sectionsToChunks(text, parsed.content_sections);
 
