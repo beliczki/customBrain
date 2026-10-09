@@ -197,7 +197,7 @@ Mai állapot:
 - [ ] Új lelet: a `quick_lookup` limit=50-re 122 KB-ot adott (teljes action_items stb. 20 thoughtra). Ugyanaz a minta, mint a `search_brain` 0.48.0 előtt; mérni és dönteni kell.
 - [ ] Minden kliensnél **valós `tools/call` az nginx-logban** (nem a modell önbevallása alapján; memória-szabály), mind a 4 kliensre.
 - [x] **0.50.0: a fő végpont is stateless** (Robi döntése: nem várunk a botra, az átállás őt is lefedi). A `/mcp/http` és a `/mcp/http-stateless` ugyanazt a handlert kapja. A stateful `handleMcpHttp` egy kiadáson át bekötetlenül megmarad visszaállásnak.
-- [ ] Deploy után: a Grok bot (`Cursor/1.0.0`) valódi `tools/call`-ja a `/mcp/http`-n, az nginx-logban.
+- [x] Deploy után (20:24 UTC): Robi lefuttatta a Grok botot → csak `grok-connectors-manager/0.1.0` a `/mcp/http-stateless`-en, valódi `tools/call` (81 KB). `Cursor/1.0.0` 20:05 óta egyik végponton sincs; valószínűleg a bot már a connectoron megy (nem bizonyított). Deploy óta senki nem hívja a `/mcp/http`-t; ha a Cursor-út visszatér, ott jelenik meg.
 - [ ] Következő kiadás: `handleMcpHttp` + `httpTransports` törlése.
 - [ ] Nem része: SDK-major vagy az új spec bevezetése. Az csak akkor jön, ha az SDK kiadja.
 
