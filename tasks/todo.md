@@ -183,6 +183,11 @@ Mai állapot:
 **Kár nélküli átállás:**
 - [ ] Mérés előtte: a `httpTransports` mérete és élettartama, valamint mely kliensek (claude.ai, Claude Code, Codex, Grok) mit küldenek. Ehhez nginx-log és `Mcp-Session-Id` kell.
 - [x] **0.49.0: párhuzamos végpont kész:** `/mcp/http-stateless`, azonos auth és scope-kapu mellett. A régi `/mcp/http` érintetlen marad, ez a visszaállási pont.
+- [x] Szerveroldalon ellenőrizve (0.49.0):
+  - stateless: `initialize` session-ID nélkül; `tools/list` és `tools/call` előzetes init nélkül;
+  - restart után is működik, és nginx-en át is (22 tool);
+  - token nélkül 401.
+  - A stateful régi session restart után 404-et kap (0.46.1).
 - [ ] Minden kliensnél **valós `tools/call` az nginx-logban** (nem a modell önbevallása alapján; memória-szabály), mind a 4 kliensre.
 - [ ] Csak ezután váltjuk a fő végpontot. A stateful kód egy kiadáson át megmarad visszakapcsolhatóként.
 - [ ] Nem része: SDK-major vagy az új spec bevezetése. Az csak akkor jön, ha az SDK kiadja.
