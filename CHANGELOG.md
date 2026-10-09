@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.47.0 — 2026-10-09
+
+**Chunking runs on Claude Sonnet 5.5 (low effort for sections, medium for the full reprocess).** Chosen by a read-only A/B on six real thoughts (two 90–100k transcripts, two 35–60k, a 6k email, a 6k video summary) against Sonnet 4.6 and Haiku 5.5:
+- Sonnet 4.6 returned an out-of-order section list on 1 of 6; Haiku 5.5 was ~3–5x faster and ~20x cheaper but labelled Hungarian transcripts in English (the prompt forbids translating) and at medium left a 535-line stretch as one section; Sonnet 5.5 kept Hungarian labels, gave the finest sensible boundaries and no invalid output. The 5.5 tokenizer counts ~28% more tokens for the same text.
+- Sonnet 5.5 rejects forced `tool_choice`, so both calls now use **structured output** (`output_config.format: json_schema`, `additionalProperties: false` throughout) through one `callClaudeJson` helper. Any stop other than `end_turn` (`max_tokens`, `refusal`) throws instead of indexing half an answer. Server-side refusal fallbacks are not enabled: the fallback model is chosen by the API, and the usage ledger refuses to price an unknown model.
+- **Section lists are normalised, not rejected:** boundaries are a set of start lines, so out-of-order, duplicate or out-of-range entries are sorted/dropped and line 1 is always a start. Rejecting left the whole thought unchunked.
+- Usage ledger prices `claude-sonnet-5-5` ($2 / $10 per MTok).
+
 ## 0.46.1 — 2026-10-09
 
 **Every deploy stranded the claude.ai MCP connector.** After a restart the in-memory session map is empty, so a client's next request carries a session id the server no longer holds. `handleMcpHttp` fell through to creating a fresh, uninitialized transport, which answered **400 "Server not initialized"** — and clients do not recover from a 400. Observed live today right after the 0.46.0 restart: two `search_brain` calls from claude.ai both failed that way. The Streamable HTTP spec requires **404** for an unknown session id, which is the client's signal to re-initialize; that is what it returns now. (Stateless transport, which removes the failure class entirely, is planned separately.)

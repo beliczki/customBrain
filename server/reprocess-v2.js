@@ -113,21 +113,25 @@ function packLines(lines) {
   return out;
 }
 
+// Section boundaries are a SET of start lines — their order in the answer
+// carries no meaning, so an out-of-order or duplicated list is normalised, not
+// rejected (Sonnet 4.6 returned 363 before 242 in the 2026-10-09 A/B; rejecting
+// left the whole thought unchunked). Out-of-range lines are dropped and line 1
+// is always a start, so every line still lands in exactly one chunk.
 export function sectionsToChunks(text, sections) {
   const lines = text.split('\n');
   if (!Array.isArray(sections) || sections.length === 0) {
     throw new Error('reprocess returned no content_sections');
   }
-  const starts = sections.map((s) => s.start_line);
-  if (starts[0] !== 1) throw new Error(`content_sections must start at line 1, got ${starts[0]}`);
-  for (let i = 0; i < starts.length; i++) {
-    if (!Number.isInteger(starts[i]) || starts[i] < 1 || starts[i] > lines.length) {
-      throw new Error(`content_sections[${i}].start_line ${starts[i]} is outside 1..${lines.length}`);
-    }
-    if (i > 0 && starts[i] <= starts[i - 1]) {
-      throw new Error(`content_sections start lines must increase: ${starts[i - 1]} then ${starts[i]}`);
+  const byStart = new Map();
+  for (const s of sections) {
+    if (Number.isInteger(s.start_line) && s.start_line >= 1 && s.start_line <= lines.length && !byStart.has(s.start_line)) {
+      byStart.set(s.start_line, s.label);
     }
   }
+  if (!byStart.has(1)) byStart.set(1, sections[0].label);
+  const starts = [...byStart.keys()].sort((a, b) => a - b);
+  sections = starts.map((start_line) => ({ start_line, label: byStart.get(start_line) }));
   const chunks = [];
   sections.forEach((s, i) => {
     const end = i + 1 < sections.length ? starts[i + 1] - 1 : lines.length;
@@ -276,15 +280,17 @@ ${numberLines(text)}
 """`;
 }
 
-const TOOL_SCHEMA = {
-  name: 'submit_reprocessed_thought',
-  description: 'Submit the reprocessed metadata, summary, and topic-chunked text for a thought.',
-  input_schema: {
+// Structured output (output_config.format). Sonnet 5.5 rejects forced
+// tool_choice, so the old submit-tool is now a JSON schema; strict schemas need
+// additionalProperties:false on every object.
+const RESPONSE_SCHEMA = {
     type: 'object',
+    additionalProperties: false,
     required: ['metadata', 'summary', 'summary_chunks', 'content_sections'],
     properties: {
       metadata: {
         type: 'object',
+        additionalProperties: false,
         required: ['title', 'type', 'projects', 'people', 'topics', 'action_items'],
         properties: {
           title: { type: 'string', description: '2-4 word title, prefixed by canonical project name and em-dash if a primary project exists' },
@@ -300,6 +306,7 @@ const TOOL_SCHEMA = {
         type: 'array',
         items: {
           type: 'object',
+          additionalProperties: false,
           required: ['label', 'text'],
           properties: {
             label: { type: 'string', description: '2-6 word topic label, same language as input' },
@@ -311,6 +318,7 @@ const TOOL_SCHEMA = {
         type: 'array',
         items: {
           type: 'object',
+          additionalProperties: false,
           required: ['label', 'start_line'],
           properties: {
             label: { type: 'string', description: '2-6 word topic label, same language as input' },
@@ -319,13 +327,17 @@ const TOOL_SCHEMA = {
         },
       },
     },
-  },
 };
 
-export async function reprocessThought(text, vaultContext) {
-  const localCtx = loadContext();
-  const prompt = buildMegaPrompt(text, localCtx, vaultContext);
+// Sonnet 5.5 at low effort for chunking: in a 2026-10-09 A/B on six real
+// thoughts it gave the finest sensible boundaries, kept Hungarian labels and
+// returned no invalid section list (Sonnet 4.6: 1/6 out of order; Haiku 5.5
+// translated labels to English). Its thinking can't be switched off; effort is
+// the lever. A refusal or a max_tokens stop is an incomplete answer: throw, so
+// the caller marks the thought instead of indexing half of it.
+const CHUNK_MODEL = 'claude-sonnet-5-5';
 
+async function callClaudeJson({ prompt, schema, effort, maxTokens, site }) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -334,29 +346,30 @@ export async function reprocessThought(text, vaultContext) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 16384,
-      tools: [TOOL_SCHEMA],
-      tool_choice: { type: 'tool', name: 'submit_reprocessed_thought' },
+      model: CHUNK_MODEL,
+      max_tokens: maxTokens,
+      output_config: { effort, format: { type: 'json_schema', schema } },
       messages: [{ role: 'user', content: prompt }],
     }),
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`reprocessThought failed: ${err}`);
-  }
-
+  if (!res.ok) throw new Error(`${site} failed: ${await res.text()}`);
   const json = await res.json();
-  logAnthropicUsage('chunking', json);
-  // A cut-off tool call is a partial section list: the tail of the text would
-  // silently get no chunk. Fail loudly; the cron marks the thought and moves on.
-  if (json.stop_reason === 'max_tokens') throw new Error('reprocessThought hit max_tokens — output incomplete');
-  const toolUse = json.content.find((c) => c.type === 'tool_use');
-  if (!toolUse) {
-    throw new Error(`No tool_use in response: ${JSON.stringify(json.content)}`);
+  logAnthropicUsage(site, json);
+  if (json.stop_reason !== 'end_turn') {
+    throw new Error(`${site} stopped with ${json.stop_reason}${json.stop_details ? ` (${json.stop_details.category})` : ''} — output incomplete`);
   }
-  const parsed = toolUse.input;
+  const text = json.content.find((c) => c.type === 'text')?.text;
+  if (!text) throw new Error(`${site}: no text block in response`);
+  return { parsed: JSON.parse(text), json };
+}
+
+export async function reprocessThought(text, vaultContext) {
+  const localCtx = loadContext();
+  const prompt = buildMegaPrompt(text, localCtx, vaultContext);
+
+  const { parsed, json } = await callClaudeJson({
+    prompt, schema: RESPONSE_SCHEMA, effort: 'medium', maxTokens: 32000, site: 'chunking',
+  });
 
   // Defensive: Haiku occasionally returns chunk arrays as stringified JSON
   // even with tool_use schema. Recover when possible.
@@ -398,14 +411,11 @@ export async function reprocessThought(text, vaultContext) {
 // re-chunk thoughts that already carry a summary and curated metadata, which a
 // full reprocess would overwrite; and it costs ~1/5 of one (the vault context
 // alone is ~23k input tokens per reprocess call).
-const SECTIONS_TOOL = {
-  name: 'submit_content_sections',
-  description: 'Submit where each topic section of the text starts.',
-  input_schema: {
-    type: 'object',
-    required: ['content_sections'],
-    properties: { content_sections: TOOL_SCHEMA.input_schema.properties.content_sections },
-  },
+const SECTIONS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['content_sections'],
+  properties: { content_sections: RESPONSE_SCHEMA.properties.content_sections },
 };
 
 export async function markContentSections(text) {
@@ -419,26 +429,9 @@ Text (line-numbered):
 """
 ${numberLines(text)}
 """`;
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
-      tools: [SECTIONS_TOOL],
-      tool_choice: { type: 'tool', name: 'submit_content_sections' },
-      messages: [{ role: 'user', content: prompt }],
-    }),
+  const { parsed } = await callClaudeJson({
+    prompt, schema: SECTIONS_SCHEMA, effort: 'low', maxTokens: 16000, site: 'rechunk',
   });
-  if (!res.ok) throw new Error(`markContentSections failed: ${await res.text()}`);
-  const json = await res.json();
-  logAnthropicUsage('rechunk', json);
-  if (json.stop_reason === 'max_tokens') throw new Error('markContentSections hit max_tokens — section list incomplete');
-  const toolUse = json.content.find((c) => c.type === 'tool_use');
-  if (!toolUse) throw new Error(`No tool_use in response: ${JSON.stringify(json.content).slice(0, 300)}`);
-  return sectionsToChunks(text, toolUse.input.content_sections);
+  return sectionsToChunks(text, parsed.content_sections);
+
 }

@@ -34,6 +34,8 @@ export function logAnthropicUsage(site, json) {
 export const PRICES = [
   { prefix: 'claude-haiku-4-5', in: 1, out: 5 },
   { prefix: 'claude-sonnet-4-6', in: 3, out: 15 },
+  // Chunking since 0.47.0 (claude-api skill price table, cached 2026-10-06).
+  { prefix: 'claude-sonnet-5-5', in: 2, out: 10 },
 ];
 
 export function costUsd(r) {
