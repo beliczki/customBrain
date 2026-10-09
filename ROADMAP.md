@@ -1,4 +1,15 @@
 # customBrain — Roadmap
+
+## SPEC 2026-10-09 — MCP interview és ontológiai gráfbejárás
+
+Felhasználói kérésre elkészült a [specifikáció](docs/mcp-interview-es-grafbejaras-spec-2026-10-09.md). Cél: a meglévő search hívások mellé kis részgráfokat visszaadó interview és célzott wiki-/bizonyíték-/ontológiai bejárás, a rétegek közötti váltással és ellenőrizhető forrásrészletekkel.
+
+A specifikáció kitér a párhuzamos subagentes feltárásra is: külön részkérdések, egy közös költségkeret, forrásalapú eredmény-összevonás és minden ágat tartalmazó tokenmérés.
+
+Öt javasolt olvasási tool: `get_brain_ontology`, `interview_brain`, `explore_brain`, `get_brain_evidence`, `read_brain_node`. A specifikáció kész; implementáció nem történt. Előfeltétel az új gráfforrások és forráshorgonyok konkrét felmérése; a helyi kódban meglévő asszociációs gráf nem helyettesíti az állításszintű bizonyítékgráfot. Dokumentációs review és nyomkövetés: [tasks/todo.md](tasks/todo.md).
+
+---
+
 ## DONE 2026-09-12 — Stabilizálás a tanulmány alapján (A szakasz, kalibrálva)
 
 **Mind a 4 jóváhagyott pont leszállítva és élesben igazolva** (0.41.2 → 0.43.0). Összefoglalva, amit a négy javítás ténylegesen helyrehozott: 118 éjszakányi használhatatlan mentés → bizonyítottan visszaállítható mentés; korlátlan integrációs tokenek → valódi képességkorlátok; csendes Gmail-csonkolás és elvesző szálak → teljes szöveg és újrapróbálkozás; 174 láthatatlan ember → teljes névtér a capture-nél. Három döntés maradt a felhasználónál (halott `thoughts` collection törlése, 5 token szűkítése, 5 levágott levél újrahúzása) — lentebb, pontonként.
@@ -48,7 +59,9 @@ Törlés utáni ellenőrzés: `/stats` 491 gondolat, `/search` valódi találat,
 - [x] **Élesben igazolva** valódi MCP-hívásokkal: scoped tokennel `tools/list` 11 toolt ad (Gmail/Calendar/curate nincs köztük), közvetlen `tools/call get_gmail_threads` és `update_thought` → `isError=true, "Tool not found"`, `search_brain` viszont valódi találatot ad; scope nélküli token 22 toolt lát; kereszt-session újrahasználat → HTTP 403.
 - [x] A **Chrome Extension Token** élesben `capture+brain-read`-re szűkítve. A REST-útját ez nem érinti (azt továbbra is `NAMED_TOKEN_PATHS` szabályozza), csak az MCP-n át elérhető Gmail-t veszi el.
 
-**Nyitva maradt, felhasználói döntés kell:** öt token még korlátlan, köztük a **"Grok Test MCP connector"** (xAI, ma 15:13-kor használva) — jelenleg olvashatja a Gmailt, a naptárat és módosíthatja a gondolatokat. Javaslat: `brain-read`. Nem állítottam át, mert aktívan használt integráció szűkítése megtörheti a workflow-t. Egysoros: `PATCH /mcp-tokens/<id> {"scopes":["brain-read"]}`. Ugyanígy mérlegelendő a `Codex MCP bearer` / `OAuth: Codex` / `Claude` / `OAuth: Claude` — ezek saját agentek, ott a teljes jog védhető.
+**✅ LEZÁRVA 2026-10-09 — döntés: a Grok token korlátlan marad** (kutat és ír a brainbe; a felhasználó döntése). A többi saját agent tokenje is marad. Az eredeti jegyzet:
+
+~~Nyitva maradt, felhasználói döntés kell:~~ öt token még korlátlan, köztük a **"Grok Test MCP connector"** (xAI, ma 15:13-kor használva) — jelenleg olvashatja a Gmailt, a naptárat és módosíthatja a gondolatokat. Javaslat: `brain-read`. Nem állítottam át, mert aktívan használt integráció szűkítése megtörheti a workflow-t. Egysoros: `PATCH /mcp-tokens/<id> {"scopes":["brain-read"]}`. Ugyanígy mérlegelendő a `Codex MCP bearer` / `OAuth: Codex` / `Claude` / `OAuth: Claude` — ezek saját agentek, ott a teljes jog védhető.
 
 **Follow-up (nem sürgős):** a Settings UI tokenlistája még nem jeleníti meg és nem szerkeszti a scope-okat; az API (`GET`/`POST`/`PATCH /mcp-tokens`) már visszaadja és fogadja őket.
 
@@ -56,7 +69,9 @@ Törlés utáni ellenőrzés: `/stats` 491 gondolat, `/search` valódi találat,
 - [x] `MAX_BODY_CHARS` 6000 → 180000, a Fireflies webhook `MAX_TRANSCRIPT_CHARS`-ával azonos biztonsági plafon. A vágás mostantól hangosan logol. **Mért kár:** 149 elmentett Gmail-szálból **5-nek a törzse pont 6000 karakteren, szó közepén elvágva** — `ERSTE — Erste World Wealth kampány`, `Koordináció vs szubsztrát vita`, `ERSTE Személyi kölcsön — SZK DCO feed frissítés`, `ERSTE — 2026 kampány setup és line itemek`, `ConfAI — Digital-Media Hungary egyeztetés`.
 - [x] Watermark: `state/gmail-watermark.json` kap `retry_thread_ids`-t; a hibás szálak a következő körbe kerülnek. A watermark **szándékosan tovább lép** — visszatartva egy mérgezett szál mögött torlódna fel minden későbbi levél, és a history API 7 nap után eldobja az eseményeket, tehát a megállás többet veszít, mint amennyit ment. Régi formátumú fájl gond nélkül olvasódik (élesben igazolva).
 
-**Nyitva, felhasználói döntés kell:** az 5 levágott levél újrahúzása Gmailből. Nem tettem meg: a jelenlegi szövegükre már összefoglaló van előfűzve, amit egy újra-capture felülírna.
+**✅ LEZÁRVA 2026-10-09 — az 5 levágott levél nem lesz újrahúzva** (elavultak, a felhasználó döntése). A jövőbeli csonkolás mechanizmusát a 0.45.0 szünteti meg: a Gmail-tisztító Haiku-hívása már csak eldönti, van-e érdemi tartalom, a tárolt szöveg mindig a determinisztikus dedup+regex kimenet — eddig a Haiku átírta a törzset, 4096 tokenes kimeneti plafonnal és `stop_reason`-ellenőrzés nélkül.
+
+~~Nyitva, felhasználói döntés kell:~~ az 5 levágott levél újrahúzása Gmailből. Nem tettem meg: a jelenlegi szövegükre már összefoglaló van előfűzve, amit egy újra-capture felülírna.
 
 ### 4. A3-maradék — index-integritás — ✅ DONE 2026-09-12 (0.43.0)
 - R6 egyik fele már kész volt (180ca06 / 0.41.1 — hash-gate túléli a reconcile-t). A többi:

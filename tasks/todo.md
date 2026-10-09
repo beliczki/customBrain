@@ -1,3 +1,157 @@
+# Terv 2026-10-09 — döntések lezárása, csonkolásmentesség, 11. fejezet mérése, Files-ontológia, gráfbejárás
+
+Sorrend szándékos: a mérés (3) a gráfbővítés **előtt** fut, különben nincs baseline, amihez a bejárásos lekérdezést hasonlítani lehet.
+
+## 1. Nyitott döntések lezárása (csak dokumentáció)
+- [x] **Grok token:** DÖNTÖTT (2026-10-09): korlátlan marad, mert ő kutat. Nincs változtatás, csak a ROADMAP-ban lezárjuk.
+- [x] **Az 5 levágott Gmail-szál:** elavult, nem húzzuk újra. ROADMAP-ban lezárva.
+
+## 2. Csonkolásmentesség a jövőben
+Mért tény a kódból: a 0.42.0 a 6000-es vágást megszüntette, de maradt még három vágási pont.
+- **(a) Rejtett vágás, ez a fő ügy.** Minden 1500 karakternél hosszabb levelet egy Haiku „kivonatoló” ír át, és **ez az átírt szöveg tárolódik** (`agent/tools/gmail-clean.js:131`). A kimenet legfeljebb `max_tokens: 4096`, és a kód nem nézi a `stop_reason`-t, így hosszú szálnál a vége csendben elvész. Emellett a modell szövege a forrás helyére kerül; ez a tanulmány I5-ös pontja.
+- **(b)** A Fireflies 180k-nál log nélkül vág (`server/routes/fireflies-webhook.js:63`). A Gmail-cron ugyanitt már hangosan logol.
+- **(c)** A `get_gmail_threads` élő MCP-olvasás 10 000 karakternél vág (`agent/tools/gmail.js:127`). Ez csak az agentnek adott nézet, a tárolást nem érinti.
+
+Két javítás jöhet szóba:
+- **Kicsi:** `stop_reason === 'max_tokens'` esetén a determinisztikus, regexszel tisztított szöveget tároljuk.
+- **Alapos, ezt javaslom:** a Haiku ne állítson elő tárolt szöveget. Mindig a regexes, deduplikált **eredeti** szöveg tárolódik. A Haiku legfeljebb azt dönti el, hogy van-e érdemi tartalom (`__NO_CONTENT__`). Ez egyszerre zárja ki a vágást, a parafrázist és a kihagyást. Ára: hosszabb tárolt levelek. Ezt a chunkolás kezeli, mert pont erre való (recall).
+- [x] (a) DÖNTÖTT: alapos változat. Haiku = csak tartalom/nincs-tartalom verdikt (`max_tokens: 16`), a tárolt szöveg mindig a dedup+regex kimenet; váratlan verdikt hibát dob → a 0.42.0 retry-listájára kerül. Hamis Anthropic-teszt 7/7 PASS (86k karakteres szál végig megmarad)
+- [x] (b) hangos log, a Gmail mintájára
+- [x] (c) DÖNTÖTT: lapozás. `get_gmail_threads` `thread_id`+`from_line`/`max_lines`, a válaszban `body_slice` (a `get_thought` mintája); a lapozás teszten pontosan visszaadja a teljes szöveget
+- [ ] Éles ellenőrzés: egy ismert hosszú szál újrafrissítés után teljes (SSH, jóváhagyással)
+- [ ] **(d) Testvérhiba a chunkolásban, 2026-10-09-én találtam.** A `reprocess-v2.js` a Sonnettel `max_tokens: 16384` mellett **újraíratja az eredeti szöveget** `content_chunks`-ként. A `_stop_reason`-t sehol nem nézi az éles út (csak a prototípus-script). A tárolt szöveg teljes marad, de a hosszú gondolatok (Fireflies, és most már a hosszú Gmail) **vége nem kap chunk-vektort**, tehát kereséssel nem található meg. Ez ugyanaz a mechanizmus: a modell a forrást írja újra, plafon alatt.
+  - Mérés előbb, csak olvasva: thoughtonként a content_chunk-szöveg összhossza a teljes szöveghez képest.
+  - Alapos javítás: a Sonnet a határokat adja vissza (horgony vagy offset), a chunk-szöveget pedig determinisztikusan vágjuk az eredetiből. A határokról továbbra is a Sonnet dönt (memória: LLM-judgment chunking).
+
+## 3. A tanulmány 11. fejezetének mérése → `docs/custombrain-meres-2026-10.html`
+A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`):
+- a kérdéssort az eredmények **előtt** lezárjuk;
+- osztályzat: helyes / részleges / téves / tartózkodás;
+- a hivatkozás minőségét 0–2 skálán pontozzuk;
+- minden számot n/N formában, nevezővel közlünk.
+- [ ] **Kérdésbank** 40–60 kérdéssel, a meglévő 8 p8.2-es és ~14 `questions.yaml`-os kérdésre építve. Kategóriák a fejezet szerint: alias, pontos fájlnév, HU–EN parafrázis, régi döntés, mai állapot, hosszú levél vége, dosszié, vélemény vs. referencia, valóban hiányzó válasz. **Én jelölteket és javasolt helyes ID-ket adok; a helyes választ te hagyod jóvá.** Ez a te munkád, nem tudom kiváltani.
+- [ ] **Gépi mérések, gold nélkül:**
+  - capture ack p95;
+  - indexelési idő;
+  - keresési p95, hidegen és melegen;
+  - változatlan dossziék embeddinghívásai (cél: 0);
+  - negatív jogosultsági próbák, közvetlen ID-olvasással is;
+  - csonkolási audit;
+  - agent-válaszméret (byte/token). Ma élőben láttam: egy `search_brain` limit=8-ra 55 KB-ot adott vissza.
+- [ ] **Hit@10 és válaszhelyesség** a lezárt kérdésbankon (`prove-brain.js` bővítése)
+- [ ] A hordozhatóság (exportból visszaállított ID/hash egyezés) drága. Javaslom, hogy ezt mintán mérjük, ne teljesen.
+- [ ] HTML-tanulmány a `docs/` alá: cél vs. mért, nevezőkkel, a következő döntéssel
+
+## 4. Files-ontológia: hol áll
+- **Kész (0.41.0):** kézi `Files/` és `Repos/` dossziék. Kereshetők, és a frontmatterből (`drive_link`, `project`, `direction`, `from`, `date`) már él lehet.
+- **Szándékosan nem épült:** csatolmány-pipeline, automatikus Drive `/data`, `/docs` feltérképezés, capture-time prompt-bekötés (`tasks/todo-incremental-export-and-files-kb.md`, 2. fázis).
+- Ezen túl nem találtam elkezdett tervet. Ha máshol van (brain TODO-marker vagy másik repó), mutasd meg.
+- **DÖNTÖTT (2026-10-09): először csak katalógus.** Utána megbeszéljük, mely fájlokból kell kivonat, és mire kell figyelni (méret, formátum, titkos tartalom, duplikált PDF/PPTX-változatok).
+- [ ] Leltár, csak olvasva:
+  - a Drive `/data` és `/docs` mappáinak szerkezete, fájlszám és típusmegoszlás;
+  - a Gmail-csatolmányok száma és típusa a brain-címkés szálakon.
+- [ ] Katalógus-terv: egy rekord = név, Drive-link / Gmail-szál, mime, méret, módosítás, projekt (mappából vagy szálból), irány, forrás. Nyitott, hova kerüljön:
+  - (a) generált `Files/` dossziék — a meglévő reindex kezeli őket, de 1 fájl = 1 .md, ami sok fájlnál zajos;
+  - (b) egy katalógusfájl, amit a `get_brain_ontology` olvas.
+  A leltár számai döntik el.
+- [ ] Katalógus-script megírása. A tartalom-kivonat ezen a ponton még NEM része. Referencia a brandBrain-ből: `extract.ts`, `page:N`/`slide:N` locatorok, sha256-os dedup.
+
+## 5. Gráfbővítés + bejárásos lekérdezés (spec: `docs/mcp-interview-es-grafbejaras-spec-2026-10-09.md`)
+A brandBrain-ből referenciaként átvehető (nem kód, hanem szerződés):
+- **ConfAI bizonyítékgráf-metodika** (`brandBrain/docs/confai-bizonyitek-graf-metodika-v1.md`):
+  - csomópont- és éltípusok, `origin` és `review` külön;
+  - idézet + locator + start/end char;
+  - V-01…V-14 validátorok; a V-02 szerint az idézetnek egyeznie kell a hashelt forrásszöveggel;
+  - beágyazott JSON Schema.
+  Ez pont a spec 11. fejezetének 1. lépése, a „gráfforrások leltára és szerződése”.
+- **`evidence()`/`concepts()` BFS** gyökerekkel, hopszámmal és ownerekkel (`knowledge-graph-prototype/model.js:79-206`). Ebből lesz az `explore_brain` alakja.
+- **„Retrieval létra” a tool-leírásokban + nulla modellhívásos indextool.** Ez lesz a `get_brain_ontology`.
+
+Javasolt lépcsők, mind külön döntéssel:
+- [ ] **5a. Szerződés:** csomópont- és élséma rögzítése a ConfAI-sémából, customBrain-re szabva (docs).
+- [ ] **5b. Csak valódi, már létező élek.** Kiindulópontok:
+  - dosszié-wikilinkek;
+  - Files/Repos frontmatter → projekt;
+  - thought → person/project/topic metadata (`knowledge:about`, `model_extracted` eredettel);
+  - `supersedes`.
+  Erre jön a `get_brain_ontology` + `read_brain_node` + `explore_brain`. Új tárolás nem kell, mert ezek a Qdrant-payloadból és a dossziékból számolhatók.
+- [ ] **5c. Files mint csomópont-típus** az ontológiában (a 4. pont döntésétől függően katalógus vagy tartalom).
+- [ ] **5d. Bizonyítékréteg** (`claim` + idézet + locator, `get_brain_evidence`). Ez **új tárolási réteg** és modelles kinyerés, ezért csak akkor, ha a 3-as mérés és az 5b használata azt mutatja, hogy kell.
+- [ ] **5e. `interview_brain`** + összehasonlító mérés a 3-as baseline-hoz képest.
+
+**DÖNTÖTT (2026-10-09):** 5a–5c most, 5d a mérés után.
+
+### 5f. Viszony az ellentmondás-detektáláshoz és a /dream-hez
+Mai állapot:
+- `scripts/contradiction-probe.js`: csak olvas, Haiku a bíró, a 0.70–0.92 koszinusz-sávban keres párokat. A szeptember 12-i kalibrációt a brandBrain is átvette.
+- P17 /dream: a Step 1 kész (0.27.0, topic-aliasok). A Step 2 (topic-konszolidációs probe) és a Step 3 (`/dream` skill, csak javaslatfájl, soha nem módosít) sorban áll. Spec: brain `TODO-TOPIC-DREAM-V1`.
+
+**Ahol erősítik egymást:**
+- **Jobb jelöltpárok.** Az ellentmondás jellemzően *alacsonyabb* koszinuszt kap, mint a megerősítés (ROADMAP: 0.77 vs. magasabb), ezért a sávalapú párosítás kihagyja. A gráf (ugyanaz a személy/projekt/Files-csomópont plusz időben eltérő állítás) célzottabb párokat ad a bírónak.
+- **Ellentmondás élként.** A probe verdiktje `evidence:contradicts` / `knowledge:supersedes` él lesz, `origin: model_extracted, review: proposed` jelöléssel, az ember megerősítése után `human_reviewed`. Új tárolás nem kell, elég egy javaslatfájl a `tasks/` alatt, amit a gráfolvasó betölt.
+- **A /dream lesz az író, a bejáró toolok az olvasók.** Ez a Letta-elv („separate writer from reader”), és pontosan a P17 szándéka.
+- **Nyitott konfliktusok a válaszban.** Az `interview_brain` / `read_brain_node` visszaadja a csomópontot érintő nyitott ellentmondásokat is (brandBrain `search.ts` minta).
+
+**Ahol ellene dolgozhatnak, és mit teszünk ellene:**
+- **Körkörös bizonyíték.** A /dream szintézisei (`type=synthesis`) csomópontként visszakerülnek, majd a következő álom bizonyítékként idézi őket. Szabály: szintézis csak *származtatott* csomópont lehet, soha nem `evidence:supports` forrás (brandBrain `independence`-elv).
+- **A modell élei tényként jelennek meg.** A spec már tiltja; a bejárás alapértelmezésben a `proposed` éleket külön, jelölten adja vissza.
+- **Az automatikus `supersedes` (>0.85, capture-időben archivál) nem igazolt döntés-felülírás.** A gráfban `legacy_archive_chain` eredetet kap, nem `knowledge:supersedes`-t.
+- **Költségrobbanás.** A gráfszomszédos párok száma gyorsabban nő, mint a sávalapúaké. A /dream a meglévő tartalom-hash cache-t és egy fix párkeretet használ, Wilson-CI kapuval, ugyanúgy, mint a probe.
+- [ ] Döntés a sorrendről: a /dream Step 3 az 5b *után* jöjjön, mert akkor már gráfszomszédokon dolgozik. A Step 2 topic-probe független, bármikor mehet.
+
+## 6. Stateless MCP — miért jó, és hogyan állnánk át kár nélkül
+**Tények (ellenőrizve 2026-10-09):**
+- A 2026-07-28-as MCP spec eltávolítja a protokollszintű sessiont és az `Mcp-Session-Id` fejlécet (SEP-2567), valamint az `initialize` handshake-et (SEP-2575). Minden kérés `_meta`-ban hozza a verzióját.
+- Ha egy szervernek mégis állapot kell, explicit, a szerver által kiadott handle-t ad tool-argumentumként.
+- Jönnek a `Mcp-Method` és `Mcp-Name` routing-fejlécek (SEP-2243), az SSE-folytatás pedig megszűnik.
+- Az npm-en elérhető legújabb SDK, az `@modelcontextprotocol/sdk` 1.32.1 is még `2025-11-25`-öt beszél. Nálunk 1.29.0 van telepítve. **Az új protokollt tehát egyik SDK sem tudja**; ma „stateless” csak az SDK `sessionIdGenerator: undefined` módját jelenti.
+- A brandBrain így fut élesben (`server/src/mcp.ts:337`): minden kéréshez friss szerver és transport, SDK ^1.30.0, plusz Mcp-Method/Name fejlécellenőrzés.
+
+**Mit nyernénk nálunk:**
+- **Deploy-biztonság.** Ma minden `pm2 stop/start` eldobja a memóriabeli `httpTransports`-ot, így minden kliens sessionje érvénytelen lesz, amíg újra nem kapcsolódik. Stateless módban a restart láthatatlan.
+- **Nincs szivárgás.** A Map csak `onclose`-ra ürül, TTL nincs. Hogy ténylegesen nő-e, nem mértem.
+- **A token-kötés magától adódik.** Minden kérés önállóan hitelesít, és a scope-kapu kérésenként fut. A 0.41.3-as session-eltérítési 403-ra nincs többé szükség, mert nincs mit eltéríteni.
+- **Felkészülés az új specre.** Amikor az SDK támogatja, kisebb lesz a lépés.
+- Skálázásban nem nyerünk: egy gép, egy példány.
+
+**A kockázat, amit komolyan kell venni:** a 0.32.0 pont *stateless → stateful* váltás volt, mert a `tools/call` „not connected”-del elbukott. Ugyanaznap derült ki egy második, független ok: a pont a claude.ai connector nevében (memória: `reference_mcp_stateless_session_bug`). **Hipotézis, nem bizonyított:** lehet, hogy az eredeti hiba valójában a pont volt, nem a stateless mód. A brandBrain stateless módban működik claude.ai-jal. Amíg ezt valós hívással nem igazoljuk, az átállás visszahozhatja a 0.32.0-s hibát.
+
+**Kár nélküli átállás:**
+- [ ] Mérés előtte: a `httpTransports` mérete és élettartama, valamint mely kliensek (claude.ai, Claude Code, Codex, Grok) mit küldenek. Ehhez nginx-log és `Mcp-Session-Id` kell.
+- [ ] **Párhuzamos végpont** (pl. `/mcp/http-stateless`), azonos auth és scope-kapu mellett. A régi `/mcp/http` érintetlen marad, ez a visszaállási pont.
+- [ ] Minden kliensnél **valós `tools/call` az nginx-logban** (nem a modell önbevallása alapján; memória-szabály), mind a 4 kliensre.
+- [ ] Csak ezután váltjuk a fő végpontot. A stateful kód egy kiadáson át megmarad visszakapcsolhatóként.
+- [ ] Nem része: SDK-major vagy az új spec bevezetése. Az csak akkor jön, ha az SDK kiadja.
+
+## Verzió
+- 2: patch vagy minor. A tárolt Gmail-szöveg viselkedése változik, ezért minor-t javaslok.
+- 3: patch (docs).
+- 5b: minor (új MCP toolok, mindkét regisztrációban + scope-térkép).
+- 6: minor (MCP-transport viselkedése változik).
+
+## Végrehajtási sorrend
+1 → 2 → 3 (baseline) → 6 (független, a 3 mellett is mehet) → 4 leltár → 5a → 5b → 5c → 5f/dream → 5d, ha a mérés indokolja → 5e.
+
+---
+
+# MCP interview és gráfbejárás — specifikáció (2026-10-09)
+
+A felhasználó a beszélgetésben kialakított cél alapján specifikációt kért a `docs/` alá. Ez a feladat a dokumentum elkészítése; az MCP implementációjáról a specifikáció alapján lehet dönteni.
+
+- [x] A jelenlegi MCP, keresés, dossziék és gráfok célzott, olvasási vizsgálata.
+- [x] Magyar specifikáció: cél, interview-folyamat, wiki-/bizonyíték-/ontológiai bejárás, MCP-szerződések és kompatibilitás.
+- [x] Példák, adatfüggőségek, méretkorlátok és elfogadási feltételek ellenőrzése.
+- [x] Dokumentumhivatkozás a ROADMAP-ban és lezáró review.
+- [x] Felhasználói kiegészítés: párhuzamos subagentes feltárás, közös költségkeret és hasznos információ szerinti értékelés.
+
+## Review
+
+Kiegészítés ellenőrizve: MCP-description minta, független párhuzamos részkérdések, közös hívás-/költségkeret, forrásalapú összevonás, megállási feltételek és a főagenttel együtt minden subagentet elszámoló mérés. Külön elfogadási esetek kezelik az átfedést és a subagent nélküli klienst.
+
+Elkészült: [MCP interview és gráfbejárás](../docs/mcp-interview-es-grafbejaras-spec-2026-10-09.md). Öt új olvasási tool, a régi keresés kompatibilitása, explicit gráfképességek, forrásverziók, korlátos kimenetek és elfogadási esetek. A helyi kódban igazolt állapotot és a javasolt új gráfokat külön jelöli. A dokumentum helyi linkjei és négy JSON-híváspéldája ellenőrizve; alkalmazáskód, éles adat és verziófájl nem változott. Dokumentációs kiadásra javasolt patch: 0.44.0 → 0.44.1, nem végrehajtva.
+
+---
+
 # Assessment of Current State (requested 2026-05-25 by user)
 
 **Context**: External review of customBrain repo (~/customBrain). Read CLAUDE.md, AGENTS.md, README.md, ROADMAP.md (2026-05-23, v0.27.0), DEPLOYMENT.md, CHANGELOG (through 0.27.0), tasks/todo.md active sections, package versions, key server modules (qdrant.js, etc.). No code changes made. This section is the "plan" per global workflow: read first → write checkbox plan → user verifies before deeper work or recommendations.
