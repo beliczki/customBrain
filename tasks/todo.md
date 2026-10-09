@@ -191,12 +191,14 @@ Mai állapot:
 - [x] **Codex** (2026-10-09, 0.49.2): valódi `tools/call` az nginx-logban, 30–82 KB-os válaszok, `?token=` URL-lel. Előbb két javítás kellett: a GET 406 → 405, majd üres SSE-stream, mert a Codex alpha a 405-öt is auth-hibának vette.
 - [x] **claude.ai** (2026-10-09): `Claude-User` 160.79.106.x-ről, valódi `tools/call` (30 KB, 122 KB), a token **fejlécben** (`Authorization: Bearer`), nem az URL-ben.
 - [x] **Grok** (2026-10-09 20:05): `grok-connectors-manager/0.1.0`, valódi `tools/call` (108 KB, 54 KB), `?token=` URL-lel.
-- [ ] Claude Code: még hátra van.
+- [x] **Claude Code** (2026-10-09 20:12 UTC): nincs saját helyi Brain MCP, a claude.ai connectort örökli (`mcp__claude_ai_Brain__*`) → ugyanaz a `/mcp/http-stateless` URL. Az nginx-logban `Claude-User`: initialize 200, initialized 202, tools/list 200 (15 KB), majd `search_brain` 200 (10 KB). Az első POST 400-at kapott (198 B), a kliens utána rendben folytatta — az okát nem néztük meg.
 - [ ] **Grok bot** (Robi azonosította, 2026-10-09) a RÉGI `/mcp/http`-n: `Cursor/1.0.0` UA, AWS IP-k (52.44.113.131, 184.73.225.134), fejléces token. Át kell állítani `/mcp/http-stateless`-re a bot saját konfigurációjában (nem ebben a repóban), és ellenőrizni kell a naplóban. A régi végpont kivezetése előtt ennek meg kell lennie.
 - [ ] A claude.ai connector-beállításáról készült képernyőképen látszott egy teljes token → új tokent kell csinálni, és a régit vissza kell vonni, ha már egyik kliens sem használja (Robi döntése).
 - [ ] Új lelet: a `quick_lookup` limit=50-re 122 KB-ot adott (teljes action_items stb. 20 thoughtra). Ugyanaz a minta, mint a `search_brain` 0.48.0 előtt; mérni és dönteni kell.
 - [ ] Minden kliensnél **valós `tools/call` az nginx-logban** (nem a modell önbevallása alapján; memória-szabály), mind a 4 kliensre.
-- [ ] Csak ezután váltjuk a fő végpontot. A stateful kód egy kiadáson át megmarad visszakapcsolhatóként.
+- [x] **0.50.0: a fő végpont is stateless** (Robi döntése: nem várunk a botra, az átállás őt is lefedi). A `/mcp/http` és a `/mcp/http-stateless` ugyanazt a handlert kapja. A stateful `handleMcpHttp` egy kiadáson át bekötetlenül megmarad visszaállásnak.
+- [ ] Deploy után: a Grok bot (`Cursor/1.0.0`) valódi `tools/call`-ja a `/mcp/http`-n, az nginx-logban.
+- [ ] Következő kiadás: `handleMcpHttp` + `httpTransports` törlése.
 - [ ] Nem része: SDK-major vagy az új spec bevezetése. Az csak akkor jön, ha az SDK kiadja.
 
 ## Verzió

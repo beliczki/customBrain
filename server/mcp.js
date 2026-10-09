@@ -271,7 +271,9 @@ export function createMcpServer(scopes = null) {
   return server;
 }
 
-// === Streamable HTTP Transport ===
+// === Streamable HTTP Transport (stateful) ===
+// Not mounted since 0.50.0 — both MCP paths use handleMcpHttpStateless. Kept
+// for one release as the rollback, then removed with httpTransports.
 const httpTransports = new Map();
 
 export async function handleMcpHttp(req, res) {
@@ -328,13 +330,13 @@ export async function handleMcpHttp(req, res) {
   await transport.handleRequest(req, res);
 }
 
-// === Stateless Streamable HTTP (parallel endpoint, /mcp/http-stateless) ===
+// === Stateless Streamable HTTP (/mcp/http and /mcp/http-stateless) ===
 // A fresh server + transport per request: no Mcp-Session-Id, nothing held in
 // memory, so a deploy restart is invisible to clients and every request is
 // authorised (and scope-gated) on its own token — there is no session to
-// hijack. Runs beside the stateful /mcp/http until every client (claude.ai,
-// Claude Code, Codex, Grok) is verified on it with a real tools/call in the
-// nginx log; /mcp/http stays the rollback. The 2026-07-28 MCP spec removes
+// hijack. Served /mcp/http-stateless alone from 0.49.0 until claude.ai, Claude
+// Code, Codex and Grok each showed a real tools/call on it in the nginx log;
+// since 0.50.0 it serves /mcp/http too. The 2026-07-28 MCP spec removes
 // protocol sessions altogether (SEP-2567/2575); this is the SDK's stateless
 // mode on the current 2025-11-25 protocol, not that spec.
 export async function handleMcpHttpStateless(req, res) {

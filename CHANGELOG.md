@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.50.0 — 2026-10-09
+
+**`/mcp/http` is stateless too.** claude.ai, Claude Code (which inherits the claude.ai connector), Codex and the Grok connector each made a real `tools/call` on `/mcp/http-stateless` in the nginx log, so the main path now uses the same handler: a deploy restart no longer strands any client's session, the in-memory session map no longer grows, and every request is authorised on its own token. The one client still on `/mcp/http` (the Grok bot, `Cursor/1.0.0`) gets the stateless handler without a config change. `/mcp/http-stateless` stays as the URL the verified clients already use. The stateful `handleMcpHttp` remains in the code, unmounted, for one release as the rollback (point `/mcp/http` back at it and redeploy).
+
 ## 0.49.2 — 2026-10-09
 
 **Codex still dropped into OAuth on the stateless endpoint after 0.49.1.** The nginx log showed its POSTs succeeding (initialize 200, initialized 202, tools/list 200) and the GET for the server→client stream now answered with a correct 405 — which `codex-mcp-client 0.162.0-alpha` also treats as an auth failure. The spec allows two answers to that GET: 405 or an SSE stream. The stateless endpoint now takes the second: an open `text/event-stream` that never carries a message (there is nothing to push without a session) and only sends keep-alive comments every 25 s. Still no server-side state. Other non-POST methods answer 405.

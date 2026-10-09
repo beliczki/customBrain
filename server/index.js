@@ -205,8 +205,10 @@ app.use(reindexRouter);
 app.use(mcpTokensRouter);
 app.use(oauthRouter);
 
-// MCP endpoint (Streamable HTTP only)
-app.all('/mcp/http', handleMcpHttp);
+// MCP endpoint (Streamable HTTP only). Both paths are stateless since 0.50.0.
+// handleMcpHttp (stateful) stays imported for one release as the rollback:
+// point /mcp/http back at it and redeploy.
+app.all('/mcp/http', handleMcpHttpStateless);
 app.all('/mcp/http-stateless', handleMcpHttpStateless);
 
 app.listen(PORT, '127.0.0.1', () => {
