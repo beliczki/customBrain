@@ -77,7 +77,7 @@ function filterHallucinatedPeople(people, text, vaultAliases) {
 // truncated at embed time.
 export const MAX_CHUNK_CHARS = 4000;
 
-function numberLines(text) {
+export function numberLines(text) {
   return text.split('\n').map((line, i) => `${i + 1}| ${line}`).join('\n');
 }
 
@@ -137,7 +137,7 @@ export function sectionsToChunks(text, sections) {
   return chunks;
 }
 
-const CONTENT_SECTION_RULES = `**content_sections**:
+export const CONTENT_SECTION_RULES = `**content_sections**:
 - Every line of the original text below is prefixed with its line number and a bar (\`17| \`). The prefix is a marker, not content — never copy it into any other output.
 - Return the line number where each topic section STARTS, in increasing order. The first section starts at line 1. A section runs until the next section's start line; the last one runs to the end. Do NOT return any text — the system cuts the sections from the original itself, so the whole text is always covered.
 - Place a start at every SEMANTIC TURNING POINT: topic transitions, agenda items, a new email in a thread, a new speaker block on a new subject. Not at fixed lengths — a 30-line agenda item is one section.
