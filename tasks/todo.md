@@ -128,7 +128,10 @@ A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`)
   - **Nyitott:** ki olvassa (lent).
 - [x] **Olvasó: új `find_files` MCP tool** (Robi döntése, 2026-10-09) — `server/files-catalog.js`, mindkét regisztrációban, scope `brain-read`.
 - [x] Katalógus-script megírva (0.51.0): `scripts/build-files-catalog.js`. A tartalom-kivonat ezen a ponton még NEM része. Referencia a brandBrain-ből: `extract.ts`, `page:N`/`slide:N` locatorok, sha256-os dedup.
-- [ ] Első futtatás a szerveren + a számok ide; `find_files` valós hívás.
+- [x] Első futtatás a szerveren (2026-10-09 20:50 UTC, ~5 perc): **3355 rekord** — Drive 3095 (5943 dokumentum-fájlból, archívum/vault/Colab nélkül), Gmail 260 csatolmány a 181 szálból. Fajta: pdf 1690, spreadsheet 752, presentation 405, document 331, markdown 177. `state/files-catalog.json` 1,7 MB. `findFiles` a szerveren kipróbálva: „humanody” 10 találat (Meet-jegyzetek, Gmail-csatolmányok, Drive md), a `Copy of Cordia_2024 …` 6 változata egy `variant_group`-ban.
+  - Útközben két javítás: Gmail-kvóta 6000 egység/perc/felhasználó → szálak egyenként, 1,5 s-os tempóban; a Qdrant szálanként bezárta a keep-alive socketet → a Gmail-thoughtok projektjei egyetlen lapozott scrollal a ciklus előtt.
+  - [ ] `find_files` valós MCP-hívás egy új sessionből (a futó session toollistája az indulás előtti).
+- [ ] **2535 rekord (75%) projekt nélkül.** A legtöbb a Drive-gyökér laza fájljai és a `Data/` mappák, amelyek neve nem egyezik Projects-dosszié nevével/aliasával (pl. `ERSTE HU`, `ESRTE SK`, `ERSTE CZ`, `Agaurg`, `Beliczki Műhely`, `Sahar by Attraction`). Kódváltozás nélkül javítható: `aliases:` sorok a Projects-dossziékba (pl. `ERSTE.md` → `ERSTE HU`), aztán újrafuttatás. Robi döntése, melyik mappa melyik projekt.
 - [ ] Döntés a számok után: mely fájlokból kell kivonat; kell-e cron a frissítéshez.
 
 ## 5. Gráfbővítés + bejárásos lekérdezés (spec: `docs/mcp-interview-es-grafbejaras-spec-2026-10-09.md`)
