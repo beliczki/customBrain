@@ -18,10 +18,28 @@ Két javítás jöhet szóba:
 - [x] (a) DÖNTÖTT: alapos változat. Haiku = csak tartalom/nincs-tartalom verdikt (`max_tokens: 16`), a tárolt szöveg mindig a dedup+regex kimenet; váratlan verdikt hibát dob → a 0.42.0 retry-listájára kerül. Hamis Anthropic-teszt 7/7 PASS (86k karakteres szál végig megmarad)
 - [x] (b) hangos log, a Gmail mintájára
 - [x] (c) DÖNTÖTT: lapozás. `get_gmail_threads` `thread_id`+`from_line`/`max_lines`, a válaszban `body_slice` (a `get_thought` mintája); a lapozás teszten pontosan visszaadja a teljes szöveget
-- [ ] Éles ellenőrzés: egy ismert hosszú szál újrafrissítés után teljes (SSH, jóváhagyással)
+- [x] Élesítve: 0.45.0, 2026-10-09, `/stats` → `0.45.0`. Éles próbafutás mentés nélkül a 3 leghosszabb tárolt Gmail-szálon, az új tisztítóval:
+
+  | Szál | Tárolt (régi Haiku-átírás) | Új (determinisztikus) |
+  |---|---|---|
+  | Humanody — ConfAI rendszer fejlesztés | 16 759 | 63 559 |
+  | Koordináció vs szubsztrát vita | 11 081 | 23 537 |
+  | ERSTE Market — Vagyonkezelés kampány bannerek | 10 642 | 72 980 |
+
+  A régi út tehát a tartalom **50–85%-át** elhagyta ezeken a szálakon. A legújabb üzenet egyedi blokkja mindhárom esetben benne van a végső szövegben. Két esetben a legfrissebb üzenet csak köszönés plusz aláírás volt, ezt a dedup jogosan összevonta. A régi, rövidített szálak a következő frissülésükkor (új levél a szálban) teljes szöveget kapnak. Tömeges újrahúzás nem történt; külön döntés, kell-e.
 - [ ] **(d) Testvérhiba a chunkolásban, 2026-10-09-én találtam.** A `reprocess-v2.js` a Sonnettel `max_tokens: 16384` mellett **újraíratja az eredeti szöveget** `content_chunks`-ként. A `_stop_reason`-t sehol nem nézi az éles út (csak a prototípus-script). A tárolt szöveg teljes marad, de a hosszú gondolatok (Fireflies, és most már a hosszú Gmail) **vége nem kap chunk-vektort**, tehát kereséssel nem található meg. Ez ugyanaz a mechanizmus: a modell a forrást írja újra, plafon alatt.
-  - Mérés előbb, csak olvasva: thoughtonként a content_chunk-szöveg összhossza a teljes szöveghez képest.
-  - Alapos javítás: a Sonnet a határokat adja vissza (horgony vagy offset), a chunk-szöveget pedig determinisztikusan vágjuk az eredetiből. A határokról továbbra is a Sonnet dönt (memória: LLM-judgment chunking).
+  - **MÉRVE, 2026-10-09, csak olvasva, `thoughts_v2`, lapozva:**
+    - 626 szülő, ebből 436 hosszabb 1500 karakternél.
+    - **47 hosszú gondolatnak egyáltalán nincs content-chunkja.**
+    - A chunkos 389-ből 156-nál az utolsó 300 karakter nincs benne szó szerint egyetlen chunkban sem. Forrás szerint: Fireflies 104/128, YouTube 28/70, manuális 14/73, Gmail 9/99.
+    - A chunk/szöveg hossz-arány mediánja: 1,5–10k → 0,54; 10–30k → 0,58; 30–60k → 0,29; 60k felett → 0,20.
+  - **Pontosítás, második mérés:** ez **nem** a végén vágás. A content-chunkok 74%-a (1629/2214) szó szerint kezdődik a szülőben, és ahol az utolsó chunk szó szerint megtalálható, ott a szöveg végéig ér (medián 1,00). Az utóbbi 46 chunkolási hívásból (ledger, 0.44.0 óta) egyik sem érte el a plafont (max 11 525 / 16 384 kimeneti token).
+  - **A valódi mechanizmus a tömörítés.** A Sonnet a hosszú szöveget 2–10 chunkba *összevonja*. Egy 100 000 karakteres átiratnak így csak ~10–20%-a kerül szó szerint chunk-vektorba, a szülő dense és BM25 vektora pedig az *összefoglalóból* készül (`chunking.js`, `mainSparse = sparseEncodeDoc(summary)`). **A hosszú meetingek szövegének nagy része tehát semmilyen indexben nem kereshető szó szerint.** Ez recall-hiba; memória: a chunkolás célja a recall.
+  - Alapos javítás: a Sonnet a határokat adja vissza (horgony vagy offset), a chunk-szöveget pedig determinisztikusan vágjuk az eredetiből. Így 100% a lefedettség, és a határokról továbbra is a Sonnet dönt (memória: LLM-judgment chunking).
+    - Nyitott tervezési kérdés: a szó szerinti chunkok hosszabbak lesznek, a Gemini embedding bemeneti korlátja pedig ~2048 token. Hosszú szövegnél ezért több és rövidebb chunk kell, különben az embedding hívás csendben levág. Ezt implementálás előtt ellenőrizni kell, a BM25-öt nem érinti.
+    - Utána backfill a 436 hosszú gondolatra, Sonnet-költséggel. Becslés előtte.
+  - [ ] Döntés: ez a 3-as mérés (baseline) **előtt** vagy **után** jöjjön? Javaslat: a baseline előtt mérjük meg (Hit@10 a hosszú-meeting kérdéseken), és csak utána javítsunk, hogy a hatás kimutatható legyen.
+- [ ] **Mellékmegfigyelés a 3-as méréshez:** a mai manuális capture-ök `total` ideje 33–43 másodperc, ebből `vault_ctx` 25–40 másodperc (pm2-log). A 11. fejezet célja: ack p95 ≤ 1 s. Ez lesz a mérés egyik első tétele.
 
 ## 3. A tanulmány 11. fejezetének mérése → `docs/custombrain-meres-2026-10.html`
 A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`):
