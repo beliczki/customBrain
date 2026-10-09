@@ -396,12 +396,13 @@ async function callClaudeJson({ model = CHUNK_MODEL, prompt, schema, effort, max
   return { parsed: JSON.parse(text), json };
 }
 
-export async function reprocessThought(text, vaultContext) {
+// `model` / `effort` override the production choice — used by model A/B runs.
+export async function reprocessThought(text, vaultContext, { model = CHUNK_MODEL, effort = 'medium' } = {}) {
   const localCtx = loadContext();
   const prompt = buildMegaPrompt(text, localCtx, vaultContext);
 
   const { parsed, json } = await callClaudeJson({
-    prompt, schema: RESPONSE_SCHEMA, effort: 'medium', maxTokens: 32000, site: 'chunking',
+    model, prompt, schema: RESPONSE_SCHEMA, effort, maxTokens: 32000, site: 'chunking',
   });
 
   // Defensive: Haiku occasionally returns chunk arrays as stringified JSON
