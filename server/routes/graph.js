@@ -166,6 +166,7 @@ export async function buildGraph(points = null) {
           source: old.payload.source || 'manual',
           people: [], projects: [], topics: [],
           created_at: old.payload.created_at,
+          layer: layerOf(old.payload),
           archived: true,
         });
       }
@@ -284,7 +285,7 @@ export async function buildOntology() {
       node.entity = 'repo';
       node.detail = !r ? ['repos-status.json: no entry']
         : r.error ? [r.error]
-          : [`${r.repo} · v${r.version}`, `last commit ${r.last_commit.date.slice(0, 10)}`, ...r.drift];
+          : [`${r.repo} · ${r.version ? `v${r.version}` : 'no package.json version'}`, `last commit ${r.last_commit.date.slice(0, 10)}`, ...r.drift];
       if (r && r.project) repoNodes.push({ id: d.id, project: r.project.replace(/^["'[]+|["'\]]+$/g, '') });
     } else {
       for (const name of [d.name, ...(d.aliases || [])]) index[d.dossier_type].set(nameKey(name), d.id);
