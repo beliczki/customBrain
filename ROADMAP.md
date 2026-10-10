@@ -1098,3 +1098,5 @@ Updated 2026-05-16 a Roadmap review után (USE IT FIRST gate ✅ passed). Killed
 | zod must stay v3 | zod v4 breaks `@modelcontextprotocol/sdk` via `zod-to-json-schema` | Discovered during build |
 | Streamable HTTP transport added | Modern MCP transport alongside legacy SSE | Added feature |
 | stdio MCP transport (`mcp-stdio.js`) | Local Claude Desktop without Express server | Added feature |
+
+- [x] **Dosszié-felpontozás (0.76.0, 2026-10-10):** csak a megnevezett dosszié kap ×1,5-öt, a nem megnevezett ×0,5-öt. Az egyedi névszó önmagában is megnevez („Országtuning” → RMT Országtuning). Mérés: a search pontossága 0,36 → 0,40, a dosszié-helyek száma 25 → 12. Nyitott: a széles összefoglaló thoughtok (pl. a napi szintézis) és a tervdokumentumok sok kérdésben felbukkannak. Érdemes lehet a `synthesis` típust és a customBrain-doksikat külön kezelni.

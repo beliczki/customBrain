@@ -2,6 +2,19 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.76.0 — 2026-10-10
+
+**Search: only a dossier the query names gets the dossier boost; a unique name word is enough to name one.**
+- **Boost:** `applyTimeDecay` (search) gives ×1.5 only to a dossier that `matchAnchors` recognises in the query. An unnamed dossier is context and is weighted ×0.5 (`UNNAMED_DOSSIER`, hand-set), roughly like an average-aged thought.
+  - **Before:** every dossier got ×1.5 and no decay. Dossiers took 25% of the top-10. The named ones were relevant; the siblings that only shared a word ("Bird" → ERSTE Market, Hitelkártya, Vállakozók) were judged irrelevant, and on "ERSTE SZA" 7 of the top 10 were dossiers.
+  - **Why not plain decay:** decaying unnamed dossiers by their file date was simulated and barely helped, because dossier files are touched often.
+- **Naming** (`matchAnchors`, moved to `server/names.js`; brain-map re-exports it). A project/topic word that belongs to one canonical only (5+ letters) names it on its own, if it looks like a name in the question: capitalised, or 8+ letters. "Országtuning" / "országtuning" → RMT Országtuning, while "ERSTE" (shared by seven dossiers) names none of them alone and "market research" does not name ERSTE Market. map, spider and search all use this.
+- **Measured, same 10 questions (0.75 → 0.76):**
+  - search: relevant 36 → 40 / 100 (precision 0.36 → 0.40); dossier slots 25 → 12; irrelevant dossiers 4 → 1;
+  - map: 99 → 115 relevant (0.18 → 0.22);
+  - spider (now 24 steps): 81 / 240 (0.34; it was 0.26 at 36 steps).
+  - search "at least useful" fell 0.85 → 0.79. The new irrelevant hits are mostly content added between the runs: today's broad synthesis thought and customBrain plan docs that cite ERSTE examples. The judge varies too.
+
 ## 0.75.2 — 2026-10-10
 
 Graph: in People and Project grouping, clicking a group anchor that a dossier folded into still isolates the group, and now also opens the dossier.
