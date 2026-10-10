@@ -52,8 +52,8 @@ const LENSES = [
   { key: 'ontology', label: 'ontológia' },
   { key: 'project', label: 'projekt', keys: (n) => n.projects, show: (k) => `projekt: ${k}` },
   { key: 'person', label: 'ember', keys: (n) => n.people.filter((p) => p !== 'Me'), show: (k) => `ember: ${k}` },
-  { key: 'source', label: 'forrás', keys: (n, week) => [`${n.source}|${week(n)}`], show: (k) => `${k.split('|')[0]}, ugyanazon a héten` },
-  { key: 'type', label: 'típus', keys: (n, week) => [`${n.type}|${week(n)}`], show: (k) => `${k.split('|')[0]}, ugyanazon a héten` },
+  { key: 'source', label: 'forrás', topical: true, keys: (n, week) => [`${n.source}|${week(n)}`], show: (k) => `${k.split('|')[0]}, ugyanazon a héten` },
+  { key: 'type', label: 'típus', topical: true, keys: (n, week) => [`${n.type}|${week(n)}`], show: (k) => `${k.split('|')[0]}, ugyanazon a héten` },
   { key: 'cluster', label: 'klaszter', keys: (n) => (n.community >= 0 ? [String(n.community)] : []), show: (k) => `klaszter ${k}` },
 ];
 
@@ -134,6 +134,12 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
     const node = nodes.get(id);
     trace.push({ phase: 'walk', round, lens, ref: { id }, from: from ? { id: from } : null, label: node.title, why: `${why} · ${score.toFixed(3)}`, score, layer: node.layer });
   };
+  // Same source / type in the same week only counts on the same thread: the
+  // neighbour must share a project or a person (not Me) with where it came
+  // from. Measured on "confai": without this the week's gmail and meetings
+  // walked straight into unrelated ERSTE campaigns.
+  const sharesTopic = (a, b) => (a.projects || []).some((p) => (b.projects || []).includes(p))
+    || (a.people || []).some((p) => p !== 'Me' && (b.people || []).includes(p));
   // Expand a visited node in every lens — that is how a walk crosses over.
   const expand = (id, base) => {
     const node = nodes.get(id);
@@ -148,6 +154,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
         if (!members) continue;
         const w = DECAY / Math.sqrt(members.length);
         for (const m of members) {
+          if (lens.topical && !sharesTopic(node, nodes.get(m))) continue;
           if (m !== id && !visited.has(m)) offer(lens.key, m, base * w * age(nodes.get(m)), id, `[${lens.label}] ${lens.show(k)} ← ${node.title}`);
         }
       }
