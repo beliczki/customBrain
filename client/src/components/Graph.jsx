@@ -521,6 +521,8 @@ export default function Graph({ traversal, onCloseTraversal }) {
       .onNodeClick((node) => {
         if (node.kind === 'anchor') {
           setIsolatedGroup((cur) => (cur === node.groupKey ? null : node.groupKey));
+          // A folded dossier's anchor (People / Project grouping) also opens it.
+          if (node.dossierId) setModalThoughtId(node.dossierId);
         } else if (node.kind === 'thought') {
           selectNode(node.id);
         } else {
@@ -786,9 +788,13 @@ export default function Graph({ traversal, onCloseTraversal }) {
     const foldType = { project: 'project dossier', person: 'person dossier' }[groupBy];
     const groupKeys = new Set(groups.map((grp) => grp.key));
     const folded = new Map(); // dossier id → anchor id
+    const dossierOfGroup = new Map(); // group key → dossier id (click opens it)
     if (foldType) {
       for (const n of view.nodes) {
-        if (n.entity === 'dossier' && n.type === foldType && groupKeys.has(n.title)) folded.set(n.id, `g:${n.title}`);
+        if (n.entity === 'dossier' && n.type === foldType && groupKeys.has(n.title)) {
+          folded.set(n.id, `g:${n.title}`);
+          dossierOfGroup.set(n.title, n.id);
+        }
       }
     }
 
@@ -837,6 +843,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
         title: `${grp.label} (${grp.count})`,
         color: grp.color,
         groupKey: grp.key,
+        dossierId: dossierOfGroup.get(grp.key) || null,
         r: 6 + Math.sqrt(grp.count) * 1.4,
         big: true,
       });

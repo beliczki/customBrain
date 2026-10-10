@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.75.2 — 2026-10-10
+
+Graph: in People and Project grouping, clicking a group anchor that a dossier folded into still isolates the group, and now also opens the dossier.
+
 ## 0.75.1 — 2026-10-10
 
 **Graph: a person or project shows once.** Since 0.70.0 the dossiers appear in every grouping, so in Person and Project grouping each person or project was drawn twice. One node was the group anchor ("ISTVAN HOLLOSI (75)", with its thoughts around it). The other was the dossier node ("person dossier · 87 links · solo"), floating alone because a dossier carries no membership field. Now the dossier folds into its anchor: it is not drawn on its own, its edges (tag, owner, dossier, related) land on the anchor, and a thought already pulled to that anchor gets no second line. The "Person" grouping is renamed **People**.
