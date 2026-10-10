@@ -158,7 +158,7 @@ MCP call log (0.58.0): `server/mcp-call-log.js` → `state/mcp-calls.jsonl`, wri
 
 Graph cache (0.64.0): `server/graph-cache.js` — never call `buildGraph()` on a request path; use `getCachedGraph()`. The build runs in `graph-worker.js` (a main-thread build blocks the server for seconds and leaves stale Qdrant keep-alive sockets behind); a 60 s fingerprint poll rebuilds it after any write, crons included.
 
-spider (0.63.0; recency since 0.65.0 via search's `recencyFactor`, the one recency rule): `server/spider.js`, best-first walk over buildGraph + buildOntology from search hits + question anchors; knobs (steps, threshold, decay, edge weights) at the top of the file. UI-only for now (Search tab + `/trace`), not an MCP tool until it beats `map`.
+spider (0.63.0; recency since 0.65.0 via search's `recencyFactor`, the one recency rule; six lenses in parallel waves since 0.68.0): `server/spider.js`, walk over buildGraph + buildOntology from search hits + question anchors — ontology/project/person/source/type/cluster lenses, cross-lens agreement combines scores; knobs (steps, threshold, decay, edge weights) at the top of the file. UI-only for now (Search tab + `/trace`), not an MCP tool until it beats `map`.
 
 Ontology layers (0.59.0): `server/ontology.js` `layerOf()` is the ONE rule for which layer a point belongs to (Horgony · Történés · Tárgy · Vállalás · Tudás). `map` HÁTTÉR and the Graph's Ontológia mode both use it — change the rule there, never in a caller.
 

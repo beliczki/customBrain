@@ -2,6 +2,23 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.68.0 — 2026-10-10
+
+**spider walks six lenses in parallel waves, and its result is laid out in six columns. The search bar moves into the top bar.**
+- **Lenses** (`LENSES` in `server/spider.js`): the Graph tab's groupings as walkable graphs.
+  - ontológia: semantic, supersedes and cross-layer edges;
+  - projekt, ember (Me excluded), klaszter (Louvain): the same group;
+  - forrás, típus: the same group in the same week, and only to a neighbour sharing a project or a person with where the step came from. Measured on "confai": without that rule the week's gmail and meetings walked into unrelated ERSTE campaigns.
+
+  A group step weighs DECAY / √(group size). A Projects or People dossier opens its own group, which is how the walk crosses from ontology into the project and person lenses.
+- **Waves.** Round 0 visits the top 5 search hits and the question's anchor dossiers. After that, every wave lets each lens take its own best unvisited node, so the walk sets off in several directions at once. Each visited node is expanded in all lenses: that is the cross-over. A node reached by several lenses combines their scores as independent evidence, 1 − Π(1 − s); the step says how many lenses agreed. A relevance gate lets a lens step only if its candidate reaches 30% of the wave's best (`GATE`). `MAX_STEPS` 36 (about 5–6 waves).
+- The metadata (shared-tag) edges are no longer walked directly: the project and person lenses cover them, without the 20-member fan-out cap.
+- Result items carry `lens` and `round`; the result carries `lenses` and `rounds`. map's KORÁBBI uses the same walk.
+- **UI.**
+  - spider text view: the starting points on top, then **one column per lens** (6 on wide screens, 3 or 2 on narrower ones), revealed step by step, then "Mi állt össze" per layer and the frontier. The Search page is wide (`AppShell wide`); search and map keep the 900 px reading width.
+  - The graph replay groups steps by wave ("kiindulópontok", "1. hullám", …).
+  - **Search bar in the top bar**: `ShellHeader` portals a page's controls into the content header after the title. Search puts input · `search | map | spider` · Search there; "Bejárás a gráfon ▶" stays above the results.
+
 ## 0.67.0 — 2026-10-10
 
 **map shows its progress, and no request waits for the dossier load any more.**
