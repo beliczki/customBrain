@@ -204,11 +204,13 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   hits.map((h) => ({ ...h, node: nodes.has(h.id) ? h.id : sectionNode.get(h.id) }))
     .filter((h) => h.node && !seen.has(h.node) && seen.add(h.node))
     .forEach((h) => {
-      // A weak_semantic hit (only the fusion lifted it) is not a starting
-      // point: on "confai" a calendar note full of ERSTE/RMT tags started the
-      // walk and filled the tag cloud. It waits in the frontier instead, and
-      // is reached if the walk leads there.
-      if (h.evidence !== 'weak_semantic' && starts.length < SEED_VISITS) starts.push([h.node, h.score / top, `keresés: ${h.evidence}`]);
+      // A weak_semantic hit (only the rank fusion lifted it) is no evidence
+      // of relevance, so it enters the walk neither as a start nor as an
+      // offer. On "confai" a calendar note tagged ERSTE/RMT/Anna Bodiss was
+      // stepped in wave 1 from the frontier at its full search score (0.436)
+      // and filled the tag cloud. If it is related, an edge leads there.
+      if (h.evidence === 'weak_semantic') return;
+      if (starts.length < SEED_VISITS) starts.push([h.node, h.score / top, `keresés: ${h.evidence}`]);
       else offer('ontology', h.node, h.score / top, null, `[ontológia] keresés: ${h.evidence}`);
     });
   const anchors = matchAnchors(question, vault);
