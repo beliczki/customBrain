@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.62.0 — 2026-10-10
+
+**App shell after confAi2's HINT-map.** Plan: `docs/app-shell-terv-2026-10-10.md`. The header + tab row is replaced by `client/src/components/AppShell.jsx`:
+- **Left menu**: the former tabs with lucide-react icons (new dependency `lucide-react`). It collapses to a 60 px icon strip from the hamburger; the state persists (`cb_shell_sidebar`), and below 1080 px it starts collapsed. The active row takes the content background.
+- **Menu footer**, fixed at the bottom: theme toggle (`ThemeToggle` gained `inline` and a one-button `compact` variant), Settings (moved out of the menu), **Kijelentkezés** (new: clears `ui_secret` and returns to Unlock), version.
+- **Content**: a title header, then the page filling the remaining height. Text pages keep the 900 px reading width and scroll inside.
+- **Right toolbar**: a page fills it through `<ShellToolbar>` (a portal); a page that renders none has no toolbar. It collapses to a strip; the state persists (`cb_shell_toolbar`). Today only the Graph uses it: its Controls panel moved there, and the panel's own hide/reopen buttons are gone.
+- **Graph** now fills the content area instead of the whole window and sizes from its container (ResizeObserver), so it follows menu/toolbar collapse as well as window resizes. Its overlays (timeline, hint, traversal panel) are positioned inside it; the translucent header overlay is gone.
+
 ## 0.61.0 — 2026-10-10
 
 **Traversal replay: watch a Search method walk the graph, slowed down.** Plan: `docs/bejaras-modszerek-terv-2026-10-10.md`, step 2.

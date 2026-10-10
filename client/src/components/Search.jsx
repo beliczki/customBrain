@@ -9,7 +9,7 @@ import BrainMapPackage from './BrainMapPackage.jsx';
 // agent gets; "search" is the raw hybrid hit list with the anatomy view.
 // A submit fetches only the active mode; switching fetches the other one for
 // the same query the first time it is shown.
-// [mode key, label = method name]. spider is planned (0.62.0) and shown
+// [mode key, label = method name]. spider is planned (0.63.0) and shown
 // disabled so the three methods read as one family.
 const MODES = [['hits', 'search'], ['package', 'map'], ['spider', 'spider']];
 const METHOD_OF = { hits: 'search', package: 'map' };
@@ -73,7 +73,7 @@ export default function Search({ onTraverse }) {
             type="button"
             onClick={() => switchMode(m)}
             disabled={m === 'spider'}
-            title={m === 'spider' ? 'jön a 0.62.0-ban' : undefined}
+            title={m === 'spider' ? 'jön a 0.63.0-ban' : undefined}
             className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               mode === m ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
             }`}

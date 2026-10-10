@@ -68,7 +68,7 @@ Az előző válaszom pontatlan volt: a UI Találatok módja 5 találatot kér, d
 
 1. **0.60.0 — átnevezés (breaking):** `search_brain` → `search`, `brain_map` → `map` a `mcp.js`-ben, a `mcp-stdio.js`-ben, a `TOOL_SCOPES`-ban, a `map` TOVÁBB-szekciójában, a `review-commitments` skillben, a CLAUDE.md-ben és az AGENTS.md-ben. Régi név aliasként nem marad. A HTTP-route `/brain-map` → `/map`. A régi docs és a CHANGELOG nem változik, mert történet.
 2. **0.61.0:** a `trace` a `search` és a `map` módszerhez, `/trace` route, Graph bejárás-réteg, háromállású Search-váltó, a `spider` még letiltva.
-3. **0.62.0:** a `spider` (`server/spider.js`) beköt ugyanoda.
+3. **0.63.0** (a 0.62.0 az app shell lett): a `spider` (`server/spider.js`) beköt ugyanoda. A Search tabon saját szöveges eredménynézetet kap (rétegenként a bejárt elemek, sorrendben, a „miért”-tel és a sorban maradt jelöltekkel), és a „Bejárás a gráfon ▶” ugyanúgy lejátssza.
 
 A 2. lépés már megmutatja, milyen sekély ma a `map`. Ehhez lehet viszonyítani a `spider`-t.
 

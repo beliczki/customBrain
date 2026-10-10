@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { getGraph, getGraphOntology, getTrace } from '../api.js';
 import ThoughtModal from './ThoughtModal.jsx';
+import { ShellToolbar } from './AppShell.jsx';
 
 // Community color palette — fixed order so cluster N keeps its color across
 // reloads (server-side Louvain is deterministic: randomWalk off).
@@ -226,7 +227,6 @@ export default function Graph({ traversal, onCloseTraversal }) {
   const [selectedNode, setSelectedNode] = useState(null);
   const [modalThoughtId, setModalThoughtId] = useState(null);
   const [query, setQuery] = useState('');
-  const [panelOpen, setPanelOpen] = useState(prefs.panelOpen ?? true);
   // Timeline scrubber: show the brain as of this date (epoch ms). null = all.
   // `timeCap` follows the slider live; `appliedCap` is debounced — every change
   // rebuilds the scene, so raw drag events would thrash the simulation.
@@ -308,9 +308,9 @@ export default function Graph({ traversal, onCloseTraversal }) {
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       mode, groupBy: traversal ? savedGroupByRef.current : groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity,
-      panelOpen, collapsed,
+      collapsed,
     }));
-  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity, panelOpen, collapsed, traversal]);
+  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity, collapsed, traversal]);
 
   const nodeById = useMemo(() => {
     if (!data) return new Map();
@@ -481,8 +481,8 @@ export default function Graph({ traversal, onCloseTraversal }) {
 
     graph
       .backgroundColor(SCENE_BG)
-      .width(window.innerWidth)
-      .height(window.innerHeight)
+      .width(el.clientWidth)
+      .height(el.clientHeight)
       .nodeLabel((n) => (n.kind === 'thought' ? `
         <div class="graph-tooltip3d">
           <span class="graph-tooltip3d__title">${escapeHtml(n.title)}</span>
@@ -742,11 +742,13 @@ export default function Graph({ traversal, onCloseTraversal }) {
         .linkDirectionalArrowLength(0);
     }
 
-    const onResize = () => graph.width(window.innerWidth).height(window.innerHeight);
-    window.addEventListener('resize', onResize);
+    // The scene fills the shell's content area (0.62.0), which changes size
+    // with the window AND when the menu or toolbar collapses.
+    const resizer = new ResizeObserver(() => graph.width(el.clientWidth).height(el.clientHeight));
+    resizer.observe(el);
 
     return () => {
-      window.removeEventListener('resize', onResize);
+      resizer.disconnect();
       graph._destructor();
       graphRef.current = null;
       nodeObjsRef.current.clear();
@@ -951,7 +953,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
   if (error) return <p className="text-red-600 dark:text-red-400 text-sm">Graph error: {error}</p>;
   if (!data) {
     return (
-      <div className="graph-loading fixed inset-0 z-30 bg-black flex items-center justify-center">
+      <div className="graph-loading absolute inset-0 z-30 bg-black flex items-center justify-center">
         <p className="text-slate-500 text-sm">Building graph…</p>
       </div>
     );
@@ -967,16 +969,16 @@ export default function Graph({ traversal, onCloseTraversal }) {
   return (
     <div className="graph-tab">
       {/* Full-screen scene */}
-      <div ref={containerRef} className="graph-canvas graph-canvas--full fixed inset-0 z-30 bg-black" />
+      <div ref={containerRef} className="graph-canvas graph-canvas--full absolute inset-0 z-30 bg-black" />
 
       {/* Hint overlay */}
-      <p className="graph-hint fixed bottom-3 left-4 z-40 text-[10px] uppercase tracking-wider text-slate-600 pointer-events-none">
+      <p className="graph-hint absolute bottom-3 left-4 z-40 text-[10px] uppercase tracking-wider text-slate-600 pointer-events-none">
         {mode === '3d' ? 'drag to orbit' : 'drag to pan'} · scroll to zoom · click thought to focus · click group to isolate
       </p>
 
       {/* Timeline scrubber — replay the brain from first thought to last */}
       {timeBounds && (
-        <div className="graph-timeline fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-[min(720px,60vw)] px-4 py-2 flex items-center gap-3 bg-[rgba(6,9,16,0.72)] border border-white/10 backdrop-blur">
+        <div className="graph-timeline absolute bottom-8 left-1/2 -translate-x-1/2 z-40 w-[min(720px,60vw)] px-4 py-2 flex items-center gap-3 bg-[rgba(6,9,16,0.72)] border border-white/10 backdrop-blur">
           <span className="graph-timeline__start text-[10px] text-slate-500 whitespace-nowrap">
             {new Date(timeBounds.min).toISOString().slice(0, 10)}
           </span>
@@ -1009,7 +1011,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
 
       {/* Traversal replay panel (0.61.0) */}
       {traversal && (
-        <div className="traversal-panel fixed top-[104px] left-4 z-40 w-80 max-h-[calc(100vh-160px)] flex flex-col bg-[rgba(6,9,16,0.72)] border border-white/10 backdrop-blur">
+        <div className="traversal-panel absolute top-4 left-4 z-40 w-80 max-h-[calc(100%-96px)] flex flex-col bg-[rgba(6,9,16,0.72)] border border-white/10 backdrop-blur">
           <div className="traversal-panel__header flex items-start justify-between gap-2 px-3 pt-3 pb-2 border-b border-white/10">
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-wider text-slate-500">Bejárás · {traversal.method}</p>
@@ -1097,26 +1099,9 @@ export default function Graph({ traversal, onCloseTraversal }) {
         </div>
       )}
 
-      {/* Controls overlay panel */}
-      {!panelOpen && (
-        <button
-          onClick={() => setPanelOpen(true)}
-          className="graph-controls-panel__reopen fixed top-[104px] right-4 z-40 px-3 py-1.5 text-[10px] uppercase tracking-wider bg-[rgba(6,9,16,0.72)] border border-white/10 text-slate-300 hover:text-white backdrop-blur transition-colors"
-        >
-          ☰ controls
-        </button>
-      )}
-      <div className={`graph-controls-panel fixed top-[104px] right-4 z-40 w-72 max-h-[calc(100vh-120px)] overflow-y-auto space-y-3 ${panelOpen ? '' : 'hidden'}`}>
-        <div className="graph-controls-panel__header flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500">Controls</span>
-          <button
-            onClick={() => setPanelOpen(false)}
-            className="text-slate-500 hover:text-white text-xs px-1 transition-colors"
-            title="Hide panel"
-          >
-            ✕
-          </button>
-        </div>
+      {/* Controls — in the shell's right toolbar (0.62.0) */}
+      <ShellToolbar>
+      <div className="graph-controls-panel min-h-full space-y-3">
         {/* Search */}
         <div className="graph-search relative">
           <input
@@ -1401,6 +1386,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
           <p>{data.stats.community_count} clusters · {data.stats.orphan_count} orphans</p>
         </div>
       </div>
+      </ShellToolbar>
 
       {modalThoughtId && (
         <ThoughtModal thoughtId={modalThoughtId} onClose={() => setModalThoughtId(null)} />

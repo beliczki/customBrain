@@ -203,7 +203,7 @@ All three call `captureThought(text, { source, sourceId })`, which early-returns
 
 ## Client
 
-Vite + React 19 + Tailwind 3. Components in `client/src/components/`. Tab-based navigation in `App.jsx`.
+Vite + React 19 + Tailwind 3. Components in `client/src/components/`. Navigation is state in `App.jsx` (no URL routes), rendered by `AppShell.jsx` (0.62.0): left menu + footer (theme, Settings, logout), titled content, and a right toolbar a page fills with `<ShellToolbar>` — use that instead of floating a panel over the page.
 
 ## Production
 
