@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.54.1 — 2026-10-10
+
+**Settings: `GITHUB_TOKEN` field (GitHub category, masked).** It will hold a fine-grained, read-only token (Contents: Read-only, limited to the repos the Repos dossiers list) for the upcoming repo-status cron. Nothing reads it yet. The field description warns against write scopes because the box is shared by several apps. ROADMAP records the larger key and permission design that the token's blast radius calls for.
+
 ## 0.54.0 — 2026-10-10
 
 **Files catalog: a Drive file's project comes from folders the Projects dossiers declare.** Each Projects dossier can now list its Drive folders in a `drive_folder:` frontmatter list (folder links, for checking by hand too). `scripts/build-files-catalog.js` walks a file's parent chain by folder id and takes the deepest declared folder, so renamed folders, typos (`ESRTE SK`) and shared folders outside `Data/` (`Sahar by Attraction`) resolve correctly. One folder can belong to several projects (Sahar = Attraction Productions). This replaces matching the first-level `Data/<folder>` name against project names and aliases. That match assigned all of `Telekom/AI Mesh` to Telekom and none of the four ERSTE country folders to anything. 25 dossiers were filled in on Drive (27 folders), plus a new `BrandBrain` Projects dossier. Rebuilt on the server: Drive files with a project went from 565 to 835 of 3095, and all 201 files under `AI Mesh/Ország tuning` are now RMT Országtuning instead of Telekom. Old files without a declared folder stay unassigned on purpose.

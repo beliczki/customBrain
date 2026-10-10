@@ -120,6 +120,15 @@ export const SETTINGS_SCHEMA = [
     description: 'Drive folder of repo-context dossiers — one .md per repository, indexed for search.',
   },
 
+  // ─── GitHub (repo status) ──────────────────────────────────────────
+  {
+    key: 'GITHUB_TOKEN',
+    category: 'GitHub',
+    label: 'GitHub token (read-only)',
+    is_secret: true,
+    description: 'Fine-grained personal access token, Contents: Read-only, limited to the repos in the Repos dossiers. Reads version, last commit and doc freshness for the repo status. Never give it write scopes: this box is shared by several apps.',
+  },
+
   // ─── Fireflies (meeting transcripts) ───────────────────────────────
   {
     key: 'FIREFLIES_API_KEY',
