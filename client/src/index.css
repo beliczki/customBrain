@@ -222,3 +222,7 @@ body {
   color: #64748b;
   margin-bottom: 6px;
 }
+
+/* spider stats (0.69.0): charts grow with the replay — geometry eases instead of jumping */
+.spider-stats path { transition: d 300ms ease; }
+.spider-stats__bar { transition: height 300ms ease, y 300ms ease; }

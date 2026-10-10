@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ThoughtModal from './ThoughtModal.jsx';
 import { Section } from './BrainMapPackage.jsx';
+import SpiderStats, { LENS_COLOR } from './SpiderStats.jsx';
 
 // spider's text view (0.63.0): what the best-first walk reached, per layer,
 // with the step it was reached at and why; then the frontier it left. The
@@ -110,6 +111,8 @@ export default function SpiderResult({ walk }) {
           return (
             <div key={lens.key} className="spider-lens min-w-0">
               <h3 className="spider-lens__header text-xs uppercase tracking-wider text-txt-ter mb-2 pb-1 border-b border-subtle flex items-baseline gap-2">
+                {/* lens colour, the same as in the stats panel below */}
+                <span className="spider-lens__swatch inline-block w-2 h-2 shrink-0" style={{ backgroundColor: LENS_COLOR[lens.key] }} />
                 {lens.label}
                 <span className="text-[10px]">{items.length}</span>
               </h3>
@@ -133,6 +136,7 @@ export default function SpiderResult({ walk }) {
           </Section>
         </>
       )}
+      <SpiderStats items={visible} lenses={walk.lenses} total={total} />
       {openThoughtId && <ThoughtModal thoughtId={openThoughtId} onClose={() => setOpenThoughtId(null)} />}
     </div>
   );

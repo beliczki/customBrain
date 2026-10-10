@@ -2,6 +2,23 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.69.0 — 2026-10-10
+
+**spider gets a quality panel pinned to the bottom of the page, animating as the six lens columns fill.** `client/src/components/SpiderStats.jsx` is hand-drawn SVG (no chart library). Every chart is computed from the steps revealed so far, so it grows with the replay, eases between states (CSS transitions on path `d`, bar height/y) and settles when the replay ends; "mind" jumps it to the end state. Collapsible.
+- **KPIs:**
+  - lencse-egyetértés: the mean number of lenses that reached a step;
+  - rétegek: the layers covered, out of 5;
+  - átlagos kor: the mean content age of the reached thoughts;
+  - fókusz: the share of the most frequent project; low means a scattered walk.
+- **Charts:**
+  - star: steps per lens;
+  - sunburst: layer → type;
+  - bars: score per step, lens-coloured, a dot where several lenses agreed;
+  - tree: who led to whom from the starting points;
+  - word cloud: topics, projects and people of what was reached, score-weighted.
+- Lens columns carry the same lens colour as the charts.
+- Server: spider result items now also carry `topics`, `people`, `projects`, `from` (the step it came from) and `agree` (how many lenses reached it).
+
 ## 0.68.0 — 2026-10-10
 
 **spider walks six lenses in parallel waves, and its result is laid out in six columns. The search bar moves into the top bar.**

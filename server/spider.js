@@ -128,11 +128,11 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   const trace = [];
   const now = Date.now();
   const age = (n) => (!recency || n.entity ? 1 : recencyFactor(n, now));
-  const visit = (id, round, lens, score, from, why) => {
+  const visit = (id, round, lens, score, from, why, agree = 1) => {
     for (const l of LENSES) frontier[l.key].delete(id);
     visited.set(id, trace.length + 1);
     const node = nodes.get(id);
-    trace.push({ phase: 'walk', round, lens, ref: { id }, from: from ? { id: from } : null, label: node.title, why: `${why} · ${score.toFixed(3)}`, score, layer: node.layer });
+    trace.push({ phase: 'walk', round, lens, agree, ref: { id }, from: from ? { id: from } : null, label: node.title, why: `${why} · ${score.toFixed(3)}`, score, layer: node.layer });
   };
   // Same source / type in the same week only counts on the same thread: the
   // neighbour must share a project or a person (not Me) with where it came
@@ -207,7 +207,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       if (trace.length >= MAX_STEPS) break;
       const score = combined(p.id);
       const agree = agreeing(p.id);
-      visit(p.id, round, p.lens, score, p.o.from, `${p.o.why}${agree.length > 1 ? ` · ${agree.length} lencse: ${agree.join(', ')}` : ''}`);
+      visit(p.id, round, p.lens, score, p.o.from, `${p.o.why}${agree.length > 1 ? ` · ${agree.length} lencse: ${agree.join(', ')}` : ''}`, agree.length);
       taken.push([p.id, score]);
     }
     for (const [id, score] of taken) expand(id, score);
@@ -235,6 +235,8 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   const lineOf = (n) => ({
     id: n.id, title: n.title, entity: n.entity || null,
     date: String(n.effective_date || n.created_at || '').slice(0, 10), type: n.type, source: n.source,
+    // 0.69.0: what the stats panel weighs (word cloud)
+    topics: n.topics, people: n.people, projects: n.projects, // every graph and ontology node carries the three arrays
   });
   emit({ type: 'phase', name: 'walk', label: 'bejárás', status: 'done', ms: Date.now() - walkStart, note: `${walked.length} lépés` });
   return {
@@ -242,7 +244,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       question,
       layers: LAYERS.map((l) => ({
         key: l.key, label: l.label,
-        items: walked.filter((t) => t.layer === l.key).map((t) => ({ ...lineOf(nodes.get(t.ref.id)), step: walked.indexOf(t) + 1, score: t.score, why: t.why, lens: t.lens, round: t.round })),
+        items: walked.filter((t) => t.layer === l.key).map((t) => ({ ...lineOf(nodes.get(t.ref.id)), step: walked.indexOf(t) + 1, score: t.score, why: t.why, lens: t.lens, round: t.round, agree: t.agree, from: t.from ? t.from.id : null })),
       })),
       lenses: LENSES.map((l) => ({ key: l.key, label: l.label })),
       candidates: left.map(([id, f]) => ({ id, title: nodes.get(id).title, layer: nodes.get(id).layer, score: f.score, why: f.why })),
