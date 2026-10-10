@@ -24,6 +24,12 @@ Ontológia: horgonyok (projekt, ember, téma) + négy szerep: Történés, Tárg
 2. [ ] **Files: a legmélyebb illeszkedő mappa nyer** (pl. `Telekom/AI Mesh/Ország tuning` → RMT Országtuning). A múltat nem erőltetjük. **Robi ötlete:** a Projects-dossziék frontmatterébe kerüljön egy `drive_folder:` mező a projekt Drive-mappájának linkjével, hogy ellenőrizhető legyen. Javaslat: a katalógus ezt használja a mappanév-illesztés helyett, a legmélyebb deklarált mappa nyer — így nem kell aliasokkal találgatni.
    - ✅ **2026-10-10:** `drive_folder:` beírva 25 Projects-dossziéba, 27 mappa, a linkek útvonal alapján, az OAuth-identitással lekérve. A katalógus mappa-ID szerint rendel (`scripts/build-files-catalog.js`), és újrafuttatva a szerveren: a projekthez kötött Drive-fájlok száma 565 → 835 (3095-ből). A `Telekom/AI Mesh/Ország tuning` mind a 201 fájlja RMT Országtuning, a 4 ERSTE-országmappa és a megosztott Sahar-mappa is bekerült. Mappa nélkül maradt: MET, RMT Instore, WPP, workflowAutomation. Az `AI Mesh/BrandBrain` a Telekomhoz kerül, mert nincs saját dossziéja.
 3. [ ] **Repo-kép frissen tartása és drift-figyelés.** Napi cron, csak olvasható GitHub-tokennel (Robi készíti el) → `state/repos-status.json`: verzió, utolsó commit, a `CLAUDE.md`/`AGENTS.md`/`ROADMAP.md` utolsó módosítása és az azóta érkezett kód-commitok száma. A gép nem ír a kézi Repos-dossziéba.
+   - ✅ **0.55.0, 2026-10-10:** `cron/repos-status.js`, naponta 04:30-kor, `GITHUB_TOKEN` a Settingsben (0.54.1). Első futás: 7 repó, 1 olvashatatlan (HINT-map, mert Miki repója és nincs a token kiválasztásában), 5 driftel. Leletek:
+     - **brandBrain:** a dossziéban 0.12.0, a GitHubon a `package.json` 0.11.0. Valószínűleg nincs felpusholva a 0.12.0.
+     - **nexus:** a dossziéban 0.7.0, a GitHubon 0.2.0.
+     - **customBrain:** a dossziéban 0.52.0, élesben 0.55.0.
+     - **confAi2** és **messagingmatrix6:** a `CLAUDE.md` és az `AGENTS.md` után 100-nál több commit jött.
+     - **Kalibrálandó:** a 20 commitos küszöb a gyors repóknál (confAi2: 100+ commit egy hét alatt) zajos. Időalapú vagy commit/nap arányos küszöb jobb lehet. Ezt a használat dönti el.
 4. [ ] **`brain_map` szerveroldali tool** (spec 6/3). A HORGONYOK-ban látszódjon, melyik projekthez van kód és melyikhez nincs; a HIÁNYOK-ban a repo-drift. Szándékosan redundáns a többi toollal: ellenőrzési pontként is szolgál.
 
 ### Feljegyzések 2026-10-10 (Robi)
