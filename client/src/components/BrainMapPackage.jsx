@@ -45,7 +45,7 @@ function ThoughtRow({ line, onOpen }) {
         className="brain-map__row agenda-thought-link flex items-baseline gap-2 text-xs w-full text-left py-0.5 hover:bg-[var(--border)] -mx-1 px-1 transition-colors"
       >
         <span className="font-mono w-20 shrink-0 text-txt-ter">{line.date}</span>
-        <span className="w-20 shrink-0 text-[10px] uppercase tracking-wider text-txt-ter">{line.type || '—'}</span>
+        <span className="w-24 shrink-0 text-[10px] uppercase tracking-wider text-txt-ter">{line.type || '—'}</span>
         <span className="w-16 shrink-0 text-[10px] uppercase tracking-wider text-txt-ter">{line.source}</span>
         <span className="text-txt-sec flex-1 underline-offset-2 hover:underline">{line.title}</span>
       </button>
@@ -118,6 +118,7 @@ export default function BrainMapPackage({ map, onShowHits }) {
           {next.events.map((e) => (
             <li key={e.event_id} className="brain-map__row flex items-baseline gap-2 text-xs">
               <span className="font-mono w-32 shrink-0 text-txt-ter">{new Date(e.start).toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="w-16 shrink-0 text-[10px] uppercase tracking-wider text-txt-ter">esemény</span>
               <span className="text-txt flex-1">{e.title}</span>
               <span className="text-[10px] text-txt-ter">{e.matched_by.join(' · ')}</span>
             </li>
@@ -156,7 +157,7 @@ export default function BrainMapPackage({ map, onShowHits }) {
             <li key={i} className="brain-map__row flex items-baseline gap-2 text-xs">
               <span className="w-24 shrink-0 text-[10px] uppercase tracking-wider text-txt-ter">{f.section}</span>
               {f.tool === 'search_brain' ? (
-                <button type="button" onClick={onShowHits} className="brain-map__to-hits text-accent hover:underline underline-offset-2">
+                <button type="button" onClick={onShowHits} className="brain-map__to-hits text-txt-sec underline underline-offset-2 hover:text-txt">
                   Találatok mód →
                 </button>
               ) : (
