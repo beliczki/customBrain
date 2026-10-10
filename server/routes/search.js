@@ -128,6 +128,10 @@ async function rollupChunkHits(rawHits) {
       if (!parent) continue; // parent missing → skip
       out.push({
         id: parent.id,
+        // Project dossiers are chunked too (parent_source: vault). Without the
+        // parent's kind a chunk-winning dossier lost its boost, its decay
+        // exemption and its canonical_dossier evidence.
+        kind: parent.kind,
         title: parent.title,
         text: parent.text,
         created_at: parent.created_at,
@@ -146,7 +150,7 @@ async function rollupChunkHits(rawHits) {
           action_items: parent.action_items,
         },
         score: hit.score,
-        evidence: hit.evidence,
+        evidence: parent.kind === 'dossier' ? 'canonical_dossier' : hit.evidence,
         sub_hits: hit.sub_hits,
         matched_chunk_label: hit.chunk_label,
         matched_chunk_kind: hit.chunk_kind,

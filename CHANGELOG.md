@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.56.1 — 2026-10-10
+
+**Search: a chunked dossier now counts as a dossier.** Project dossiers are chunked too (79 chunk points with `parent_source: vault` on the server). When a chunk won the rollup, `rollupChunkHits` rebuilt the parent hit without `kind`. The dossier then lost its 1.5× boost and its decay exemption, and got `weak_semantic` evidence instead of `canonical_dossier`. It surfaced in the first `brain_map` run: dossiers landed in ELŐZMÉNYEK with `type: null`. The chunk branch now carries the parent's `kind`, and the evidence follows from it. Both `search_brain` modes go through the same rollup, so both are fixed.
+
 ## 0.56.0 — 2026-10-10
 
 **New MCP tool `brain_map`: the situation package from the ontology spec.** You give it a question, a `project` or a `person`, and it returns seven sections instead of one merged hit list. HORGONYOK: the recognised projects, people and topics, with a note per project on whether a repo and Drive files exist. HELYZET: repo version, last commit and drift from `state/repos-status.json`, plus the project's latest files. ELŐZMÉNYEK: a timeline from `quick_lookup` per anchor and `search_brain`. KÖVETKEZŐ: open, waiting and expired commitments tied to the anchors, plus the upcoming events from the agenda cache. HÁTTÉR: syntheses, decisions, dossiers and YouTube. HIÁNYOK: drift, an unreadable repo, a project without Drive files, an overdue commitment, a stale state file, an empty section. TOVÁBB: the deeper tool call for each section, ready to run. Every item is one line with a ref, with no full texts. The tool only assembles: it makes no LLM call and needs one embedding, and only when a question is given.
