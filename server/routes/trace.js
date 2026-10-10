@@ -74,7 +74,12 @@ export async function buildTrace(method, q) {
     result = pkg;
     steps = trace;
   }
-  const resolve = await resolver();
+  // Only name refs (map's dossiers, repos, file bundles) need the ontology
+  // index; search and spider already speak node ids. Skipping it also keeps
+  // spider from firing a Qdrant scroll straight after buildGraph's blocking
+  // cosine pass, which lands on a keep-alive socket Qdrant has already closed.
+  const byName = steps.some((st) => [st.ref, st.from].some((r) => r && !r.id));
+  const resolve = byName ? await resolver() : (ref) => (ref ? ref.id : null);
   return {
     method,
     q,
