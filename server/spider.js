@@ -1,7 +1,9 @@
 // spider (0.63.0) — the third retrieval method beside `search` and `map`
 // (docs/bejaras-modszerek-terv-2026-10-10.md, 2. pont). It starts from the
-// question's search hits and recognised anchors, then walks the brain graph
-// best-first: each step expands the highest-scored node not yet visited.
+// question's search hits and recognised anchors, then walks the brain graph.
+// Since 0.68.0 it walks six lenses in parallel waves (LENSES below): each
+// wave every lens expands its own best node, and every visited node is
+// expanded in all lenses, so the walk crosses between them.
 //
 //   score(neighbour) = score(parent) × edge weight × DECAY / √degree(parent)
 //                      × recency(neighbour)            (thoughts only, 0.65.0)
@@ -27,10 +29,11 @@ import { nameKey } from './names.js';
 import { LAYERS } from './ontology.js';
 
 // Hand-set starting values, like brain_map's MAX — the AUTORESEARCH knobs.
-const MAX_STEPS = 25;
+const MAX_STEPS = 36; // ~5 waves of six lenses after the starting points
 const MIN_SCORE = 0.05;
 const DECAY = 0.85;
-const SEEDS = 10; // search hits the walk starts from
+const SEEDS = 10; // search hits considered as starting points
+const SEED_VISITS = 5; // of those, visited in round 0; the rest wait in the ontology frontier
 const CANDIDATES = 10; // frontier left over, shown as "would have gone here"
 const EDGE_WEIGHT = {
   semantic: (e) => e.score, // cosine, ≥ SEMANTIC_MIN_SCORE in buildGraph
@@ -39,6 +42,19 @@ const EDGE_WEIGHT = {
   ontology: (e) => ({ tag: 0.6, source: 0.8, owner: 0.8, repo: 0.5, files: 0.5 })[e.rel],
 };
 const EDGE_LABEL = (e) => (e.kind === 'ontology' ? e.rel : e.kind);
+
+// The lenses (0.68.0): the Graph tab's groupings as walkable graphs. Each wave
+// every lens takes its own best step, so the walk sets off in several
+// directions at once; a node several lenses reach scores higher (cross-check).
+// `keys(n, week)` = the groups a thought belongs to in that lens.
+const LENSES = [
+  { key: 'ontology', label: 'ontológia' },
+  { key: 'project', label: 'projekt', keys: (n) => n.projects, show: (k) => `projekt: ${k}` },
+  { key: 'person', label: 'ember', keys: (n) => n.people.filter((p) => p !== 'Me'), show: (k) => `ember: ${k}` },
+  { key: 'source', label: 'forrás', keys: (n, week) => [`${n.source}|${week(n)}`], show: (k) => `${k.split('|')[0]}, ugyanazon a héten` },
+  { key: 'type', label: 'típus', keys: (n, week) => [`${n.type}|${week(n)}`], show: (k) => `${k.split('|')[0]}, ugyanazon a héten` },
+  { key: 'cluster', label: 'klaszter', keys: (n) => (n.community >= 0 ? [String(n.community)] : []), show: (k) => `klaszter ${k}` },
+];
 
 /**
  * recency: false walks on edge weights alone — map's KORÁBBI uses it, since
@@ -57,57 +73,140 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
 
   const nodes = new Map();
   for (const n of [...graph.nodes, ...ontology.nodes]) if (!n.archived) nodes.set(n.id, n);
+
+  // ── Lens graphs ──
+  // ontology: the content/structure edges (semantic, supersedes, cross-layer).
   const adj = new Map([...nodes.keys()].map((id) => [id, []]));
   for (const e of [...graph.edges, ...ontology.edges]) {
+    if (e.kind === 'metadata') continue; // shared tags are the project/person lenses now
     if (!adj.has(e.source) || !adj.has(e.target)) continue;
     const w = EDGE_WEIGHT[e.kind](e);
     adj.get(e.source).push({ to: e.target, w, e });
     adj.get(e.target).push({ to: e.source, w, e });
   }
+  // The group lenses: membership in the same project / person / cluster, and
+  // the same source or type within the same week (a whole "gmail" or "note"
+  // group says nothing; the same week's thread does).
+  const week = (n) => Math.floor(new Date(n.effective_date || n.created_at).getTime() / (7 * 86400000));
+  const groups = Object.fromEntries(LENSES.filter((l) => l.keys).map((l) => [l.key, new Map()]));
+  const keysOf = (lens, n) => {
+    if (n.entity === 'dossier') { // a dossier opens its own group: the cross into project/person
+      if (lens.key === 'project' && n.type === 'project dossier') return [n.title];
+      if (lens.key === 'person' && n.type === 'person dossier') return [n.title];
+      return [];
+    }
+    return n.entity ? [] : lens.keys(n, week);
+  };
+  for (const n of graph.nodes) {
+    if (n.archived) continue;
+    for (const lens of LENSES) {
+      if (!lens.keys) continue;
+      for (const k of lens.keys(n, week)) {
+        if (!groups[lens.key].has(k)) groups[lens.key].set(k, []);
+        groups[lens.key].get(k).push(n.id);
+      }
+    }
+  }
+  const resolveGroup = (lens, k) => groups[lens].get(k) || groups[lens].get([...groups[lens].keys()].find((g) => nameKey(g) === nameKey(k)));
 
-  // frontier: id → best { score, from, why } offer so far
-  const frontier = new Map();
-  const offer = (id, score, from, why) => {
-    const cur = frontier.get(id);
-    if (!cur || score > cur.score) frontier.set(id, { score, from, why });
+  // frontier per lens: id → best { score, from, why } in that lens
+  const frontier = Object.fromEntries(LENSES.map((l) => [l.key, new Map()]));
+  const offer = (lens, id, score, from, why) => {
+    const f = frontier[lens];
+    const cur = f.get(id);
+    if (!cur || score > cur.score) f.set(id, { score, from, why });
+  };
+  // Several lenses reaching one node is the cross-check: their scores combine
+  // as independent evidence (1 − Π(1 − s)), so agreement lifts a node.
+  // A lens that has not reached the node contributes 0 — not reached is a real state here.
+  const lensScore = (lens, id) => { const o = frontier[lens].get(id); return o ? o.score : 0; };
+  const combined = (id) => 1 - LENSES.reduce((p, l) => p * (1 - lensScore(l.key, id)), 1);
+  const agreeing = (id) => LENSES.filter((l) => lensScore(l.key, id) >= MIN_SCORE).map((l) => l.label);
+
+  const visited = new Map(); // id → step
+  const trace = [];
+  const now = Date.now();
+  const age = (n) => (!recency || n.entity ? 1 : recencyFactor(n, now));
+  const visit = (id, round, lens, score, from, why) => {
+    for (const l of LENSES) frontier[l.key].delete(id);
+    visited.set(id, trace.length + 1);
+    const node = nodes.get(id);
+    trace.push({ phase: 'walk', round, lens, ref: { id }, from: from ? { id: from } : null, label: node.title, why: `${why} · ${score.toFixed(3)}`, score, layer: node.layer });
+  };
+  // Expand a visited node in every lens — that is how a walk crosses over.
+  const expand = (id, base) => {
+    const node = nodes.get(id);
+    const damp = DECAY / Math.sqrt(Math.max(1, adj.get(id).length));
+    for (const { to, w, e } of adj.get(id)) {
+      if (!visited.has(to)) offer('ontology', to, base * w * damp * age(nodes.get(to)), id, `[ontológia] ${EDGE_LABEL(e)} ← ${node.title}`);
+    }
+    for (const lens of LENSES) {
+      if (!lens.keys) continue;
+      for (const k of keysOf(lens, node)) {
+        const members = resolveGroup(lens.key, k);
+        if (!members) continue;
+        const w = DECAY / Math.sqrt(members.length);
+        for (const m of members) {
+          if (m !== id && !visited.has(m)) offer(lens.key, m, base * w * age(nodes.get(m)), id, `[${lens.label}] ${lens.show(k)} ← ${node.title}`);
+        }
+      }
+    }
   };
 
-  // Seeds: search hits, scaled so the best hit is 1.0 (RRF scores are tiny
-  // and only their order means anything), and anchor dossiers at 1.0.
+  // ── Round 0: the starting points ──
+  // Search hits scaled so the best is 1.0 (RRF scores only mean something as
+  // an order); the top SEED_VISITS are visited, the rest wait in the ontology
+  // frontier. Anchor dossiers from the question are visited at 1.0.
   const top = hits.length ? hits[0].score : 1;
-  for (const h of hits) if (nodes.has(h.id)) offer(h.id, h.score / top, null, `keresés: ${h.evidence}`);
+  const starts = [];
+  hits.filter((h) => nodes.has(h.id)).forEach((h, i) => {
+    if (i < SEED_VISITS) starts.push([h.id, h.score / top, `keresés: ${h.evidence}`]);
+    else offer('ontology', h.id, h.score / top, null, `[ontológia] keresés: ${h.evidence}`);
+  });
   const anchors = matchAnchors(question, vault);
   const dossierByName = new Map(ontology.nodes.filter((n) => n.entity === 'dossier').map((n) => [nameKey(n.title), n.id]));
   for (const [bucket, label] of [['projects', 'projekt'], ['people', 'ember'], ['topics', 'téma']]) {
     for (const name of anchors[bucket]) {
       const id = dossierByName.get(nameKey(name));
-      if (id) offer(id, 1, null, `a kérdésben: ${label}`);
+      if (id && !starts.some((s0) => s0[0] === id)) starts.push([id, 1, `a kérdésben: ${label}`]);
     }
   }
+  for (const [id, score, why] of starts) visit(id, 0, 'start', score, null, why);
+  for (const [id, score] of starts) expand(id, score);
 
-  const visited = new Map(); // id → step
-  const trace = [];
-  while (trace.length < MAX_STEPS && frontier.size) {
-    const [id, best] = [...frontier.entries()].reduce((a, b) => (b[1].score > a[1].score ? b : a));
-    if (best.score < MIN_SCORE) break;
-    frontier.delete(id);
-    const node = nodes.get(id);
-    visited.set(id, trace.length + 1);
-    trace.push({
-      phase: 'walk', ref: { id }, from: best.from ? { id: best.from } : null, label: node.title,
-      why: `${best.why} · ${best.score.toFixed(3)}`, score: best.score, layer: node.layer,
+  // ── Waves: every lens takes its own best step, in parallel ──
+  let round = 0;
+  while (trace.length < MAX_STEPS) {
+    round += 1;
+    const picks = [];
+    for (const lens of LENSES) {
+      let best = null;
+      for (const [id, o] of frontier[lens.key]) {
+        if (picks.some((p) => p.id === id)) continue;
+        if (!best || o.score > best.o.score) best = { id, o };
+      }
+      if (best && best.o.score >= MIN_SCORE) picks.push({ id: best.id, lens: lens.key, o: best.o });
+    }
+    if (!picks.length) break;
+    const taken = [];
+    for (const p of picks) {
+      if (trace.length >= MAX_STEPS) break;
+      const score = combined(p.id);
+      const agree = agreeing(p.id);
+      visit(p.id, round, p.lens, score, p.o.from, `${p.o.why}${agree.length > 1 ? ` · ${agree.length} lencse: ${agree.join(', ')}` : ''}`);
+      taken.push([p.id, score]);
+    }
+    for (const [id, score] of taken) expand(id, score);
+  }
+
+  const left = [...new Set(LENSES.flatMap((l) => [...frontier[l.key].keys()]))]
+    .map((id) => [id, combined(id)])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, CANDIDATES)
+    .map(([id, score]) => {
+      const best = LENSES.map((l) => frontier[l.key].get(id)).filter(Boolean).sort((a, b) => b.score - a.score)[0];
+      return [id, { score, from: best.from, why: best.why }];
     });
-    const damp = DECAY / Math.sqrt(Math.max(1, adj.get(id).length));
-    const now = Date.now();
-    for (const { to, w, e } of adj.get(id)) {
-      if (visited.has(to)) continue;
-      const target = nodes.get(to);
-      const age = !recency || target.entity ? 1 : recencyFactor(target, now);
-      offer(to, best.score * w * damp * age, id, `${EDGE_LABEL(e)} ← ${node.title}`);
-    }
-  }
-
-  const left = [...frontier.entries()].sort((a, b) => b[1].score - a[1].score).slice(0, CANDIDATES);
   for (const [id, f] of left) {
     const node = nodes.get(id);
     trace.push({
@@ -129,11 +228,13 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       question,
       layers: LAYERS.map((l) => ({
         key: l.key, label: l.label,
-        items: walked.filter((t) => t.layer === l.key).map((t) => ({ ...lineOf(nodes.get(t.ref.id)), step: walked.indexOf(t) + 1, score: t.score, why: t.why })),
+        items: walked.filter((t) => t.layer === l.key).map((t) => ({ ...lineOf(nodes.get(t.ref.id)), step: walked.indexOf(t) + 1, score: t.score, why: t.why, lens: t.lens, round: t.round })),
       })),
+      lenses: LENSES.map((l) => ({ key: l.key, label: l.label })),
       candidates: left.map(([id, f]) => ({ id, title: nodes.get(id).title, layer: nodes.get(id).layer, score: f.score, why: f.why })),
       stopped: walked.length >= MAX_STEPS ? 'max_steps' : 'min_score',
-      params: { MAX_STEPS, MIN_SCORE, DECAY, SEEDS, recency },
+      params: { MAX_STEPS, MIN_SCORE, DECAY, SEEDS, SEED_VISITS, lenses: LENSES.map((l) => l.key), recency },
+      rounds: Math.max(0, ...trace.filter((t) => t.phase === 'walk').map((t) => t.round)),
     },
     trace,
   };

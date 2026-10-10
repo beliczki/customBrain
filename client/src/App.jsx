@@ -158,6 +158,7 @@ export default function App() {
       settingsOpen={settingsOpen}
       title={active}
       fullBleed={active === 'Graph'}
+      wide={active === 'Search'}
     >
       {active === 'Capture' && <Capture />}
       {active === 'Search' && <Search onTraverse={(method, q) => { setTraversal({ method, q }); setActive('Graph'); }} />}

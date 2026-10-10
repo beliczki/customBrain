@@ -39,6 +39,12 @@ function writeFlag(key, value) {
 
 const ToolbarContext = createContext(null);
 
+/** Renders its children into the content header, after the title (0.68.0). */
+export function ShellHeader({ children }) {
+  const ctx = useContext(ToolbarContext);
+  return ctx.headerNode ? createPortal(children, ctx.headerNode) : null;
+}
+
 /** Renders its children into the shell's right toolbar while mounted. */
 export function ShellToolbar({ children }) {
   const ctx = useContext(ToolbarContext);
@@ -63,10 +69,11 @@ function NavItem({ icon: Icon, label, active, collapsed, onClick }) {
   );
 }
 
-export default function AppShell({ appName, version, active, onNavigate, onLogout, onOpenSettings, settingsOpen, title, fullBleed, children }) {
+export default function AppShell({ appName, version, active, onNavigate, onLogout, onOpenSettings, settingsOpen, title, fullBleed, wide, children }) {
   const [collapsed, setCollapsed] = useState(() => readFlag(SIDEBAR_KEY, window.innerWidth < NARROW_PX));
   const [toolbarOpen, setToolbarOpen] = useState(() => readFlag(TOOLBAR_KEY, true));
   const [toolbarNode, setToolbarNode] = useState(null);
+  const [headerNode, setHeaderNode] = useState(null);
   const [toolbarUsers, setToolbarUsers] = useState(0);
   // Stable: ShellToolbar's effect depends on it. Returns the unregister.
   const [register] = useState(() => () => {
@@ -78,7 +85,7 @@ export default function AppShell({ appName, version, active, onNavigate, onLogou
   const toggleToolbar = () => { setToolbarOpen(!toolbarOpen); writeFlag(TOOLBAR_KEY, !toolbarOpen); };
 
   return (
-    <ToolbarContext.Provider value={{ node: toolbarNode, register }}>
+    <ToolbarContext.Provider value={{ node: toolbarNode, headerNode, register }}>
       <div className="app-shell flex h-screen overflow-hidden bg-primary">
         <aside className={`app-sidebar flex flex-col shrink-0 bg-surface border-r border-[var(--border)] transition-[width] duration-300 ${collapsed ? 'w-[60px]' : 'w-[240px]'}`}>
           <div className="app-sidebar__brand flex items-center gap-2 h-14 px-[18px] border-b border-[var(--border)]">
@@ -126,13 +133,16 @@ export default function AppShell({ appName, version, active, onNavigate, onLogou
                 <img src="/brain.svg" alt="" className="w-6 h-6 dark:hidden" />
               </>
             )}
-            <h1 className="text-lg font-semibold text-txt truncate">{title}</h1>
+            <h1 className="text-lg font-semibold text-txt truncate shrink-0">{title}</h1>
+            {/* A page's own header controls (ShellHeader), e.g. the Search bar. */}
+            <div ref={setHeaderNode} className="app-content__header-slot flex-1 min-w-0 flex items-center ml-4" />
           </header>
           {fullBleed ? (
             <div className="app-content__body app-content__body--full relative flex-1 min-h-0">{children}</div>
           ) : (
             <div className="app-content__body flex-1 min-h-0 overflow-y-auto">
-              <div className="max-w-[900px] mx-auto px-6 py-8">{children}</div>
+              {/* wide: pages that lay results out in columns (Search spider) drop the reading width */}
+              <div className={`${wide ? 'max-w-[1600px]' : 'max-w-[900px]'} mx-auto px-6 py-8`}>{children}</div>
             </div>
           )}
         </main>

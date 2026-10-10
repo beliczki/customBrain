@@ -5,6 +5,7 @@ import ThoughtFacts from './ThoughtFacts.jsx';
 import ChunkAnatomyModal from './ChunkAnatomyModal.jsx';
 import BrainMapPackage from './BrainMapPackage.jsx';
 import SpiderResult, { SpiderProgress } from './SpiderResult.jsx';
+import { ShellHeader } from './AppShell.jsx';
 
 // Two methods over one input (0.57.0; named after their MCP tools since 0.60.0): "map" is the package the
 // agent gets; "search" is the raw hybrid hit list with the anatomy view.
@@ -67,40 +68,43 @@ export default function Search({ onTraverse }) {
 
   return (
     <div>
-      <form onSubmit={handleSearch} className="flex gap-2 mb-3">
-        <input
-          placeholder="Search your brain..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 px-3 py-2 bg-surface border border-subtle text-txt text-sm"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-2 bg-accent text-white text-sm font-medium disabled:opacity-50 hover:bg-accent-dark transition-colors"
-        >
-          {loading ? '...' : 'Search'}
-        </button>
-      </form>
-      <div className="search-mode-switch inline-flex border border-subtle mb-6">
-        {MODES.map(([m, label]) => (
+      {/* 0.68.0: the search bar lives in the shell's top bar — input · method switch · Search */}
+      <ShellHeader>
+        <form onSubmit={handleSearch} className="search-bar flex items-center gap-2 w-full max-w-3xl">
+          <input
+            placeholder="Search your brain..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 min-w-0 px-3 py-1.5 bg-surface border border-subtle text-txt text-sm"
+          />
+          <div className="search-mode-switch inline-flex shrink-0 border border-subtle">
+            {MODES.map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => switchMode(m)}
+                className={`px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
+                  mode === m ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
-            key={m}
-            type="button"
-            onClick={() => switchMode(m)}
-            className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors ${
-              mode === m ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
-            }`}
+            type="submit"
+            disabled={loading}
+            className="shrink-0 px-5 py-1.5 bg-accent text-white text-sm font-medium disabled:opacity-50 hover:bg-accent-dark transition-colors"
           >
-            {label}
+            {loading ? '...' : 'Search'}
           </button>
-        ))}
-      </div>
+        </form>
+      </ShellHeader>
       {submittedQuery && (
         <button
           type="button"
           onClick={() => onTraverse(METHOD_OF[mode], submittedQuery)}
-          className="search-traverse-btn ml-3 px-3 py-1 text-xs border border-subtle text-txt-sec hover:text-txt transition-colors"
+          className="search-traverse-btn mb-6 px-3 py-1 text-xs border border-subtle text-txt-sec hover:text-txt transition-colors"
           title="A módszer lépései lassítva, a Graph Ontológia nézetén"
         >
           Bejárás a gráfon ▶
@@ -108,10 +112,11 @@ export default function Search({ onTraverse }) {
       )}
       {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">Error: {error}</p>}
       {(mode === 'package' || mode === 'spider') && phases[mode].length > 0 && <SpiderProgress phases={phases[mode]} />}
-      {mode === 'package' && map.data && <BrainMapPackage map={map.data} onShowHits={() => switchMode('hits')} />}
+      {/* The page is wide for spider's lens columns; the other methods keep the reading width. */}
+      {mode === 'package' && map.data && <div className="max-w-[852px] mx-auto"><BrainMapPackage map={map.data} onShowHits={() => switchMode('hits')} /></div>}
       {mode === 'spider' && spider.data && <SpiderResult key={spider.q} walk={spider.data.result} />}
       {mode === 'hits' && (
-      <div>
+      <div className="max-w-[852px] mx-auto">
         {results.hits.map((r) => (
           <div key={r.id} className="py-6 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
             <div className="mb-3">

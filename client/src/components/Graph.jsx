@@ -1050,10 +1050,12 @@ export default function Graph({ traversal, onCloseTraversal }) {
                   const shown = i < traceCursor;
                   const current = i === traceCursor - 1;
                   const onGraph = st.node_id && nodeById.has(st.node_id);
-                  const newPhase = i === 0 || trace.trace[i - 1].phase !== st.phase;
+                  // spider (0.68.0) steps carry a wave: one header per wave, not per phase.
+                  const groupOf = (x) => (x.round != null ? `r${x.round}` : x.phase);
+                  const newPhase = i === 0 || groupOf(trace.trace[i - 1]) !== groupOf(st);
                   return (
                     <li key={st.step} ref={current ? traceStepRef : null} className={shown ? '' : 'opacity-25'}>
-                      {newPhase && <p className="traversal-steps__phase mt-1 text-[10px] uppercase tracking-wider text-slate-500">{TRACE_PHASE[st.phase]}</p>}
+                      {newPhase && <p className="traversal-steps__phase mt-1 text-[10px] uppercase tracking-wider text-slate-500">{st.round === 0 ? 'kiindulópontok' : st.round ? `${st.round}. hullám` : TRACE_PHASE[st.phase]}</p>}
                       <button
                         type="button"
                         onClick={() => { setTracePlaying(false); setTraceCursor(i + 1); if (onGraph) setSelectedNode(st.node_id); }}
