@@ -40,7 +40,7 @@ const EDGE_WEIGHT = {
   semantic: (e) => e.score, // cosine, ≥ SEMANTIC_MIN_SCORE in buildGraph
   metadata: (e) => Math.min(1, e.weight / 3), // shared tags
   supersedes: () => 0.3,
-  ontology: (e) => ({ tag: 0.6, source: 0.8, owner: 0.8, repo: 0.5, files: 0.5, file: 0.5, doc: 0.6 })[e.rel],
+  ontology: (e) => ({ tag: 0.6, source: 0.8, owner: 0.8, repo: 0.5, files: 0.5, file: 0.5, doc: 0.6, dossier: 0.5, related: 0.7 })[e.rel],
 };
 const EDGE_LABEL = (e) => (e.kind === 'ontology' ? e.rel : e.kind);
 
@@ -199,15 +199,35 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   };
 
   // ── Round 0: the starting points ──
-  // Search hits scaled so the best is 1.0 (RRF scores only mean something as
-  // an order); the top SEED_VISITS are visited, the rest wait in the ontology
-  // frontier. Anchor dossiers from the question are visited at 1.0.
+  // 0.74.0 anchor first: when the question names an anchor ("ERSTE SZA" →
+  // ERSTE Számlák via its SZA alias), the walk starts THERE, like map does.
+  // A search hit then starts only if it is tied to an anchor (the anchor's
+  // own dossier, or tagged with it); the rest are dropped. On "ERSTE SZA"
+  // the top-5 hits were five ERSTE dossiers matching the shared word "ERSTE"
+  // (Market, VAL, SZK…) — siblings, not the thing named. A sibling that is
+  // related is reached by its edge (dossier parent, `related:`).
+  // Without an anchor: the top SEED_VISITS search hits start, as before.
+  // Hit scores are scaled so the best is 1.0 (RRF only means an order).
   const top = hits.length ? hits[0].score : 1;
   const starts = [];
+  const anchors = matchAnchors(question, vault);
+  const dossierByName = new Map(ontology.nodes.filter((n) => n.entity === 'dossier').map((n) => [nameKey(n.title), n.id]));
+  const anchorKeys = new Set();
+  for (const [bucket, label] of [['projects', 'projekt'], ['people', 'ember'], ['topics', 'téma']]) {
+    for (const name of anchors[bucket]) {
+      const id = dossierByName.get(nameKey(name));
+      if (!id) continue;
+      anchorKeys.add(nameKey(name));
+      if (!starts.some((s0) => s0[0] === id)) starts.push([id, 1, `a kérdésben: ${label}`]);
+    }
+  }
+  const anchorIds = new Set(starts.map(([id]) => id));
+  const tiedToAnchor = (n) => anchorIds.has(n.id)
+    || [...n.projects, ...n.people, ...n.topics].some((x) => anchorKeys.has(nameKey(x)));
   // A hit on a repo-doc section starts from that doc's file node.
   const sectionNode = new Map();
   for (const n of ontology.nodes) if (n.entity === 'repodoc') for (const sid of n.sections) sectionNode.set(sid, n.id);
-  const seen = new Set();
+  const seen = new Set(anchorIds);
   hits.map((h) => ({ ...h, node: nodes.has(h.id) ? h.id : sectionNode.get(h.id) }))
     .filter((h) => h.node && !seen.has(h.node) && seen.add(h.node))
     .forEach((h) => {
@@ -217,17 +237,10 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       // stepped in wave 1 from the frontier at its full search score (0.436)
       // and filled the tag cloud. If it is related, an edge leads there.
       if (h.evidence === 'weak_semantic') return;
+      if (anchorIds.size && !tiedToAnchor(nodes.get(h.node))) return;
       if (starts.length < SEED_VISITS) starts.push([h.node, h.score / top, `keresés: ${h.evidence}`]);
       else offer('ontology', h.node, h.score / top, null, `[ontológia] keresés: ${h.evidence}`);
     });
-  const anchors = matchAnchors(question, vault);
-  const dossierByName = new Map(ontology.nodes.filter((n) => n.entity === 'dossier').map((n) => [nameKey(n.title), n.id]));
-  for (const [bucket, label] of [['projects', 'projekt'], ['people', 'ember'], ['topics', 'téma']]) {
-    for (const name of anchors[bucket]) {
-      const id = dossierByName.get(nameKey(name));
-      if (id && !starts.some((s0) => s0[0] === id)) starts.push([id, 1, `a kérdésben: ${label}`]);
-    }
-  }
   for (const [id, score, why] of starts) visit(id, 0, 'start', score, null, why);
   focus = new Set(starts.flatMap(([id]) => {
     const n = nodes.get(id);

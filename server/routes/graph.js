@@ -9,6 +9,8 @@ import { listCommitments } from '../commitments.js';
 import { REPOS_STATUS_PATH } from '../repos-status.js';
 import { CATALOG_PATH } from '../files-catalog.js';
 import { getCachedGraph } from '../graph-cache.js';
+import { getVaultContext } from '../drive-context.js';
+import { frontmatterLinks } from '../project-people.js';
 
 const router = Router();
 
@@ -255,7 +257,7 @@ async function readJson(path) {
  * their layer from buildGraph. Reads only what is stored — no new search.
  */
 export async function buildOntology() {
-  const [thoughts, dossiers, commitments, repos, catalog, repoDocs] = await Promise.all([
+  const [thoughts, dossiers, commitments, repos, catalog, repoDocs, vault] = await Promise.all([
     scrollFilteredRaw({ must_not: [
       { key: 'kind', match: { any: ['chunk', 'dossier', 'repo_doc'] } },
       { key: 'status', match: { value: 'archived' } },
@@ -265,6 +267,7 @@ export async function buildOntology() {
     readJson(REPOS_STATUS_PATH),
     readJson(CATALOG_PATH),
     payloadFieldRows(['repo', 'path', 'project', 'heading', 'branch', 'effective_date'], { must: [{ key: 'kind', match: { value: 'repo_doc' } }] }),
+    getVaultContext(),
   ]);
 
   const nodes = [];
@@ -298,6 +301,26 @@ export async function buildOntology() {
       for (const name of [d.name, ...(d.aliases || [])]) index[d.dossier_type].set(nameKey(name), d.id);
     }
     nodes.push(node);
+  }
+
+  // 0.74.0: dossier ↔ dossier from the Projects frontmatter — `projects:`
+  // (a product family's parent, e.g. ERSTE Számlák → ERSTE; rel: dossier) and
+  // `related:` (a declared overlap, e.g. ERSTE Számlák ↔ ERSTE Vállakozók,
+  // rel: related). Only wikilinks count; ERSTE.md's plain child codes do not.
+  const linked = new Set();
+  for (const n of nodes) {
+    if (n.type !== 'project dossier') continue;
+    const doc = vault.projectDocs[n.title];
+    for (const [key, rel] of [['projects', 'dossier'], ['related', 'related']]) {
+      for (const name of frontmatterLinks(doc, key)) {
+        const target = index.project.get(nameKey(name));
+        if (!target || target === n.id) continue;
+        const pair = [n.id, target].sort().join('|');
+        if (linked.has(pair)) continue;
+        linked.add(pair);
+        edge(n.id, target, rel);
+      }
+    }
   }
 
   // Thought → anchor (rel: tag). Only to anchors that made it into the graph.

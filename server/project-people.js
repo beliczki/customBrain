@@ -13,13 +13,18 @@ const CACHE_TTL = 60 * 60 * 1000;
 let cached = null;
 let cachedAt = 0;
 
-// `people:` entries are wikilinks: "[[People/Miklos Kun|Miklos Kun]]".
-function dossierPeople(doc) {
+/**
+ * The wikilinked names under a frontmatter list key (`people:`, `projects:`,
+ * `related:`): "[[People/Miklos Kun|Miklos Kun]]" → "Miklos Kun". Plain,
+ * unlinked entries (ERSTE.md lists child codes like "SZK") are not links and
+ * are skipped. Shared by project-people and the ontology's dossier edges.
+ */
+export function frontmatterLinks(doc, key) {
   const fm = /^---\n([\s\S]*?)\n---/.exec(doc || '');
   if (!fm) return [];
-  const block = /^people:\s*\n((?:\s+-.*\n?)*)/m.exec(fm[1]);
+  const block = new RegExp(`^${key}:\\s*\\n((?:\\s+-.*\\n?)*)`, 'm').exec(fm[1]);
   if (!block) return [];
-  return [...block[1].matchAll(/-\s*"?\[\[(?:People\/)?([^|\]]+)(?:\|[^\]]*)?\]\]"?/g)].map((m) => m[1].trim());
+  return [...block[1].matchAll(/-\s*"?\[\[(?:[^/|\]]+\/)?([^|\]]+)(?:\|[^\]]*)?\]\]"?/g)].map((m) => m[1].trim());
 }
 
 export async function getProjectPeople(vault) {
@@ -30,7 +35,7 @@ export async function getProjectPeople(vault) {
     map.get(project).add(person);
   };
   for (const [project, doc] of Object.entries(vault.projectDocs)) {
-    for (const p of resolveAliases(dossierPeople(doc), vault.aliases, vault.people)) add(project, p);
+    for (const p of resolveAliases(frontmatterLinks(doc, 'people'), vault.aliases, vault.people)) add(project, p);
   }
   const counts = new Map(); // "project\u0000person" → n
   for (const [, [people, projects]] of await payloadFieldRows(['people', 'projects'])) {
