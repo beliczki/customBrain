@@ -47,6 +47,11 @@ export async function brainMap(q) {
   return jsonOrThrow(res, 'brain-map');
 }
 
+export async function agentRuns(days = 7) {
+  const res = await fetch(`${BASE}/agent-runs?days=${days}`, { headers: authHeaders() });
+  return jsonOrThrow(res, 'agent-runs');
+}
+
 export async function recent(limit = 10) {
   const res = await fetch(`${BASE}/recent?limit=${limit}`, {
     headers: authHeaders(),

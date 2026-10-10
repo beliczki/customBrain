@@ -25,8 +25,10 @@ import { applyScopeGate } from './mcp-scopes.js';
 /**
  * @param {string[]|null} scopes Capability scopes of the calling token, or null
  *   for unrestricted (stdio, and tokens minted before scopes existed).
+ * @param {string|null} caller Token name, recorded per call in the MCP call log
+ *   (0.58.0); null = no logging.
  */
-export function createMcpServer(scopes = null) {
+export function createMcpServer({ scopes = null, caller = null } = {}) {
   const server = new McpServer({
     name: 'customBrain',
     version: '1.0.0',
@@ -34,7 +36,7 @@ export function createMcpServer(scopes = null) {
   });
 
   // Must run before any server.tool(...) below — it wraps the registration fn.
-  applyScopeGate(server, scopes);
+  applyScopeGate(server, scopes, caller);
 
   server.tool(
     'capture_thought',
@@ -427,7 +429,7 @@ export async function handleMcpHttp(req, res) {
     },
   });
 
-  const server = createMcpServer(principal.scopes || null);
+  const server = createMcpServer({ scopes: principal.scopes || null, caller: principal.name });
 
   transport.onclose = () => {
     const sid = transport.sessionId;
@@ -469,7 +471,7 @@ export async function handleMcpHttpStateless(req, res) {
     res.set('Allow', 'GET, POST');
     return res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed' }, id: null });
   }
-  const server = createMcpServer(principal.scopes || null);
+  const server = createMcpServer({ scopes: principal.scopes || null, caller: principal.name });
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on('close', () => {
     transport.close();

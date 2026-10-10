@@ -3,6 +3,7 @@ import Capture from './components/Capture.jsx';
 import Search from './components/Search.jsx';
 import Recent from './components/Recent.jsx';
 import Agenda from './components/Agenda.jsx';
+import AgentRuns from './components/AgentRuns.jsx';
 // Lazy: sigma + graphology (~400 kB) load only when the Graph tab is opened,
 // keeping the initial SPA bundle small and the Hetzner build under memory.
 const Graph = lazy(() => import('./components/Graph.jsx'));
@@ -11,7 +12,7 @@ import Export from './components/Export.jsx';
 import Settings from './components/Settings.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 
-const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Graph', 'Stats', 'Export', 'Settings'];
+const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Runs', 'Graph', 'Stats', 'Export', 'Settings'];
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'customBrain';
 
 // Pre-validates the token against /stats before saving to localStorage. Inline
@@ -195,6 +196,7 @@ export default function App() {
               {active === 'Search' && <Search />}
               {active === 'Recent' && <Recent />}
               {active === 'Agenda' && <Agenda />}
+              {active === 'Runs' && <AgentRuns />}
               {active === 'Stats' && <Stats />}
               {active === 'Export' && <Export />}
               {active === 'Settings' && <Settings />}

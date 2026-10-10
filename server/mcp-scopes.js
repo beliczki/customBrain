@@ -12,6 +12,8 @@
 // tools/list hides it AND a direct tools/call for it fails as unknown. See
 // applyScopeGate below.
 
+import { logMcpCall } from './mcp-call-log.js';
+
 export const SCOPES = ['capture', 'brain-read', 'curate', 'live-provider-read'];
 
 // Every tool MUST appear here. A tool with no entry throws at registration time
@@ -70,7 +72,7 @@ export function isValidScopeList(scopes) {
  * scopes field and stay unrestricted, so existing clients keep working; narrowing
  * a specific token is a deliberate act.
  */
-export function applyScopeGate(server, scopes) {
+export function applyScopeGate(server, scopes, caller = null) {
   const register = server.tool.bind(server);
   server.tool = (name, ...rest) => {
     const required = TOOL_SCOPES[name];
@@ -80,7 +82,35 @@ export function applyScopeGate(server, scopes) {
       );
     }
     if (scopes && !scopes.includes(required)) return undefined;
-    return register(name, ...rest);
+    if (!caller) return register(name, ...rest);
+    // 0.58.0: the same single wrap point also logs each call for the Runs tab.
+    const handler = rest.pop();
+    return register(name, ...rest, (...callArgs) => loggedCall(caller, name, handler, callArgs));
   };
   return server;
+}
+
+// The handler gets (args, extra) when the tool declares a schema. The log is a
+// side record, not the data path: a failed write is reported in the pm2 log
+// and the agent still gets its result.
+async function loggedCall(caller, tool, handler, callArgs) {
+  const startedAt = Date.now();
+  const args = callArgs.length > 1 ? callArgs[0] : {};
+  let result;
+  try {
+    result = await handler(...callArgs);
+  } catch (error) {
+    writeLog({ caller, tool, args, startedAt, error });
+    throw error;
+  }
+  writeLog({ caller, tool, args, startedAt, result });
+  return result;
+}
+
+function writeLog(entry) {
+  try {
+    logMcpCall(entry);
+  } catch (err) {
+    console.error(`[mcp-call-log] write failed for ${entry.tool}:`, err.message);
+  }
 }
