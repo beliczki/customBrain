@@ -92,6 +92,8 @@ export default function App() {
   const [active, setActive] = useState('Capture');
   // Traversal replay (0.61.0): Search hands {method, q} to the Graph tab.
   const [traversal, setTraversal] = useState(null);
+  // Settings is a dialog over the current page (0.63.1), not a page.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [token, setToken] = useState(localStorage.getItem('ui_secret') || '');
   // While true, we have a token in localStorage but haven't verified it against
   // the server yet. Mount-time validation: if /stats returns 401, the stored
@@ -152,6 +154,8 @@ export default function App() {
       active={active}
       onNavigate={navigate}
       onLogout={logout}
+      onOpenSettings={() => setSettingsOpen(true)}
+      settingsOpen={settingsOpen}
       title={active}
       fullBleed={active === 'Graph'}
     >
@@ -167,7 +171,7 @@ export default function App() {
       {active === 'Stats' && <Stats />}
       {active === 'MCP log' && <AgentRuns />}
       {active === 'Export' && <Export />}
-      {active === 'Settings' && <Settings />}
+      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
     </AppShell>
   );
 }

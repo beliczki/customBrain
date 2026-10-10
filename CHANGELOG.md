@@ -2,6 +2,12 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.63.1 — 2026-10-10
+
+**Settings is a dialog, with a tab per section.** The menu footer's Settings opens it over the current page instead of navigating to a Settings page. It is sized like the other large dialogs (90vw × 90vh, max-w-6xl), with square corners and the `ThoughtModal` look. The header holds the title, last-saved time, Save, Save & Restart and close. The tabs are OAuth clients, MCP tokens, then every `settings.json` category in its existing order, and only one section shows at a time. Unsaved edits are one state across tabs, so Save writes them wherever they were typed; a tab with unsaved fields shows a dot. Closing with Esc, ✕ or a backdrop click asks first when there are unsaved edits.
+
+**Fix (0.63.0 follow-up `ee2b730`):** `/trace` builds the ontology name index only when a step refers to something by name (only `map` does). `spider` failed from its second call on with `fetch failed` (`UND_ERR_SOCKET`, other side closed). The extra `buildOntology` scrolled Qdrant right after `buildGraph`'s blocking cosine pass, onto a keep-alive socket Qdrant had already closed. The underlying cause, `buildGraph` blocking the event loop for ~5 s per call, is in ROADMAP.
+
 ## 0.63.0 — 2026-10-10
 
 **spider: the third retrieval method, a best-first walk over the brain graph.** Plan: `docs/bejaras-modszerek-terv-2026-10-10.md`, step 3. `server/spider.js` `spiderWalk(question)`:

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getSettings, saveSettings, restartServer, waitForServer, listMcpTokens, createMcpToken, revokeMcpToken, listOAuthClients, createOAuthClient, revokeOAuthClient } from '../api.js';
 
-export default function Settings() {
+// Settings dialog (0.63.1): opened from the menu footer, one tab per section
+// — OAuth clients, MCP tokens, then every settings.json category. Edits live
+// in one state across tabs, so Save writes them all wherever they were typed.
+export default function Settings({ onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,12 +31,25 @@ export default function Settings() {
 
   useEffect(() => { load(); }, []);
 
+  const [tab, setTab] = useState('OAuth clients');
+
   const setEdit = (key, value) => {
     setEdits((prev) => ({ ...prev, [key]: value }));
   };
 
   const dirtyKeys = Object.keys(edits);
   const isDirty = dirtyKeys.length > 0;
+
+  // Closing drops unsaved edits, so it asks first when there are any.
+  const close = () => {
+    if (isDirty && !window.confirm(`${dirtyKeys.length} unsaved change(s) will be lost. Close?`)) return;
+    onClose();
+  };
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const onRevealToggle = async (key) => {
     if (revealed[key]) {
@@ -81,25 +97,28 @@ export default function Settings() {
     }
   };
 
-  if (loading) return <p className="text-txt-ter text-sm">Loading…</p>;
-  if (error) return <p className="text-red-600 dark:text-red-400 text-sm">Error: {error}</p>;
-  if (!data) return null;
-
   // Group items by category
   const byCategory = new Map();
-  for (const item of data.items) {
+  for (const item of data ? data.items : []) {
     if (!byCategory.has(item.category)) byCategory.set(item.category, []);
     byCategory.get(item.category).push(item);
   }
+  const tabs = ['OAuth clients', 'MCP tokens', ...byCategory.keys()];
+  // Unsaved edits per tab, so a dirty field on another tab is not invisible.
+  const dirtyIn = (t) => (byCategory.get(t) || []).filter((item) => item.key in edits).length;
 
   return (
-    <div className="settings-tab">
-      {/* Top bar — save buttons + status */}
-      <div className="settings-topbar flex items-center justify-between gap-3 mb-6 pb-3 border-b border-[var(--border)] flex-wrap">
-        <div className="text-xs text-txt-ter">
+    <div className="settings-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={close}>
+      <div className="settings-dialog bg-surface border border-subtle shadow-2xl w-[90vw] h-[90vh] max-w-6xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+      {/* Header — title, last saved, save buttons, close */}
+      <div className="settings-dialog__header flex items-center justify-between gap-3 px-6 h-14 shrink-0 border-b border-[var(--border)]">
+        <div className="flex items-baseline gap-3 min-w-0">
+        <h2 className="text-lg font-semibold text-txt">Settings</h2>
+        {data && <div className="text-xs text-txt-ter truncate">
           {data.updated_at
             ? <>Last saved: <span className="text-txt-sec">{new Date(data.updated_at).toLocaleString()}</span></>
             : <span className="text-amber-700 dark:text-amber-300">Settings file not yet created — values loaded from .env</span>}
+        </div>}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {isDirty && (
@@ -121,20 +140,46 @@ export default function Settings() {
           >
             {restarting ? 'Restarting…' : saving ? 'Saving…' : 'Save & Restart'}
           </button>
+          <button type="button" onClick={close} aria-label="Close" className="settings-dialog__close ml-1 w-8 h-8 flex items-center justify-center text-txt-ter hover:text-txt hover:bg-[var(--border)] transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
       </div>
 
+      {/* Tabs — one per section */}
+      <nav className="settings-dialog__tabs flex shrink-0 px-4 border-b border-[var(--border)] overflow-x-auto">
+        {tabs.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={`px-3 py-2.5 text-xs font-medium uppercase tracking-wider whitespace-nowrap transition-colors border-b-2 ${
+              tab === t ? 'border-[var(--accent-blue)] text-txt' : 'border-transparent text-txt-ter hover:text-txt'
+            }`}
+          >
+            {t}
+            {dirtyIn(t) > 0 && <span className="ml-1 text-amber-700 dark:text-amber-300">•</span>}
+          </button>
+        ))}
+      </nav>
+
+      <div className="settings-dialog__body flex-1 min-h-0 overflow-y-auto px-6 py-6">
+      {loading && <p className="text-txt-ter text-sm">Loading…</p>}
+      {error && <p className="text-red-600 dark:text-red-400 text-sm">Error: {error}</p>}
       {status && (
         <div className={`settings-status text-xs mb-4 px-3 py-2 ${status.type === 'ok' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'}`}>
           {status.text}
         </div>
       )}
 
-      <OAuthClientsSection onStatus={setStatus} />
+      {tab === 'OAuth clients' && <OAuthClientsSection onStatus={setStatus} />}
 
-      <McpTokensSection onStatus={setStatus} />
+      {tab === 'MCP tokens' && <McpTokensSection onStatus={setStatus} />}
 
-      {[...byCategory.entries()].map(([category, items]) => (
+      {[...byCategory.entries()].filter(([category]) => category === tab).map(([category, items]) => (
         <div key={category} className="settings-category mb-8">
           <h2 className="settings-category__header text-xs uppercase tracking-wider text-txt-ter mb-3 pb-1 border-b border-subtle">
             {category}
@@ -152,9 +197,13 @@ export default function Settings() {
         </div>
       ))}
 
+      {data && (
       <p className="text-xs text-txt-ter mt-8">
         Settings file: <code className="text-txt-sec">{data.settings_path}</code>
       </p>
+      )}
+      </div>
+      </div>
     </div>
   );
 }

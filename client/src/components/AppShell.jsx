@@ -7,7 +7,7 @@ import {
 import ThemeToggle from './ThemeToggle.jsx';
 
 // App shell (0.62.0, docs/app-shell-terv-2026-10-10.md), after confAi2's
-// HINT-map: left menu with a fixed footer (theme, Settings, logout, version),
+// HINT-map: left menu with a fixed footer (theme, Settings dialog, logout, version),
 // content with a title header, and a collapsible right toolbar that a page
 // fills through <ShellToolbar> — no page, no toolbar.
 
@@ -63,7 +63,7 @@ function NavItem({ icon: Icon, label, active, collapsed, onClick }) {
   );
 }
 
-export default function AppShell({ appName, version, active, onNavigate, onLogout, title, fullBleed, children }) {
+export default function AppShell({ appName, version, active, onNavigate, onLogout, onOpenSettings, settingsOpen, title, fullBleed, children }) {
   const [collapsed, setCollapsed] = useState(() => readFlag(SIDEBAR_KEY, window.innerWidth < NARROW_PX));
   const [toolbarOpen, setToolbarOpen] = useState(() => readFlag(TOOLBAR_KEY, true));
   const [toolbarNode, setToolbarNode] = useState(null);
@@ -102,7 +102,7 @@ export default function AppShell({ appName, version, active, onNavigate, onLogou
             <div className={`app-sidebar__theme h-11 flex items-center ${collapsed ? 'justify-center' : 'px-[18px]'}`}>
               <ThemeToggle inline compact={collapsed} />
             </div>
-            <NavItem icon={Settings} label="Settings" active={active === 'Settings'} collapsed={collapsed} onClick={() => onNavigate('Settings')} />
+            <NavItem icon={Settings} label="Settings" active={settingsOpen} collapsed={collapsed} onClick={onOpenSettings} />
             <NavItem icon={LogOut} label="Kijelentkezés" active={false} collapsed={collapsed} onClick={onLogout} />
             {version && (
               <p className={`app-version text-[10px] text-txt-ter font-mono pt-2 ${collapsed ? 'text-center' : 'px-[21px]'}`}>v{version}</p>
