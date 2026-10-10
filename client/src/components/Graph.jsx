@@ -5,7 +5,7 @@ import SpriteText from 'three-spritetext';
 import * as THREE from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { getGraph, getGraphOntology } from '../api.js';
+import { getGraph, getGraphOntology, getTrace } from '../api.js';
 import ThoughtModal from './ThoughtModal.jsx';
 
 // Community color palette — fixed order so cluster N keeps its color across
@@ -58,6 +58,13 @@ const SELF_ALIASES = new Set(['Me', 'Beliczki Róbert', 'Robert Beliczki', 'Rób
 
 // A project/person needs at least this many thoughts to earn an anchor.
 const MIN_ANCHOR_SIZE = 3;
+
+// Traversal replay (0.61.0): one Search method's steps, lit one by one.
+const TRACE_SEL = '__trace'; // selectedRef value while a trace drives the highlight
+const TRACE_SPEEDS = [1, 4, 16];
+const TRACE_STEP_MS = 1600; // at 1×; a step is a decision, not a clock tick
+const TRACE_PHASE = { search: 'keresés', anchor: 'HORGONYOK', situation: 'HELYZET', history: 'ELŐZMÉNYEK', background: 'HÁTTÉR', next: 'KÖVETKEZŐ' };
+const LAYER_LABEL = { horgony: 'Horgony', tortenes: 'Történés', targy: 'Tárgy', vallalas: 'Vállalás', tudas: 'Tudás' };
 
 // Orbit = thoughts with no anchored group; they ring the whole system.
 const ORBIT_LABEL = { project: 'no project', person: 'solo', clusters: 'unclustered' };
@@ -199,7 +206,7 @@ function orbitTotal(memberships) {
   return n;
 }
 
-export default function Graph() {
+export default function Graph({ traversal, onCloseTraversal }) {
   const prefs = useRef(loadPrefs()).current;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -249,10 +256,40 @@ export default function Graph() {
   // Detects timeline-only rebuilds: same data/mode/group/filters, different
   // time cap → gentle path (no warmup teleport, no camera re-fit).
   const prevStructRef = useRef({});
+  // Traversal: {lit, cut, labeled, current} for the revealed steps, or null.
+  const traversalRef = useRef(null);
+  const tracePathRef = useRef(new Set()); // "from|to" of revealed steps
+  const savedGroupByRef = useRef(groupBy); // restored in prefs while replaying
+  const traceStepRef = useRef(null);
+  const [trace, setTrace] = useState(null);
+  const [traceCursor, setTraceCursor] = useState(0);
+  const [tracePlaying, setTracePlaying] = useState(false);
+  const [traceSpeed, setTraceSpeed] = useState(4);
 
   useEffect(() => {
     getGraph().then(setData).catch((err) => setError(err.message));
   }, []);
+
+  // A traversal replays on the Ontológia view: every method's refs (dossiers,
+  // file bundles, commitments) only exist there.
+  useEffect(() => {
+    if (!traversal) { setTrace(null); return; }
+    savedGroupByRef.current = groupBy;
+    setGroupBy('layer');
+    setTrace(null);
+    getTrace(traversal.method, traversal.q)
+      .then((t) => { setTrace(t); setTraceCursor(0); setTracePlaying(true); })
+      .catch((err) => setError(err.message));
+    // groupBy is read once, at the start of a replay — not a trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [traversal]);
+
+  useEffect(() => {
+    if (!tracePlaying || !trace) return undefined;
+    if (traceCursor >= trace.trace.length) { setTracePlaying(false); return undefined; }
+    const t = setTimeout(() => setTraceCursor((c) => c + 1), traceCursor === 0 ? 300 : TRACE_STEP_MS / traceSpeed);
+    return () => clearTimeout(t);
+  }, [tracePlaying, traceCursor, traceSpeed, trace]);
 
   // The non-thought layers load the first time Ontológia mode is picked.
   useEffect(() => {
@@ -270,10 +307,10 @@ export default function Graph() {
   // Persist view prefs.
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
-      mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity,
+      mode, groupBy: traversal ? savedGroupByRef.current : groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity,
       panelOpen, collapsed,
     }));
-  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity, panelOpen, collapsed]);
+  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity, panelOpen, collapsed, traversal]);
 
   const nodeById = useMemo(() => {
     if (!data) return new Map();
@@ -356,11 +393,16 @@ export default function Graph() {
   const applyHighlight = useCallback(() => {
     const graph = graphRef.current;
     if (!graph) return;
+    const tr = traversalRef.current;
+    if (tr) selectedRef.current = TRACE_SEL;
     const sel = selectedRef.current;
 
-    const neighborhood = new Set();
-    const labeled = new Set();
-    if (sel) {
+    let neighborhood = new Set();
+    let labeled = new Set();
+    if (tr) {
+      neighborhood = tr.lit;
+      labeled = tr.labeled;
+    } else if (sel) {
       neighborhood.add(sel);
       labeled.add(sel);
       const weighted = [];
@@ -386,7 +428,7 @@ export default function Graph() {
         o.label.visible = !!o.always;
       } else if (neighborhood.has(id)) {
         o.mat.opacity = 1;
-        o.mat.emissiveIntensity = id === sel ? 1.1 : 0.75;
+        o.mat.emissiveIntensity = id === sel || (tr && id === tr.current) ? 1.1 : 0.75;
         o.label.visible = labeled.has(id);
       } else {
         o.mat.opacity = 0.05;
@@ -452,7 +494,7 @@ export default function Graph() {
           base = LINK_COLOR[l.kind];
         } else {
           const sel = selectedRef.current;
-          const hl = sel && (endId(l.source) === sel || endId(l.target) === sel);
+          const hl = sel && (endId(l.source) === sel || endId(l.target) === sel || tracePathRef.current.has(`${endId(l.source)}|${endId(l.target)}`));
           base = !sel ? (LINK_COLOR[l.kind] || LINK_COLOR.metadata) : hl ? LINK_HL[l.kind] : DIM_LINK;
         }
         // 2D honors alpha in the color; 3D uses the global linkOpacity uniform.
@@ -462,7 +504,7 @@ export default function Graph() {
         if (l.kind === 'anchor') return 0.2;
         if (l.kind === 'spoke') return 0.5;
         const sel = selectedRef.current;
-        const hl = sel && (endId(l.source) === sel || endId(l.target) === sel);
+        const hl = sel && (endId(l.source) === sel || endId(l.target) === sel || tracePathRef.current.has(`${endId(l.source)}|${endId(l.target)}`));
         return hl ? 1.4 : l.kind === 'supersedes' ? 0.8 : 0.3;
       })
       .linkDirectionalArrowLength((l) => (l.kind === 'supersedes' ? 3.5 : 0))
@@ -470,7 +512,7 @@ export default function Graph() {
       .linkDirectionalParticles((l) => {
         if (l.kind === 'anchor' || l.kind === 'spoke') return 0;
         const sel = selectedRef.current;
-        return sel && (endId(l.source) === sel || endId(l.target) === sel) ? 3 : 0;
+        return sel && (endId(l.source) === sel || endId(l.target) === sel || tracePathRef.current.has(`${endId(l.source)}|${endId(l.target)}`)) ? 3 : 0;
       })
       .linkDirectionalParticleWidth(1.6)
       .linkDirectionalParticleSpeed(0.006)
@@ -628,9 +670,11 @@ export default function Graph() {
           const r = node.kind === 'thought'
             ? thoughtRadius(node.degree, sizeSpreadRef.current) * 0.55 * sizeMultRef.current
             : node.r * 0.55;
-          const alpha = node.kind === 'thought'
-            ? (inHood ? (node.archived ? 0.5 : 0.95) : 0.06)
-            : (inHood || node.kind === 'brain' ? 0.95 : 0.15);
+          const tr = traversalRef.current;
+          const alpha = tr && tr.cut.has(node.id) ? 0.4
+            : node.kind === 'thought'
+              ? (inHood ? (node.archived ? 0.5 : 0.95) : 0.06)
+              : (inHood || node.kind === 'brain' ? 0.95 : 0.15);
 
           ctx.globalAlpha = alpha;
           if (node.kind === 'anchor') {
@@ -654,6 +698,13 @@ export default function Graph() {
             ctx.beginPath();
             ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
             ctx.fill();
+            if (tr && tr.current === node.id) {
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = Math.max(0.6, r * 0.25);
+              ctx.beginPath();
+              ctx.arc(node.x, node.y, r * 1.8, 0, 2 * Math.PI);
+              ctx.stroke();
+            }
           }
 
           const showLabel = node.kind !== 'thought'
@@ -830,6 +881,41 @@ export default function Graph() {
     return () => { if (fitTimer) clearTimeout(fitTimer); };
   }, [data, view, mode, grouping, groupBy, isolatedGroup, activeEdges, inTimeWindow, applyHighlight]);
 
+  // === Traversal highlight: revealed steps lit, cut steps half-lit, the path
+  // edges drawn. Runs after the feed effect, which resets the highlight. ===
+  useEffect(() => {
+    if (!trace) {
+      if (traversalRef.current) {
+        traversalRef.current = null;
+        tracePathRef.current = new Set();
+        selectedRef.current = null;
+        applyHighlight();
+      }
+      return;
+    }
+    const revealed = trace.trace.slice(0, traceCursor).filter((st) => st.node_id);
+    const lit = new Set();
+    const cut = new Set();
+    const path = new Set();
+    for (const st of revealed) {
+      if (st.cut) { if (!lit.has(st.node_id)) cut.add(st.node_id); continue; }
+      lit.add(st.node_id);
+      cut.delete(st.node_id);
+      if (st.from_id) {
+        lit.add(st.from_id);
+        path.add(`${st.from_id}|${st.node_id}`);
+        path.add(`${st.node_id}|${st.from_id}`);
+      }
+    }
+    // Label the latest dozen, or a long trace turns into a word cloud.
+    const labeled = new Set(revealed.filter((st) => !st.cut).slice(-12).map((st) => st.node_id));
+    const last = revealed[revealed.length - 1];
+    traversalRef.current = { lit, cut, labeled, current: last ? last.node_id : null };
+    tracePathRef.current = path;
+    applyHighlight();
+    if (traceStepRef.current) traceStepRef.current.scrollIntoView({ block: 'nearest' });
+  }, [trace, traceCursor, data, view, mode, grouping, isolatedGroup, activeEdges, applyHighlight]);
+
   // === Live physics/size sliders — mutate in place, no scene rebuild ===
   useEffect(() => {
     sizeMultRef.current = sizeMult;
@@ -918,6 +1004,96 @@ export default function Graph() {
               </button>
             )}
           </span>
+        </div>
+      )}
+
+      {/* Traversal replay panel (0.61.0) */}
+      {traversal && (
+        <div className="traversal-panel fixed top-[104px] left-4 z-40 w-80 max-h-[calc(100vh-160px)] flex flex-col bg-[rgba(6,9,16,0.72)] border border-white/10 backdrop-blur">
+          <div className="traversal-panel__header flex items-start justify-between gap-2 px-3 pt-3 pb-2 border-b border-white/10">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500">Bejárás · {traversal.method}</p>
+              <p className="text-xs text-slate-200 truncate" title={traversal.q}>{traversal.q}</p>
+            </div>
+            <button type="button" onClick={onCloseTraversal} className="text-slate-500 hover:text-white transition-colors text-xs" title="Vissza a Search-höz">✕</button>
+          </div>
+          {!trace ? (
+            <p className="px-3 py-3 text-xs text-slate-500">Loading…</p>
+          ) : (
+            <>
+              <div className="traversal-player flex items-center gap-1.5 px-3 py-2 border-b border-white/10 text-xs">
+                <button type="button" onClick={() => { setTracePlaying(false); setTraceCursor(Math.max(0, traceCursor - 1)); }} className="px-2 py-0.5 border border-white/10 text-slate-400 hover:text-white">◀</button>
+                {tracePlaying ? (
+                  <button type="button" onClick={() => setTracePlaying(false)} className="px-2.5 py-0.5 bg-accent text-white">❚❚</button>
+                ) : (
+                  <button type="button" onClick={() => { if (traceCursor >= trace.trace.length) setTraceCursor(0); setTracePlaying(true); }} className="px-2.5 py-0.5 bg-accent text-white">▶</button>
+                )}
+                <button type="button" onClick={() => { setTracePlaying(false); setTraceCursor(Math.min(trace.trace.length, traceCursor + 1)); }} className="px-2 py-0.5 border border-white/10 text-slate-400 hover:text-white">▶</button>
+                <div className="graph-mode-switch inline-flex border border-white/10 ml-1">
+                  {TRACE_SPEEDS.map((sp) => (
+                    <button
+                      key={sp}
+                      type="button"
+                      onClick={() => setTraceSpeed(sp)}
+                      className={`px-1.5 py-0.5 text-[10px] transition-colors ${traceSpeed === sp ? 'bg-accent text-white' : 'text-slate-400 hover:text-white'}`}
+                    >
+                      {sp}×
+                    </button>
+                  ))}
+                </div>
+                <span className="ml-auto text-[10px] text-slate-500">{traceCursor}/{trace.trace.length}</span>
+              </div>
+              <ol className="traversal-steps flex-1 overflow-y-auto px-3 py-2 space-y-1">
+                {trace.trace.map((st, i) => {
+                  const shown = i < traceCursor;
+                  const current = i === traceCursor - 1;
+                  const onGraph = st.node_id && nodeById.has(st.node_id);
+                  const newPhase = i === 0 || trace.trace[i - 1].phase !== st.phase;
+                  return (
+                    <li key={st.step} ref={current ? traceStepRef : null} className={shown ? '' : 'opacity-25'}>
+                      {newPhase && <p className="traversal-steps__phase mt-1 text-[10px] uppercase tracking-wider text-slate-500">{TRACE_PHASE[st.phase]}</p>}
+                      <button
+                        type="button"
+                        onClick={() => { setTracePlaying(false); setTraceCursor(i + 1); if (onGraph) setSelectedNode(st.node_id); }}
+                        className={`traversal-steps__step block w-full text-left text-xs px-1 -mx-1 transition-colors ${current ? 'traversal-steps__step--current bg-white/10 text-white' : 'text-slate-300 hover:text-white'} ${st.cut ? 'traversal-steps__step--cut line-through decoration-slate-600' : ''}`}
+                      >
+                        <span className="font-mono text-[10px] text-slate-500 mr-1">{st.step}</span>
+                        {st.label}
+                        {!onGraph && <span className="ml-1 text-[10px] text-slate-600" title="Ennek a lépésnek nincs csomópontja a gráfon">∅</span>}
+                      </button>
+                      {shown && <p className="traversal-steps__why ml-4 text-[10px] text-slate-500 leading-snug">{st.why}</p>}
+                    </li>
+                  );
+                })}
+              </ol>
+              {traceCursor >= trace.trace.length && (
+                <div className="traversal-summary px-3 py-2 border-t border-white/10 text-xs">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Mi állt össze</p>
+                  {(() => {
+                    const byLayer = {};
+                    const seen = new Set();
+                    let offGraph = 0;
+                    for (const st of trace.trace) {
+                      if (st.cut) continue;
+                      const n = st.node_id && nodeById.get(st.node_id);
+                      if (!n) { offGraph += 1; continue; }
+                      if (seen.has(n.id)) continue;
+                      seen.add(n.id);
+                      byLayer[n.layer] = (byLayer[n.layer] || 0) + 1;
+                    }
+                    const cut = trace.trace.filter((st) => st.cut).length;
+                    return (
+                      <p className="text-slate-300">
+                        {Object.entries(byLayer).map(([layer, n]) => `${LAYER_LABEL[layer]} ${n}`).join(' · ')}
+                        {offGraph > 0 && <span className="text-slate-500"> · gráfon kívül {offGraph}</span>}
+                        {cut > 0 && <span className="text-slate-500"> · levágva {cut}</span>}
+                      </p>
+                    );
+                  })()}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

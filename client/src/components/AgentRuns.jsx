@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { agentRuns } from '../api.js';
 import ThoughtModal from './ThoughtModal.jsx';
 
-// Runs tab (0.58.0) — replay of real agent runs from the MCP call log
+// MCP log tab (0.58.0 as "Runs"; renamed 0.61.0) — replay of real agent runs from the MCP call log
 // (docs/bejaras-visszajatszas-terv-2026-10-10.md). A run = one token's calls
 // with gaps of at most run_gap_minutes. Playback is client state only: it
 // reveals the logged steps one by one, no call is re-made.

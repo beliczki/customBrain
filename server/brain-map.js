@@ -102,17 +102,37 @@ const repoProject = (r, vault) =>
 // dossier hits have none — they are typed by kind.
 const hitType = (h) => (h.kind === 'dossier' ? 'dossier' : h.metadata.type);
 
-export async function buildBrainMap({ question, project, person, days_back = 60, days_ahead = 7 } = {}) {
+// Phase of an anchor-derived line: the dossier it came through, so the trace
+// can draw the edge from that anchor. `via` is "project:X" / "person:X" /
+// "topic:X" / "search:<evidence>".
+const viaAnchor = (via) => {
+  const m = /^(project|person|topic):(.+)$/.exec(via);
+  return m ? { dossier: m[2] } : null;
+};
+
+/**
+ * withTrace (0.61.0): also return `trace`, the steps in the order the code
+ * took them — what was picked, through which anchor, why, and what a section
+ * cap cut. Refs are names/ids; GET /trace resolves them to graph nodes. The
+ * MCP tool does not ask for it, so the agent's package is unchanged.
+ */
+export async function buildBrainMap({ question, project, person, days_back = 60, days_ahead = 7, withTrace = false } = {}) {
   if (!question && !project && !person) return { error: 'Provide question, project or person' };
   const vault = await getVaultContext();
   const gaps = [];
+  const trace = [];
 
   // ── HORGONYOK ──
   const hits = question ? await searchThoughts(question, MAX.search) : [];
+  for (const h of hits) trace.push({ phase: 'search', ref: { id: h.id }, label: h.title, why: `${h.evidence} · ${h.score.toFixed(3)}` });
   const anchors = { projects: [], people: [], topics: [], candidates: [] };
+  const ANCHOR_WHY = { param: 'paraméterben', question: 'a kérdésben', search_hits: 'a keresési találatokban ismétlődik' };
   const add = (bucket, names, derived_from) => {
     for (const name of names) {
-      if (anchors[bucket].length >= MAX.anchors || anchors[bucket].some((a) => a.name === name)) continue;
+      if (anchors[bucket].some((a) => a.name === name)) continue;
+      const cut = anchors[bucket].length >= MAX.anchors;
+      trace.push({ phase: 'anchor', ref: { dossier: name }, label: name, why: `${ANCHOR_WHY[derived_from]}${cut ? ` · levágva (max ${MAX.anchors})` : ''}`, cut });
+      if (cut) continue;
       anchors[bucket].push({ name, derived_from });
     }
   };
@@ -132,6 +152,7 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
     add('people', m.people, 'question');
     add('topics', m.topics, 'question');
     anchors.candidates = m.candidates;
+    for (const c of m.candidates) trace.push({ phase: 'anchor', ref: { dossier: c }, label: c, why: 'csak jelölt: csupasz keresztnév', cut: true });
     if (!anchors.projects.length && !anchors.people.length) {
       const d = anchorsFromHits(hits);
       add('projects', d.projects, 'search_hits');
@@ -156,6 +177,7 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
       situation.repos.push({ project: a.name, repo: repo.repo, error: repo.error });
       gaps.push({ kind: 'repo_unreadable', detail: `${repo.dossier}: ${repo.error}`, ref: repo.repo });
     } else if (repo) {
+      trace.push({ phase: 'situation', ref: { repo: repo.dossier }, from: { dossier: a.name }, label: repo.repo, why: `repó a projekthez · ${repo.drift.length} drift` });
       situation.repos.push({
         project: a.name, repo: repo.repo, version: repo.version, last_commit: repo.last_commit,
         pushed_at: repo.pushed_at, drift: repo.drift,
@@ -167,6 +189,7 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
     catalogAt = files.generated_at;
     const drive = await findFiles({ project: a.name, source: 'drive', limit: 1 });
     a.drive_files = drive.total;
+    if (files.files.length) trace.push({ phase: 'situation', ref: { files: a.name }, from: { dossier: a.name }, label: `Fájlok · ${a.name}`, why: `${files.total} fájl a projekthez, a legfrissebb ${files.files.length} a csomagban` });
     if (!drive.total) gaps.push({ kind: 'project_without_drive_folder', detail: `${a.name}: no Drive file mapped — drive_folder: missing from its Projects dossier?` });
     situation.files.push(...files.files.map((f) => ({
       project: a.name, name: f.name, kind: f.kind, source: f.source, modified: f.modified.slice(0, 10), link: f.link,
@@ -192,17 +215,33 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   const strip = ({ background, ...l }) => l;
   const history = lines.filter((l) => !l.background).slice(0, MAX.history).map(strip);
   const background = lines.filter((l) => l.background).slice(0, MAX.background).map(strip);
+  for (const [phase, all, cap] of [['history', lines.filter((l) => !l.background), MAX.history], ['background', lines.filter((l) => l.background), MAX.background]]) {
+    all.forEach((l, i) => trace.push({
+      phase, ref: { id: l.id }, from: viaAnchor(l.via[0]), label: l.title,
+      why: `${l.date} · ${l.via.join(', ')}${i >= cap ? ` · levágva (max ${cap})` : ''}`, cut: i >= cap,
+    }));
+  }
 
   // ── KÖVETKEZŐ ── commitments + upcoming events tied to an anchor
   const projectKeys = new Set(anchors.projects.map((a) => nameKey(a.name)));
   const personKeys = new Set(anchors.people.map((a) => nameKey(a.name)));
   const all = await listCommitments({ limit: 1000 });
-  const commitments = all.commitments
-    .filter((c) => OPEN_STATUSES.has(c.status))
-    .filter((c) => (c.projects || []).some((p) => projectKeys.has(nameKey(p)))
-      || personKeys.has(nameKey(c.owner)) || (c.counterparty || []).some((p) => personKeys.has(nameKey(p))))
+  // Which anchor tied a commitment in — the first that matches, for the trace.
+  const matchOf = (c) => {
+    const p = (c.projects || []).find((x) => projectKeys.has(nameKey(x)));
+    if (p) return { dossier: p, why: `projekt: ${p}` };
+    if (personKeys.has(nameKey(c.owner))) return { dossier: c.owner, why: `gazda: ${c.owner}` };
+    const cp = (c.counterparty || []).find((x) => personKeys.has(nameKey(x)));
+    return cp ? { dossier: cp, why: `partner: ${cp}` } : null;
+  };
+  const matched = all.commitments.filter((c) => OPEN_STATUSES.has(c.status)).map((c) => ({ c, m: matchOf(c) })).filter((x) => x.m);
+  matched.forEach(({ c, m }, i) => trace.push({
+    phase: 'next', ref: { id: c.id }, from: { dossier: m.dossier }, label: c.title,
+    why: `${c.status} · ${m.why}${i >= MAX.commitments ? ` · levágva (max ${MAX.commitments})` : ''}`, cut: i >= MAX.commitments,
+  }));
+  const commitments = matched
     .slice(0, MAX.commitments)
-    .map((c) => ({
+    .map(({ c }) => ({
       id: c.id, title: c.title, status: c.status, owner: c.owner, counterparty: c.counterparty || [],
       kind: c.kind, due: c.due ?? null, overdue: c.overdue, ref: `${c.sources[0].source}:${c.sources[0].ref}`,
     }));
@@ -226,7 +265,10 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
       if (!matched.length) continue;
       events.push({ start: event.start, title: event.title, event_id: event.event_id, attendees: event.attendees.length, matched_by: [...new Set(matched)] });
     }
-    events.splice(MAX.events);
+    const cutEvents = events.splice(MAX.events);
+    for (const [list, cut] of [[events, false], [cutEvents, true]]) {
+      for (const e of list) trace.push({ phase: 'next', ref: null, label: `${e.start.slice(0, 16).replace('T', ' ')} ${e.title}`, why: `naptár · ${e.matched_by.join(', ')}${cut ? ` · levágva (max ${MAX.events})` : ''}`, cut });
+    }
   }
 
   // ── TOVÁBB ── the deeper call per section, ready to run
@@ -258,5 +300,6 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
     HÁTTÉR: background,
     HIÁNYOK: gaps,
     TOVÁBB: further,
+    ...(withTrace ? { trace } : {}),
   };
 }

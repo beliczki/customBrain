@@ -12,7 +12,7 @@ import Export from './components/Export.jsx';
 import Settings from './components/Settings.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 
-const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Runs', 'Graph', 'Stats', 'Export', 'Settings'];
+const tabs = ['Capture', 'Search', 'Recent', 'Agenda', 'Graph', 'Stats', 'MCP log', 'Export', 'Settings'];
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'customBrain';
 
 // Pre-validates the token against /stats before saving to localStorage. Inline
@@ -90,6 +90,8 @@ function UnlockForm({ onAuthenticated }) {
 
 export default function App() {
   const [active, setActive] = useState('Capture');
+  // Traversal replay (0.61.0): Search hands {method, q} to the Graph tab.
+  const [traversal, setTraversal] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('ui_secret') || '');
   // While true, we have a token in localStorage but haven't verified it against
   // the server yet. Mount-time validation: if /stats returns 401, the stored
@@ -170,7 +172,7 @@ export default function App() {
               {tabs.map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActive(tab)}
+                  onClick={() => { setTraversal(null); setActive(tab); }}
                   className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
                     active === tab
                       ? 'border-[var(--accent-blue)] text-txt'
@@ -186,17 +188,17 @@ export default function App() {
       </div>
       {graphActive ? (
         <Suspense fallback={<p className="text-txt-ter text-sm p-8">Loading graph…</p>}>
-          <Graph />
+          <Graph traversal={traversal} onCloseTraversal={() => { setTraversal(null); setActive('Search'); }} />
         </Suspense>
       ) : (
         <div className="section-row min-h-[calc(100vh-120px)]">
           <div className="container">
             <div className="px-6 py-8">
               {active === 'Capture' && <Capture />}
-              {active === 'Search' && <Search />}
+              {active === 'Search' && <Search onTraverse={(method, q) => { setTraversal({ method, q }); setActive('Graph'); }} />}
               {active === 'Recent' && <Recent />}
               {active === 'Agenda' && <Agenda />}
-              {active === 'Runs' && <AgentRuns />}
+              {active === 'MCP log' && <AgentRuns />}
               {active === 'Stats' && <Stats />}
               {active === 'Export' && <Export />}
               {active === 'Settings' && <Settings />}

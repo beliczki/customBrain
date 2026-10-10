@@ -47,6 +47,11 @@ export async function getMap(q) {
   return jsonOrThrow(res, 'map');
 }
 
+export async function getTrace(method, q) {
+  const res = await fetch(`${BASE}/trace?method=${method}&q=${encodeURIComponent(q)}`, { headers: authHeaders() });
+  return jsonOrThrow(res, 'trace');
+}
+
 export async function agentRuns(days = 7) {
   const res = await fetch(`${BASE}/agent-runs?days=${days}`, { headers: authHeaders() });
   return jsonOrThrow(res, 'agent-runs');

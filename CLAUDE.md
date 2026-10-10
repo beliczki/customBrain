@@ -113,7 +113,8 @@ All routes behind auth middleware. Route files in `server/routes/`:
 | `/stats` | GET | `stats.js` | `getStats` |
 | `/export` | POST | `export.js` | `exportThoughts` |
 | `/map` | GET | `map.js` | `buildBrainMap` (Search tab `map` method; same package as the `map` MCP tool) |
-| `/agent-runs` | GET | `agent-runs.js` | `readAgentRuns` (Runs tab; MCP call log grouped into runs) |
+| `/agent-runs` | GET | `agent-runs.js` | `readAgentRuns` (MCP log tab; MCP call log grouped into runs) |
+| `/trace` | GET | `trace.js` | `buildTrace` (traversal replay: a Search method's steps → Graph; `method=search\|map`) |
 | `/mcp/http` | ALL | `mcp.js` | `handleMcpHttp` |
 | `/fireflies-webhook` | POST | `fireflies-webhook.js` | — (HMAC secret, **not** Bearer; mounted above the Bearer middleware in `server/index.js`) |
 

@@ -9,9 +9,12 @@ import BrainMapPackage from './BrainMapPackage.jsx';
 // agent gets; "search" is the raw hybrid hit list with the anatomy view.
 // A submit fetches only the active mode; switching fetches the other one for
 // the same query the first time it is shown.
-const MODES = [['hits', 'search'], ['package', 'map']];
+// [mode key, label = method name]. spider is planned (0.62.0) and shown
+// disabled so the three methods read as one family.
+const MODES = [['hits', 'search'], ['package', 'map'], ['spider', 'spider']];
+const METHOD_OF = { hits: 'search', package: 'map' };
 
-export default function Search() {
+export default function Search({ onTraverse }) {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [mode, setMode] = useState('package');
@@ -69,7 +72,9 @@ export default function Search() {
             key={m}
             type="button"
             onClick={() => switchMode(m)}
-            className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors ${
+            disabled={m === 'spider'}
+            title={m === 'spider' ? 'jön a 0.62.0-ban' : undefined}
+            className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               mode === m ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
             }`}
           >
@@ -77,6 +82,16 @@ export default function Search() {
           </button>
         ))}
       </div>
+      {submittedQuery && (
+        <button
+          type="button"
+          onClick={() => onTraverse(METHOD_OF[mode], submittedQuery)}
+          className="search-traverse-btn ml-3 px-3 py-1 text-xs border border-subtle text-txt-sec hover:text-txt transition-colors"
+          title="A módszer lépései lassítva, a Graph Ontológia nézetén"
+        >
+          Bejárás a gráfon ▶
+        </button>
+      )}
       {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">Error: {error}</p>}
       {mode === 'package' && map.data && <BrainMapPackage map={map.data} onShowHits={() => switchMode('hits')} />}
       {mode === 'hits' && (

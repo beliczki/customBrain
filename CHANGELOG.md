@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.61.0 — 2026-10-10
+
+**Traversal replay: watch a Search method walk the graph, slowed down.** Plan: `docs/bejaras-modszerek-terv-2026-10-10.md`, step 2.
+- The Search tab's method switch reads `search | map | spider` (`spider` disabled until 0.62.0). A "Bejárás a gráfon ▶" button opens the Graph tab on the Ontológia view and replays the method's steps for the submitted question. Each step lights its node, and the edge from the anchor it came through. Steps a section cap cut stay half-lit and struck through. The left-hand panel lists the steps with their phase and *why*, plays at 1×/4×/16× or steps by hand, and ends with "mi állt össze": the nodes reached, per layer.
+- New `GET /trace?method=search|map&q=` (`server/routes/trace.js`) returns `{ method, q, result, trace }`. `result` is what the method returns today. `trace` is `[{ step, phase, label, why, cut, node_id, from_id }]`. Name refs (dossiers, repos, file bundles) resolve to graph node ids through `buildOntology`. A step with no node (a calendar event, a person under the 3-thought bar) keeps `node_id: null` and shows in the list only.
+- `search`: one step per hit (evidence · score), at the MCP default of 5 hits.
+- `map`: `buildBrainMap({ withTrace: true })` records its steps in the order the code takes them: search hits, anchors (and why: in the question / parameter / recurring in hits; bare first names as cut candidates), repo and file bundle per project, ELŐZMÉNYEK/HÁTTÉR lines with the anchor they came through, commitments with the anchor that tied them, calendar events. The MCP tool does not pass `withTrace`, so the agent's package is unchanged.
+- The Runs tab is now **MCP log**, after Stats.
+
 ## 0.60.0 — 2026-10-10
 
 **Breaking: the retrieval tools drop "brain" from their names.** This is the brain MCP, so the word was redundant. `search_brain` → `search`, `brain_map` → `map`; the planned third method will be `spider` (plan: `docs/bejaras-modszerek-terv-2026-10-10.md`). No alias is kept for the old names: connected clients need a fresh session (some a connector refresh) to see the new tool list, and saved prompts outside this repo that name `search_brain` stop working. Changed together:
