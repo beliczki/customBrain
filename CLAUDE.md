@@ -111,6 +111,7 @@ All routes behind auth middleware. Route files in `server/routes/`:
 | `/thoughts/:id` | PATCH | `recent.js` | — (metadata edits; backs `update_thought`) |
 | `/stats` | GET | `stats.js` | `getStats` |
 | `/export` | POST | `export.js` | `exportThoughts` |
+| `/brain-map` | GET | `brain-map.js` | `buildBrainMap` (Search tab "Csomag" mode; same package as the `brain_map` MCP tool) |
 | `/mcp/http` | ALL | `mcp.js` | `handleMcpHttp` |
 | `/fireflies-webhook` | POST | `fireflies-webhook.js` | — (HMAC secret, **not** Bearer; mounted above the Bearer middleware in `server/index.js`) |
 

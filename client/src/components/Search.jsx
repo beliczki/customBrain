@@ -1,33 +1,54 @@
 import { useState } from 'react';
-import { search } from '../api.js';
+import { search, brainMap } from '../api.js';
 import ThoughtBody from './ThoughtBody.jsx';
 import ThoughtFacts from './ThoughtFacts.jsx';
 import ChunkAnatomyModal from './ChunkAnatomyModal.jsx';
+import BrainMapPackage from './BrainMapPackage.jsx';
+
+// Two modes over one input (0.57.0): "Csomag" is the brain_map package the
+// agent gets; "Találatok" is the raw hybrid hit list with the anatomy view.
+// A submit fetches only the active mode; switching fetches the other one for
+// the same query the first time it is shown.
+const MODES = [['package', 'Csomag'], ['hits', 'Találatok']];
 
 export default function Search() {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [mode, setMode] = useState('package');
+  const [results, setResults] = useState({ q: null, hits: [] });
+  const [map, setMap] = useState({ q: null, data: null });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [anatomyId, setAnatomyId] = useState(null);
 
-  async function handleSearch(e) {
-    e.preventDefault();
-    if (!query.trim()) return;
+  async function run(m, q) {
     setLoading(true);
+    setError(null);
     try {
-      const data = await search(query);
-      setResults(data);
-      setSubmittedQuery(query);
+      if (m === 'package') setMap({ q, data: await brainMap(q) });
+      else setResults({ q, hits: await search(q) });
     } catch (err) {
-      setResults([]);
+      setError(err.message);
     }
     setLoading(false);
   }
 
+  function handleSearch(e) {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setSubmittedQuery(query);
+    run(mode, query);
+  }
+
+  function switchMode(m) {
+    setMode(m);
+    const loadedFor = m === 'package' ? map.q : results.q;
+    if (submittedQuery && loadedFor !== submittedQuery) run(m, submittedQuery);
+  }
+
   return (
     <div>
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
+      <form onSubmit={handleSearch} className="flex gap-2 mb-3">
         <input
           placeholder="Search your brain..."
           value={query}
@@ -42,8 +63,25 @@ export default function Search() {
           {loading ? '...' : 'Search'}
         </button>
       </form>
+      <div className="search-mode-switch inline-flex border border-subtle mb-6">
+        {MODES.map(([m, label]) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => switchMode(m)}
+            className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors ${
+              mode === m ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">Error: {error}</p>}
+      {mode === 'package' && map.data && <BrainMapPackage map={map.data} onShowHits={() => switchMode('hits')} />}
+      {mode === 'hits' && (
       <div>
-        {results.map((r) => (
+        {results.hits.map((r) => (
           <div key={r.id} className="py-6 border-t border-[var(--border)] first:border-t-0 -mx-6 px-6">
             <div className="mb-3">
               <div className="flex justify-between items-start gap-2">
@@ -139,6 +177,7 @@ export default function Search() {
           </div>
         ))}
       </div>
+      )}
       <ChunkAnatomyModal thoughtId={anatomyId} query={submittedQuery} onClose={() => setAnatomyId(null)} />
     </div>
   );

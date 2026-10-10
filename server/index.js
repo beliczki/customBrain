@@ -22,6 +22,7 @@ import reindexRouter from './routes/reindex.js';
 import firefliesWebhookRouter from './routes/fireflies-webhook.js';
 import mcpTokensRouter from './routes/mcp-tokens.js';
 import oauthRouter from './routes/oauth.js';
+import brainMapRouter from './routes/brain-map.js';
 import { handleMcpHttp, handleMcpHttpStateless } from './mcp.js';
 
 // Stateful (session) MCP and its stateless sibling share auth and raw-body handling.
@@ -54,6 +55,7 @@ app.get('*', (req, res, next) => {
       req.path.startsWith('/thoughts') || req.path.startsWith('/agenda') ||
       req.path.startsWith('/settings') || req.path.startsWith('/health-check') ||
       req.path.startsWith('/graph') || req.path.startsWith('/reindex') ||
+      req.path.startsWith('/brain-map') ||
       req.path.startsWith('/fireflies-webhook') ||
       req.path.startsWith('/oauth') || req.path.startsWith('/.well-known')) {
     return next();
@@ -204,6 +206,7 @@ app.use(graphRouter);
 app.use(reindexRouter);
 app.use(mcpTokensRouter);
 app.use(oauthRouter);
+app.use(brainMapRouter);
 
 // MCP endpoint (Streamable HTTP only). Both paths are stateless since 0.50.0.
 // handleMcpHttp (stateful) stays imported for one release as the rollback:

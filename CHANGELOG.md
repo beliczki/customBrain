@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.57.0 — 2026-10-10
+
+**Search tab: a new "Csomag" mode shows the `brain_map` package, the same one the agent gets.** One input, a `Csomag | Találatok` switch, Csomag by default. The seven sections render one under another (HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB). Thought rows open `ThoughtModal`, file rows link to Drive or Gmail, an overdue commitment shows its date in red, an empty section says "nincs adat". The `search_brain` step in TOVÁBB switches to the Találatok mode. Találatok is the old list, unchanged, with the Anatómia button. A submit fetches only the active mode; switching fetches the other mode for the same query the first time it is shown. New route `GET /brain-map?q=&project=&person=` (`server/routes/brain-map.js`, master UI token only, not on the named-token allowlist), added to the SPA wildcard guard. New component `BrainMapPackage.jsx`; its styles reuse the Agenda headers and rows and the Search chip colours. Plan: `docs/search-csomag-ui-terv-2026-10-10.md`.
+
 ## 0.56.1 — 2026-10-10
 
 **Search: a chunked dossier now counts as a dossier.** Project dossiers are chunked too (79 chunk points with `parent_source: vault` on the server). When a chunk won the rollup, `rollupChunkHits` rebuilt the parent hit without `kind`. The dossier then lost its 1.5× boost and its decay exemption, and got `weak_semantic` evidence instead of `canonical_dossier`. It surfaced in the first `brain_map` run: dossiers landed in ELŐZMÉNYEK with `type: null`. The chunk branch now carries the parent's `kind`, and the evidence follows from it. Both `search_brain` modes go through the same rollup, so both are fixed.

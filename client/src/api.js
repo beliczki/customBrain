@@ -42,6 +42,11 @@ export async function search(q, limit = 5) {
   return jsonOrThrow(res, 'search');
 }
 
+export async function brainMap(q) {
+  const res = await fetch(`${BASE}/brain-map?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
+  return jsonOrThrow(res, 'brain-map');
+}
+
 export async function recent(limit = 10) {
   const res = await fetch(`${BASE}/recent?limit=${limit}`, {
     headers: authHeaders(),
