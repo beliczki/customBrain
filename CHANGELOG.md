@@ -2,6 +2,13 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.65.0 — 2026-10-10
+
+**spider weighs recency; map gains a KORÁBBI section from spider.** This follows the search/map/spider comparison on "humanody" (2026-10-10). There map and spider shared 20 of 25 nodes. spider alone reached five threads older than map's 60-day window, but it had no sense of time. About 15 thoughts reached through one `tag ← Humanody` edge tied at 0.104, so which of them fit into the 25 steps was arbitrary: a May auto-reply got in, while that week's "ConfAI IH éles szál" fell off.
+- `recencyFactor()` is now exported from `server/routes/search.js` as the one recency rule, `1 / (1 + days/90)` on effective_date, falling back to created_at. `applyTimeDecay` uses it.
+- `spider` multiplies each offer to a thought by it. Dossiers, commitments and file bundles carry no content date and are not decayed. Result items now carry `date`, `type`, `source` and `entity`, the same line shape as map's ELŐZMÉNYEK.
+- `map` (MCP tool, `/map`, Search tab) has a new **KORÁBBI** section between ELŐZMÉNYEK and KÖVETKEZŐ. It runs spider from the same question in parallel with its readers and keeps the thoughts spider reached that are older than `days_back` and not already listed, in step order, `MAX.earlier` = 10. Each line's `via` names the step and the edge that led there; in the UI it is the row's tooltip. The MCP description says so. The trace records them as phase `earlier`.
+
 ## 0.64.0 — 2026-10-10
 
 **The thought graph is cached and rebuilt off the main thread; spider shows what it is doing.**

@@ -75,20 +75,25 @@ export default router;
 // current dossier is not "old news" just because its file wasn't touched today.
 const DOSSIER_BOOST = 1.5;
 
+/**
+ * Recency factor of a thought, the ONE rule search and spider share (0.65.0).
+ * Prefer effective_date (content date) over created_at (capture date): old
+ * Gmail/Fireflies content captured today should NOT get a recency boost as
+ * if it were a fresh thought. 90-day scale — gentler than the initial 30-day;
+ * a 30-day decay over-penalised content older than a month even when the
+ * match was much stronger.
+ */
+export function recencyFactor({ effective_date, created_at }, now = Date.now()) {
+  const days = (now - new Date(effective_date || created_at).getTime()) / 86400000;
+  return 1 / (1 + days / 90);
+}
+
 function applyTimeDecay(results) {
   const now = Date.now();
   return results
     .map((r) => {
       const isDossier = r.kind === 'dossier';
-      // Prefer effective_date (content date) over created_at (capture date).
-      // Old Gmail/Fireflies content captured today should NOT get a recency
-      // boost as if it were a fresh thought.
-      const dateStr = r.effective_date || r.created_at;
-      const days = (now - new Date(dateStr).getTime()) / 86400000;
-      // 90-day half-life — gentler than initial 30-day. At 238 thoughts the
-      // brain has months of context; a 30-day decay over-penalises content
-      // older than a month even when cosine match is much stronger.
-      const decay = isDossier ? 1 : 1 / (1 + days / 90);
+      const decay = isDossier ? 1 : recencyFactor(r, now);
       const boost = isDossier ? DOSSIER_BOOST : 1;
       return { ...r, cosine_score: r.score, score: r.score * decay * boost };
     })

@@ -37,11 +37,12 @@ function AnchorChip({ kind, name, note }) {
   );
 }
 
-function ThoughtRow({ line, onOpen }) {
+function ThoughtRow({ line, hint, onOpen }) {
   return (
     <li>
       <button
         type="button"
+        title={hint}
         onClick={() => onOpen(line.id)}
         className="brain-map__row agenda-thought-link flex items-baseline gap-2 text-xs w-full text-left py-0.5 hover:bg-[var(--border)] -mx-1 px-1 transition-colors"
       >
@@ -58,7 +59,7 @@ const argsText = (args) => Object.entries(args).map(([k, v]) => `${k}=${JSON.str
 
 export default function BrainMapPackage({ map, onShowHits }) {
   const [openThoughtId, setOpenThoughtId] = useState(null);
-  const { HORGONYOK: anchors, HELYZET: situation, ELŐZMÉNYEK: history, KÖVETKEZŐ: next, HÁTTÉR: background, HIÁNYOK: gaps, TOVÁBB: further } = map;
+  const { HORGONYOK: anchors, HELYZET: situation, ELŐZMÉNYEK: history, KORÁBBI: earlier, KÖVETKEZŐ: next, HÁTTÉR: background, HIÁNYOK: gaps, TOVÁBB: further } = map;
   const anchorCount = anchors.projects.length + anchors.people.length + anchors.topics.length;
 
   return (
@@ -111,6 +112,13 @@ export default function BrainMapPackage({ map, onShowHits }) {
       <Section title="Előzmények" count={history.length}>
         <ul className="space-y-1">
           {history.map((l) => <ThoughtRow key={l.id} line={l} onOpen={setOpenThoughtId} />)}
+        </ul>
+      </Section>
+
+      {/* 0.65.0: older than the window, reached by a spider walk — the edge that led there is the row's tooltip */}
+      <Section title="Korábbi" count={earlier.length}>
+        <ul className="brain-map__earlier space-y-1">
+          {earlier.map((l) => <ThoughtRow key={l.id} line={l} hint={l.via[0]} onOpen={setOpenThoughtId} />)}
         </ul>
       </Section>
 

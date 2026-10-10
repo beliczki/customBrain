@@ -4,9 +4,14 @@
 // best-first: each step expands the highest-scored node not yet visited.
 //
 //   score(neighbour) = score(parent) × edge weight × DECAY / √degree(parent)
+//                      × recency(neighbour)            (thoughts only, 0.65.0)
 //
 // The √degree is the hub penalty: without it every question drains into the
-// biggest dossier (ERSTE has 50+ links). The graph is the one the Graph tab
+// biggest dossier (ERSTE has 50+ links). recency is search's own rule
+// (recencyFactor): without it the ~15 thoughts one tag edge reaches all tie,
+// and which of them fit in MAX_STEPS was arbitrary — a May auto-reply got in
+// while that week's working thread fell off. Dossiers, commitments and file
+// bundles carry no content date and are not decayed. The graph is the one the Graph tab
 // shows — buildGraph (thought↔thought) + buildOntology (dossiers, file
 // bundles, commitments, cross-layer edges) — so a replay lights real edges.
 // No LLM call; one embedding (the search). Not an MCP tool yet: it has to
@@ -15,7 +20,7 @@
 import { buildOntology } from './routes/graph.js';
 import { getCachedGraph } from './graph-cache.js';
 import { phase } from './routes/trace.js';
-import { searchThoughts } from './routes/search.js';
+import { searchThoughts, recencyFactor } from './routes/search.js';
 import { matchAnchors } from './brain-map.js';
 import { getVaultContext } from './drive-context.js';
 import { nameKey } from './names.js';
@@ -89,9 +94,12 @@ export async function spiderWalk(question, emit = () => {}) {
       why: `${best.why} · ${best.score.toFixed(3)}`, score: best.score, layer: node.layer,
     });
     const damp = DECAY / Math.sqrt(Math.max(1, adj.get(id).length));
+    const now = Date.now();
     for (const { to, w, e } of adj.get(id)) {
       if (visited.has(to)) continue;
-      offer(to, best.score * w * damp, id, `${EDGE_LABEL(e)} ← ${node.title}`);
+      const target = nodes.get(to);
+      const recency = target.entity ? 1 : recencyFactor(target, now);
+      offer(to, best.score * w * damp * recency, id, `${EDGE_LABEL(e)} ← ${node.title}`);
     }
   }
 
@@ -106,13 +114,18 @@ export async function spiderWalk(question, emit = () => {}) {
   }
 
   const walked = trace.filter((t) => t.phase === 'walk');
+  // Same line shape as map's ELŐZMÉNYEK, so map can list spider's finds as-is.
+  const lineOf = (n) => ({
+    id: n.id, title: n.title, entity: n.entity || null,
+    date: String(n.effective_date || n.created_at || '').slice(0, 10), type: n.type, source: n.source,
+  });
   emit({ type: 'phase', name: 'walk', label: 'bejárás', status: 'done', ms: Date.now() - walkStart, note: `${walked.length} lépés` });
   return {
     result: {
       question,
       layers: LAYERS.map((l) => ({
         key: l.key, label: l.label,
-        items: walked.filter((t) => t.layer === l.key).map((t) => ({ id: t.ref.id, title: t.label, step: walked.indexOf(t) + 1, score: t.score, why: t.why })),
+        items: walked.filter((t) => t.layer === l.key).map((t) => ({ ...lineOf(nodes.get(t.ref.id)), step: walked.indexOf(t) + 1, score: t.score, why: t.why })),
       })),
       candidates: left.map(([id, f]) => ({ id, title: nodes.get(id).title, layer: nodes.get(id).layer, score: f.score, why: f.why })),
       stopped: walked.length >= MAX_STEPS ? 'max_steps' : 'min_score',

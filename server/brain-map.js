@@ -20,10 +20,11 @@ import { searchThoughts } from './routes/search.js';
 import { getVaultContext } from './drive-context.js';
 import { nameKey, resolveAliases, stripAccents } from './names.js';
 import { layerOf } from './ontology.js';
+import { spiderWalk } from './spider.js';
 
 // Per-section caps. Hand-set starting values; the AUTORESEARCH profile
 // (ROADMAP) is where they get calibrated per brain instance.
-const MAX = { search: 10, history: 25, files: 8, commitments: 15, events: 10, background: 10, anchors: 3 };
+const MAX = { search: 10, history: 25, files: 8, commitments: 15, events: 10, background: 10, anchors: 3, earlier: 10 };
 // How old a state file may be before HIÁNYOK says so. Agenda: hourly cron.
 // Repos: daily 04:30 cron. Files catalog: built by hand, no cron yet.
 const STALE_HOURS = { agenda: 2, repos: 36, files: 24 * 14 };
@@ -121,6 +122,13 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   const vault = await getVaultContext();
   const gaps = [];
   const trace = [];
+  // KORÁBBI (0.65.0): spider walks the graph from the same question in
+  // parallel; what it reaches beyond the days_back window becomes the
+  // section. The window keeps ELŐZMÉNYEK current; spider is the way past it.
+  const earlierWalk = spiderWalk(question || project || person);
+  // Awaited below; this only keeps an early failure from counting as an
+  // unhandled rejection (which ends the process) while the readers run.
+  earlierWalk.catch(() => {});
 
   // ── HORGONYOK ──
   const hits = question ? await searchThoughts(question, MAX.search) : [];
@@ -215,6 +223,17 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   const strip = ({ background, ...l }) => l;
   const history = lines.filter((l) => !l.background).slice(0, MAX.history).map(strip);
   const background = lines.filter((l) => l.background).slice(0, MAX.background).map(strip);
+  // ── KORÁBBI ── spider's thoughts older than the window, not already listed
+  const { result: walk } = await earlierWalk;
+  const reached = walk.layers.flatMap((l) => l.items)
+    .filter((i) => !i.entity && i.date < since && !byId.has(i.id))
+    .sort((a, b) => a.step - b.step);
+  const earlier = reached.slice(0, MAX.earlier).map((i) => ({ date: i.date, type: i.type, source: i.source, title: i.title, id: i.id, via: [`spider #${i.step}: ${i.why}`] }));
+  reached.forEach((i, n) => trace.push({
+    phase: 'earlier', ref: { id: i.id }, label: i.title,
+    why: `${i.date} · spider #${i.step}: ${i.why}${n >= MAX.earlier ? ` · levágva (max ${MAX.earlier})` : ''}`, cut: n >= MAX.earlier,
+  }));
+
   for (const [phase, all, cap] of [['history', lines.filter((l) => !l.background), MAX.history], ['background', lines.filter((l) => l.background), MAX.background]]) {
     all.forEach((l, i) => trace.push({
       phase, ref: { id: l.id }, from: viaAnchor(l.via[0]), label: l.title,
@@ -296,6 +315,7 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
     HORGONYOK: anchors,
     HELYZET: situation,
     ELŐZMÉNYEK: history,
+    KORÁBBI: earlier,
     KÖVETKEZŐ: { commitments, events },
     HÁTTÉR: background,
     HIÁNYOK: gaps,
