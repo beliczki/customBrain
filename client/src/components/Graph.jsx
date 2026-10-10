@@ -7,7 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { getGraph, getGraphOntology, getTrace } from '../api.js';
 import ThoughtModal from './ThoughtModal.jsx';
-import { ShellToolbar } from './AppShell.jsx';
+import { ShellToolbar, ShellHeader } from './AppShell.jsx';
 
 // Community color palette — fixed order so cluster N keeps its color across
 // reloads (server-side Louvain is deterministic: randomWalk off).
@@ -1103,6 +1103,49 @@ export default function Graph({ traversal, onCloseTraversal }) {
         </div>
       )}
 
+      {/* Group by + 2D/3D in the shell's top bar (0.73.0): the choices that
+          reshape the whole scene sit by its title; the toolbar keeps the tuning. */}
+      <ShellHeader>
+        <div className="graph-groupby search-mode-switch inline-flex border border-subtle">
+          {GROUP_MODES.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              onClick={() => { setGroupBy(m.key); setIsolatedGroup(null); }}
+              className={`px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
+                groupBy === m.key ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        {isolated && (
+          <button
+            type="button"
+            onClick={() => setIsolatedGroup(null)}
+            className="graph-isolation-chip ml-2 px-2 py-1.5 text-xs border border-subtle text-txt-sec hover:text-txt transition-colors"
+            title="Show all groups"
+          >
+            {truncate(isolated.label, 18)} ✕
+          </button>
+        )}
+        <div className="graph-mode-switch search-mode-switch inline-flex ml-auto border border-subtle">
+          {['2d', '3d'].map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
+                mode === m ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      </ShellHeader>
+
       {/* Controls — in the shell's right toolbar (0.62.0) */}
       <ShellToolbar>
       <div className="graph-controls-panel min-h-full space-y-3">
@@ -1127,57 +1170,6 @@ export default function Graph({ traversal, onCloseTraversal }) {
                 </button>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* Renderer + grouping */}
-        <div className="graph-controls-panel__section">
-          <button onClick={() => toggleSection('layout')} className="graph-accordion__header flex w-full items-center justify-between text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors mb-1.5">
-            Layout <span>{collapsed.layout ? '+' : '−'}</span>
-          </button>
-          {!collapsed.layout && (
-          <>
-          <div className="flex gap-2 mb-2">
-            <div className="graph-mode-switch flex border border-white/10">
-              {['2d', '3d'].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors ${
-                    mode === m ? 'bg-accent text-white' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-            {isolated && (
-              <button
-                onClick={() => setIsolatedGroup(null)}
-                className="graph-isolation-chip px-2 py-1 text-xs border border-white/10 text-slate-300 hover:text-white transition-colors"
-                title="Show all groups"
-              >
-                {truncate(isolated.label, 18)} ✕
-              </button>
-            )}
-          </div>
-          <p className="graph-controls-panel__label">Group by</p>
-          <div className="graph-groupby flex flex-wrap gap-1">
-            {GROUP_MODES.map((m) => (
-              <button
-                key={m.key}
-                onClick={() => { setGroupBy(m.key); setIsolatedGroup(null); }}
-                className={`px-2 py-1 text-[10px] font-medium uppercase tracking-wider border transition-colors ${
-                  groupBy === m.key
-                    ? 'bg-accent border-accent text-white'
-                    : 'border-white/10 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-          </>
           )}
         </div>
 
