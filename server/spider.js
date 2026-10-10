@@ -152,7 +152,12 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   const visited = new Map(); // id → step
   const trace = [];
   const now = Date.now();
-  const age = (n) => (!recency || n.entity ? 1 : recencyFactor(n, now));
+  // Files and repo docs carry a real date (modified / last commit) and decay
+  // like thoughts (0.73.1); exempting them made the cluster lens prefer old
+  // files over that week's threads. Dossiers, commitments and file bundles
+  // have no content date.
+  const dated = (n) => !n.entity || n.entity === 'file' || n.entity === 'repodoc';
+  const age = (n) => (recency && dated(n) ? recencyFactor(n, now) : 1);
   const visit = (id, round, lens, score, from, why, agree = 1) => {
     for (const l of LENSES) frontier[l.key].delete(id);
     visited.set(id, trace.length + 1);
