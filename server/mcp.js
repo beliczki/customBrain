@@ -108,7 +108,7 @@ export function createMcpServer(scopes = null) {
 
   server.tool(
     'find_files',
-    'Find documents in the Files catalog: decks, docs, sheets, PDFs and markdown on Drive, plus the attachments of brain-captured Gmail threads. Metadata only (name, Drive path or Gmail thread, projects, direction, link) — no file contents. Use it for "where is the X deck?", "what did Y send us?", "which files belong to project Z?". Copies and re-exports of one document share variant_group. Filters combine; text filters are case- and accent-insensitive substrings. Page with offset/next_offset.',
+    'Find documents in the Files catalog: decks, docs, sheets, PDFs and markdown on Drive, plus the attachments of brain-captured Gmail threads. Metadata only (name, Drive path or Gmail thread, projects, direction, link) — no file contents. Use it for "where is the X deck?", "what did Y send us?", "which files belong to project Z?". Copies and re-exports of one document share variant_group. Filters combine; text filters are case- and accent-insensitive substrings. Ranked by match strength × recency (90-day half-life that never reaches zero — old files stay findable, just lower); each hit carries score and age_days. Page with offset/next_offset.',
     {
       query: z.string().optional().describe('Substring of file name or Drive path'),
       project: z.string().optional(),

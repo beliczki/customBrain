@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.52.0 — 2026-10-10
+
+**`find_files` ranks by match strength × recency instead of date alone.** A query now scores each hit by how well it matches (exact name or same `variant_group` 1.0, name prefix 0.8, name substring 0.6, path only 0.3) times the same recency curve as `search_brain` (`1 / (1 + days/90)`). Old files rank lower but never reach zero and stay in `total` and the pages — the past is not the most probable target, but it is not gone. Without a query the order is recency alone, as before. Each hit carries `score` and `age_days`. The weights are hand-set starting values; ROADMAP's AUTORESEARCH item is where they get calibrated per brain instance.
+
 ## 0.51.0 — 2026-10-09
 
 **Files catalog + `find_files` MCP tool.** The read-only inventory showed 66k files on Drive (`Docs` 10.8k, `Data` 55.5k, mostly creative assets and archives) and attachments in 142 of 181 `brain/captured` Gmail threads — one dossier per file would drown the index, so the catalog is a single JSON. `scripts/build-files-catalog.js` lists document-type files (decks, docs, sheets, PDFs, markdown, incl. Google-native) owned on My Drive in one paginated query, skipping archives, the vault and notebooks, and walks every `brain/captured` thread for document attachments. Each record carries name, kind, mime, size, modified, Drive path or Gmail thread link, projects (Drive: the `Data/<client>` folder matched against Projects dossiers and aliases, else none; Gmail: the thread's thought), direction (Gmail only), md5 and a `variant_group` that ties "Copy of … - 13 June, 11:29", `.xlsx.xlsx` and `.md.docx` re-exports to one document. Metadata only — no content extraction or embeddings. The script writes `state/files-catalog.json` only after every source was read completely. `find_files` (both MCP surfaces, scope `brain-read`) filters it by name/path, project, source, kind, direction, thread and date, paged.

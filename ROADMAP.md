@@ -1,5 +1,29 @@
 # customBrain — Roadmap
 
+## PLANNED 2026-10-10 — AUTORESEARCH: csomag-összeállítás hangolása brain-példányonként
+
+**Cél:** egy adott kérdéshez a legnagyobb valószínűséggel kerüljenek elő a releváns dokumentumok, események, kódrészletek, prezentációk. Nem egy közös indexben, súlyozott keveréssel, hanem **ontológiánként külön toolok** hozzák a saját találataikat, és ezekből áll össze egy **csomag**, amiben az agent turkál (ő rangsorol újra). A kérdés: melyik toolokat hívjuk, mindegyikből mennyit, milyen al-módszerrel (dense / BM25 / dátum / ontológia-bejárás / fájlkatalógus), és hogyan áll össze a csomag egy méret- és költségkereten belül.
+
+**Példányonként más:** a customBrain, egy brandBrain vagy egy KKV-brain más adatokon, más toolokkal, más agenteknek dolgozik, ezért az optimális csomag is más. Az eredmény nem egy kódba égetett algoritmus, hanem **példányonkénti profil** (pl. `state/retrieval-profile.json`: hívandó toolok, toolonkénti k, időcsillapítás felezési ideje, egyezés-súlyok, RRF k, dosszié-boost), amit a futó szerver olvas. A profilt az autoresearch írja; a kód csak végrehajtja.
+
+**Az evaluator automatikus — enélkül az autoresearch nem indulhat:**
+- **Auto recall probe, emberi gold nélkül:** a példány saját adataiból mintát vesz (thought, fájl, esemény, kódrészlet), egy LLM úgy ír hozzá kérdést, ahogy a felhasználó kérdezné, kontextuscsomaggal (utolsó ~8 hét, projekt/emberek, akkor vs. most), aztán mérjük, hogy a csomag tartalmazza-e az elemet.
+- **Mérőszám:** csomag-recall a kereten belül + költség (tokenek, toolhívások). A pontos sorrend másodlagos, mert az agent rangsorol újra.
+- **Ismert torzítás:** a szövegből generált kérdés a lexikális egyezést jutalmazza. Ellensúly: parafrázis-kérdések, és a kérdés sosem idézheti szó szerint az elem címét.
+- Minden példány a saját probe-készletén mér; egy félretett (held-out) rész dönti el, hogy egy új profil tényleg jobb-e.
+
+**Sorrend:**
+1. Evaluator-harness (probe-generálás + csomag-recall mérés), a mostani toolokra.
+2. Baseline a mai beállításokkal → hol veszít a csomag. Lehet, hogy már ez megmutatja a javítást.
+3. Autoresearch-ciklus: profilváltozat → mérés → megtartás, ha a held-out készleten jobb (Wilson-CI, ahogy a contradiction-probe-nál).
+4. A profil bekötése: a toolok a profilból olvassák a paramétereiket.
+
+**Határ (v1):** offline, kézzel indított futás, ami profilfájlt ír — nem online tanulás és nem rangsoroló modell. Új példánynál ugyanaz a harness fut a példány saját adatain.
+
+Első kiinduló paraméterek már a kódban: `search_brain` időcsillapítás (`server/routes/search.js`, 90 napos felezés), `find_files` egyezés × időcsillapítás (`server/files-catalog.js`, 0.52.0). Kapcsolódó: a gráfbejárás-spec (lent) párhuzamos subagentes feltárása közös költségkerettel.
+
+---
+
 ## SPEC 2026-10-09 — MCP interview és ontológiai gráfbejárás
 
 Felhasználói kérésre elkészült a [specifikáció](docs/mcp-interview-es-grafbejaras-spec-2026-10-09.md). Cél: a meglévő search hívások mellé kis részgráfokat visszaadó interview és célzott wiki-/bizonyíték-/ontológiai bejárás, a rétegek közötti váltással és ellenőrizhető forrásrészletekkel.

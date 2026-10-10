@@ -52,9 +52,27 @@ export function variantKey(name) {
 
 const norm = (s) => stripAccents(String(s || '')).toLowerCase();
 
+// Same curve as search_brain's applyTimeDecay (server/routes/search.js): older
+// files rank lower but never reach zero — the past stays findable, it is just
+// not the most probable target of a query.
+const HALF_LIFE_DAYS = 90;
+// How well the query hits the file: exact name > name prefix > name substring
+// > path only. Hand-set starting values; the autoresearch loop (ROADMAP) is
+// where these and the half-life get calibrated per brain instance.
+const MATCH_STRENGTH = { exact: 1, prefix: 0.8, name: 0.6, path: 0.3 };
+
+function matchStrength(r, q) {
+  const name = norm(r.name);
+  if (variantKey(r.name) === variantKey(q) || name === q) return MATCH_STRENGTH.exact;
+  if (name.startsWith(q)) return MATCH_STRENGTH.prefix;
+  if (name.includes(q)) return MATCH_STRENGTH.name;
+  return MATCH_STRENGTH.path;
+}
+
 /**
- * Filter the catalog. The catalog is a static snapshot, so offset paging over
- * a total order (modified desc, then id) is stable between pages.
+ * Filter the catalog and rank it: match strength × recency decay when there is
+ * a query, recency alone otherwise. The catalog is a static snapshot and the
+ * order is total (score desc, then id), so offset paging is stable.
  */
 export async function findFiles({ query, project, source, kind, direction, thread_id, since, until, limit = 25, offset = 0 } = {}) {
   let catalog;
@@ -77,8 +95,16 @@ export async function findFiles({ query, project, source, kind, direction, threa
     if (until && r.modified > until) return false;
     return true;
   });
-  matches.sort((a, b) => (b.modified.localeCompare(a.modified)) || a.id.localeCompare(b.id));
-  const page = matches.slice(offset, offset + limit);
+  const now = Date.now();
+  const q = query ? norm(query) : null;
+  const ranked = matches.map((r) => {
+    const ageDays = Math.max(0, Math.floor((now - new Date(r.modified).getTime()) / 86400000));
+    const decay = 1 / (1 + ageDays / HALF_LIFE_DAYS);
+    const score = (q ? matchStrength(r, q) : 1) * decay;
+    return { ...r, score: Number(score.toFixed(4)), age_days: ageDays };
+  });
+  ranked.sort((a, b) => (b.score - a.score) || a.id.localeCompare(b.id));
+  const page = ranked.slice(offset, offset + limit);
   return {
     generated_at: catalog.generated_at,
     total: matches.length,
