@@ -324,6 +324,15 @@ async function listDossierFiles(drive, folderId, folderLabel, type) {
 }
 
 /**
+ * Only the Repos/ dossiers — the repo-status cron needs their `repo:` links,
+ * not the 300 People files fetchDossiers would download alongside.
+ */
+export async function fetchRepoDossiers() {
+  if (!process.env.GOOGLE_DRIVE_REPOS_FOLDER_ID) throw new Error('GOOGLE_DRIVE_REPOS_FOLDER_ID is not set');
+  return listDossierFiles(getDrive(), process.env.GOOGLE_DRIVE_REPOS_FOLDER_ID, 'Repos', 'repo');
+}
+
+/**
  * Fetch all canonical dossiers (People/Projects/Topics) as records for the
  * retrieval index. Missing folder-ID env vars are skipped.
  */

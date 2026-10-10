@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.55.0 — 2026-10-10
+
+**Repo status: daily cron reads every Repos-dossier repo from GitHub into `state/repos-status.json`.** For each `repo:` link in the Repos/ dossiers it records: the default branch, the last commit, the `package.json` version, and for `CLAUDE.md`, `AGENTS.md` and `ROADMAP.md` when each last changed and how many commits came after. A `drift` list flags two things. First, a dossier whose stated version differs from `package.json`. Second, an agent doc with 20 or more commits since its last change (a hand-set start value). The Repos dossiers stay hand-written: the cron never writes into them, so a drift shows instead of being overwritten. A repo the fine-grained token cannot see is reported as unreadable, not skipped. Uses `GITHUB_TOKEN` from Settings (read-only, Contents only). Cron: `cron/repos-status.js`, daily at 04:30. `drive-context.js` gains `fetchRepoDossiers()`, so the cron does not download all ~300 People files.
+
 ## 0.54.1 — 2026-10-10
 
 **Settings: `GITHUB_TOKEN` field (GitHub category, masked).** It will hold a fine-grained, read-only token (Contents: Read-only, limited to the repos the Repos dossiers list) for the upcoming repo-status cron. Nothing reads it yet. The field description warns against write scopes because the box is shared by several apps. ROADMAP records the larger key and permission design that the token's blast radius calls for.

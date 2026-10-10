@@ -165,6 +165,7 @@ Draft workflow: `manage_drafts` stores in-memory (`agent/drafts/store.js`). `app
 ## Cron & scripts
 
 - `cron/export.js` — hourly Obsidian vault export
+- `cron/repos-status.js` — daily 04:30. GitHub (read-only `GITHUB_TOKEN`) → `state/repos-status.json`: version, last commit, CLAUDE/AGENTS/ROADMAP freshness, `drift` vs the Repos dossier. Never writes the dossiers.
 - `cron/youtube-intake.js` — polls YouTube liked playlist, auto-captures new items (source='youtube', source_id=videoId). Runs every 30 min on Hetzner.
 - `cron/gmail-intake.js` — history-API driven (0.7.0+). Watermark at `state/gmail-watermark.json`. Per-tick: `users.history.list({ startHistoryId })` → affected threads → classify (brain-labeled → refresh-or-capture, outbound-to-known-person → auto-label + capture, else ignore). Bootstraps on missing/too-old watermark. Runs every 10 min.
 - `scripts/init-collection.js` — idempotent Qdrant setup (`npm run init`). Creates collection if missing, ensures payload indexes (`created_at`, `source`, `source_id`).
