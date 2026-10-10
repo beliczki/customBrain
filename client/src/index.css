@@ -226,3 +226,13 @@ body {
 /* spider stats (0.69.0): charts grow with the replay — geometry eases instead of jumping */
 .spider-stats path { transition: d 300ms ease; }
 .spider-stats__bar { transition: height 300ms ease, y 300ms ease; }
+
+/* Scrollbars follow the theme (0.73.1): thin, the border token on a clear track. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }

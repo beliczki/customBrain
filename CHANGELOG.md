@@ -2,6 +2,16 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.73.1 — 2026-10-10
+
+**spider's cluster lens steps where the walk runs through repo docs and files, without drifting to them.**
+- Louvain clusters exist only for thoughts. A file, repo doc, commitment or file bundle now joins the cluster that most of its project's thoughts belong to. On "conai" the walk went mostly into repo docs, so the cluster lens had nothing to step from and was stopped by the gate 7 times out of 7.
+- Files, repo docs and file bundles now decay with recency like thoughts, using their modified date, last commit, or newest file. Exempt, they took every cluster step: old files and "Fájlok · …" bundles beat that week's threads. Dossiers and commitments stay undated.
+- **Measured after the fix:** cluster steps — conai 1, humanody 5 (commitments, a deck, notes in cluster 9), ERSTE SZA 5.
+- **UI:**
+  - all five quality charts share one body height, so the tag cloud lines up with the SVG charts;
+  - scrollbars follow the theme: thin, the border token on a clear track.
+
 ## 0.73.0 — 2026-10-10
 
 **Graph: Group by and 2D/3D move into the top bar.** The choices that reshape the whole scene now sit in the top bar (`ShellHeader`). The grouping buttons (Clusters, Project, Person, Type, Source, Ontológia) and the isolated-group chip are by the title; the 2D/3D switch is right-aligned. They use the Search method switch's look. The right toolbar keeps the tuning: search, groups, edges, appearance, hubs; the "Layout" section is gone from it.

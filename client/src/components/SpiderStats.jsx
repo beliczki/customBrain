@@ -37,7 +37,8 @@ function Chart({ title, help, children }) {
         <span className="block text-[10px] uppercase tracking-wider text-txt-ter">{title}</span>
         <span className="spider-stats__help block text-[10px] leading-snug text-txt-ter opacity-80">{help}</span>
       </figcaption>
-      {children}
+      {/* One fixed body height for every chart, so the tag cloud lines up with the SVGs. */}
+      <div className="spider-stats__body h-[170px]">{children}</div>
     </figure>
   );
 }
@@ -50,7 +51,7 @@ function Radar({ items, lenses, hover, setHover }) {
   const angle = (i) => (2 * Math.PI * i) / lenses.length;
   const shape = counts.map((c, i) => polar(cx, cy, (R * c) / max, angle(i)));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
       {[0.33, 0.66, 1].map((f) => (
         <polygon key={f} points={lenses.map((_, i) => polar(cx, cy, R * f, angle(i)).join(',')).join(' ')} fill="none" stroke="var(--border)" />
       ))}
@@ -111,7 +112,7 @@ function Sunburst({ items, hover, setHover }) {
     }
     a += span;
   }
-  return <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">{paths}</svg>;
+  return <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">{paths}</svg>;
 }
 
 // 3. Bars: score per step in step order, lens-coloured; a dot = several lenses agreed.
@@ -120,7 +121,7 @@ function Bars({ items, total, hover, setHover }) {
   const bw = (W - 10) / n;
   const max = Math.max(0.0001, ...items.map((i) => i.score));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
       <line x1="5" x2={W - 5} y1={H - 12} y2={H - 12} stroke="var(--border)" />
       {items.map((i) => {
         const h = ((H - 26) * i.score) / max;
@@ -159,7 +160,7 @@ function Tree({ items, hover, setHover }) {
   const dx = levels.length > 1 ? (W - 20) / (levels.length - 1) : 0;
   levels.forEach((lvl, d) => lvl.forEach((i, k) => pos.set(i.id, [10 + d * dx, 8 + ((H - 16) * (k + 0.5)) / lvl.length])));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
       {items.filter((i) => i.from && pos.has(i.from)).map((i) => {
         const [x0, y0] = pos.get(i.from); const [x1, y1] = pos.get(i.id);
         return <path key={`e${i.id}`} d={`M${x0},${y0}C${(x0 + x1) / 2},${y0} ${(x0 + x1) / 2},${y1} ${x1},${y1}`} fill="none" stroke={LENS_COLOR[i.lens]} strokeOpacity={hover && !matchesHover(i, hover) ? 0.15 : 0.6} />;
@@ -200,7 +201,7 @@ function Tags({ items, hover, setHover, onSearch }) {
   const top = Object.entries(w).sort((a, b) => b[1] - a[1]).slice(0, 40); // the strip scrolls
   const max = top.length ? top[0][1] : 1;
   return (
-    <div className="spider-stats__tags relative flex flex-wrap items-center content-start gap-1 h-[150px] overflow-y-auto">
+    <div className="spider-stats__tags relative flex flex-wrap items-center content-start gap-1 h-full overflow-y-auto">
       {top.map(([tag, v]) => {
         const on = hover && hover.kind === 'tag' && hover.tag === tag;
         return (
