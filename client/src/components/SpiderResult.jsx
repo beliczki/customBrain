@@ -51,7 +51,8 @@ function Panel({ title, count, children }) {
 function Item({ item, current, hover, setHover, onOpen, compact = false }) {
   const how = opener(item);
   const on = matchesHover(item, hover);
-  const label = <span className={`text-xs text-txt-sec ${how ? 'underline-offset-2 hover:underline' : ''}`}>{item.title}</span>;
+  // [overflow-wrap:anywhere]: file names have no spaces and ran into the next column.
+  const label = <span className={`text-xs text-txt-sec [overflow-wrap:anywhere] ${how ? 'underline-offset-2 hover:underline' : ''}`}>{item.title}</span>;
   return (
     <li
       onMouseEnter={() => setHover({ kind: 'item', id: item.id })}
@@ -64,7 +65,7 @@ function Item({ item, current, hover, setHover, onOpen, compact = false }) {
       {how === 'link' ? <a href={item.link} target="_blank" rel="noreferrer">{label}</a>
         : how === 'modal' ? <button type="button" onClick={() => onOpen(item.id)} className="text-left">{label}</button>
           : label}
-      <span className="block text-[10px] text-txt-ter leading-snug">{item.why.replace(/^\[[^\]]+\]\s*/, '')}</span>
+      <span className="block text-[10px] text-txt-ter leading-snug [overflow-wrap:anywhere]">{item.why.replace(/^\[[^\]]+\]\s*/, '')}</span>
     </li>
   );
 }

@@ -202,7 +202,11 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
         if (picks.some((p) => p.id === id)) continue;
         if (!best || o.score > best.o.score) best = { id, o };
       }
-      if (best && best.o.score >= MIN_SCORE) picks.push({ id: best.id, lens: lens.key, o: best.o });
+      // The threshold is on the combined score, not the lens's own: a big group
+      // (an ERSTE cluster of ~150) makes every single-lens offer tiny (DECAY/√150
+      // ≈ 0.07 × the parent), so the cluster lens never stepped on "ERSTE SZA".
+      // With combined, a lens steps where the other views back the candidate.
+      if (best && combined(best.id) >= MIN_SCORE) picks.push({ id: best.id, lens: lens.key, o: best.o });
     }
     if (!picks.length) break;
     // Relevance gate: a lens steps only when its candidate holds up against
