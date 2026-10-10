@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.73.2 — 2026-10-10
+
+spider quality panel: the title and the four KPIs sit on one line (label and value side by side), then a rule, then the charts.
+
 ## 0.73.1 — 2026-10-10
 
 **spider's cluster lens steps where the walk runs through repo docs and files, without drifting to them.**

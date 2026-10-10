@@ -244,8 +244,8 @@ function Kpis({ items }) {
   for (const i of items) for (const p of i.projects) proj[p] = (proj[p] || 0) + 1;
   const ranked = Object.entries(proj).sort((a, b) => b[1] - a[1]);
   const kpi = (label, value, hint) => (
-    <div className="spider-stats__kpi" title={hint}>
-      <span className="block text-[10px] uppercase tracking-wider text-txt-ter">{label}</span>
+    <div className="spider-stats__kpi flex items-baseline gap-2" title={hint}>
+      <span className="text-[10px] uppercase tracking-wider text-txt-ter">{label}</span>
       <span className="text-sm text-txt font-mono">{value}</span>
     </div>
   );
@@ -263,7 +263,8 @@ export default function SpiderStats({ items, lenses, total, hover, setHover, onS
   const [open, setOpen] = useState(true);
   return (
     <div className="spider-stats px-6 pt-2 pb-3 bg-surface border-t border-subtle">
-      <div className="spider-stats__header flex items-center gap-6 mb-2">
+      {/* One line: title + KPIs, then a rule, then the charts */}
+      <div className={`spider-stats__header flex items-baseline gap-6 ${open ? 'pb-2 mb-3 border-b border-subtle' : ''}`}>
         <button type="button" onClick={() => setOpen(!open)} className="text-[10px] uppercase tracking-wider text-txt-ter hover:text-txt shrink-0">
           A bejárás minősége {open ? '▾' : '▸'}
         </button>
