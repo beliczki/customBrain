@@ -149,7 +149,10 @@ async function listAllMdFiles(drive, folderId, fileFields) {
 }
 
 async function listWithAliases(drive, folderId, { withDocuments = false } = {}) {
-  try {
+  // No catch-all (0.67.0): a failed folder listing must fail the load, so the
+  // stale-while-revalidate cache keeps the last good context instead of
+  // swapping in an empty name list. Single-file read errors are still skipped.
+  {
     const res = { data: { files: await listAllMdFiles(drive, folderId, 'id, name') } };
     const names = [];
     const aliases = {};
@@ -262,9 +265,6 @@ async function listWithAliases(drive, folderId, { withDocuments = false } = {}) 
       }
     }
     return { names, aliases, emails, ...(documents && { documents }) };
-  } catch (err) {
-    console.error(`drive-context: listWithAliases failed (folder ${folderId}): ${err.message}\n${err.stack}`);
-    return { names: [], aliases: {}, emails: {} };
   }
 }
 
@@ -363,47 +363,68 @@ export async function fetchDossiers() {
   return { dossiers: all, complete: failures.length === 0, failures };
 }
 
+// Stale-while-revalidate (0.67.0). A full load reads every People/Projects
+// dossier from Drive (~20–30 s at ~240 files). With a plain 5-minute TTL the
+// first request after expiry waited for all of it — map, spider and capture
+// alike. Now only the very first load is awaited (the server warms it at
+// start); after that an expired context is served as-is while one background
+// reload replaces it. A failed reload keeps the last good context.
+let reloading = null;
+
+function reload() {
+  if (!reloading) {
+    reloading = loadVaultContext()
+      .then((ctx) => { cachedContext = ctx; cacheTime = Date.now(); return ctx; })
+      .finally(() => { reloading = null; });
+  }
+  return reloading;
+}
+
 export async function getVaultContext() {
-  if (cachedContext && Date.now() - cacheTime < CACHE_TTL) {
+  if (cachedContext) {
+    if (Date.now() - cacheTime >= CACHE_TTL) {
+      reload().catch((err) => console.error('Vault context reload failed, serving the previous one:', err.message));
+    }
     return cachedContext;
   }
-
   try {
-    const drive = getDrive();
-    const peopleFolderId = process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID;
-    const projectsFolderId = process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID;
-    // 0.27.0: optional _meta/topics/ folder for topic canonicalization. One .md
-    // per canonical topic, frontmatter `aliases: [variant1, variant2]`. Missing
-    // env var or empty folder → empty alias map → capture behaves as before.
-    const topicsFolderId = process.env.GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID;
-
-    const peopleResult = peopleFolderId
-      ? await listWithAliases(drive, peopleFolderId)
-      : { names: [], aliases: {} };
-    const projectsResult = projectsFolderId
-      ? await listWithAliases(drive, projectsFolderId, { withDocuments: true })
-      : { names: [], aliases: {}, documents: {} };
-    const topicsResult = topicsFolderId
-      ? await listWithAliases(drive, topicsFolderId)
-      : { names: [], aliases: {} };
-
-    cachedContext = {
-      people: peopleResult.names,
-      aliases: peopleResult.aliases,
-      peopleEmails: peopleResult.emails,
-      projects: projectsResult.names,
-      projectAliases: projectsResult.aliases,
-      projectDocs: projectsResult.documents || {},
-      topicCanonicals: topicsResult.names,
-      topicAliases: topicsResult.aliases,
-    };
-    cacheTime = Date.now();
-    console.log(
-      `Vault context loaded: ${peopleResult.names.length} people (${Object.keys(peopleResult.aliases).length} aliases, ${Object.keys(peopleResult.emails).length} emails), ${projectsResult.names.length} projects (${Object.keys(projectsResult.aliases).length} aliases), ${topicsResult.names.length} canonical topics (${Object.keys(topicsResult.aliases).length} aliases)`,
-    );
-    return cachedContext;
+    return await reload();
   } catch (err) {
     console.error('Failed to load vault context:', err.message, '\n', err.stack);
     return { people: [], projects: [], aliases: {}, projectAliases: {}, peopleEmails: {}, projectDocs: {}, topicCanonicals: [], topicAliases: {} };
   }
+}
+
+async function loadVaultContext() {
+  const drive = getDrive();
+  const peopleFolderId = process.env.GOOGLE_DRIVE_PEOPLE_FOLDER_ID;
+  const projectsFolderId = process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID;
+  // 0.27.0: optional _meta/topics/ folder for topic canonicalization. One .md
+  // per canonical topic, frontmatter `aliases: [variant1, variant2]`. Missing
+  // env var or empty folder → empty alias map → capture behaves as before.
+  const topicsFolderId = process.env.GOOGLE_DRIVE_TOPICS_ALIASES_FOLDER_ID;
+
+  const peopleResult = peopleFolderId
+    ? await listWithAliases(drive, peopleFolderId)
+    : { names: [], aliases: {} };
+  const projectsResult = projectsFolderId
+    ? await listWithAliases(drive, projectsFolderId, { withDocuments: true })
+    : { names: [], aliases: {}, documents: {} };
+  const topicsResult = topicsFolderId
+    ? await listWithAliases(drive, topicsFolderId)
+    : { names: [], aliases: {} };
+
+  console.log(
+    `Vault context loaded: ${peopleResult.names.length} people (${Object.keys(peopleResult.aliases).length} aliases, ${Object.keys(peopleResult.emails).length} emails), ${projectsResult.names.length} projects (${Object.keys(projectsResult.aliases).length} aliases), ${topicsResult.names.length} canonical topics (${Object.keys(topicsResult.aliases).length} aliases)`,
+  );
+  return {
+    people: peopleResult.names,
+    aliases: peopleResult.aliases,
+    peopleEmails: peopleResult.emails,
+    projects: projectsResult.names,
+    projectAliases: projectsResult.aliases,
+    projectDocs: projectsResult.documents || {},
+    topicCanonicals: topicsResult.names,
+    topicAliases: topicsResult.aliases,
+  };
 }

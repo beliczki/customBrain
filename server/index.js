@@ -26,6 +26,7 @@ import mapRouter from './routes/map.js';
 import traceRouter from './routes/trace.js';
 import agentRunsRouter from './routes/agent-runs.js';
 import { startGraphCache } from './graph-cache.js';
+import { getVaultContext } from './drive-context.js';
 import { handleMcpHttp, handleMcpHttpStateless } from './mcp.js';
 
 // Stateful (session) MCP and its stateless sibling share auth and raw-body handling.
@@ -223,4 +224,6 @@ app.all('/mcp/http-stateless', handleMcpHttpStateless);
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`Open Brain server running on 127.0.0.1:${PORT} (nginx reverse-proxies from 443) [config: ${settingsLoad.applied} from ${settingsLoad.source}]`);
   startGraphCache();
+  // Warm the dossier context so no request waits for the ~20–30 s Drive load.
+  getVaultContext();
 });

@@ -4,6 +4,7 @@ import { searchThoughts } from './search.js';
 import { buildOntology } from './graph.js';
 import { nameKey } from '../names.js';
 import { spiderWalk } from '../spider.js';
+import { phase } from '../phase.js';
 
 const router = Router();
 
@@ -78,19 +79,6 @@ async function resolver() {
   };
 }
 
-/**
- * Time one stage and report it: {type:'phase', name, label, status:'start'}
- * then {..., status:'done', ms, note}. `note(value)` describes the outcome.
- */
-export function phase(emit, name, label, promise, note = () => null) {
-  emit({ type: 'phase', name, label, status: 'start' });
-  const t = Date.now();
-  return promise.then((value) => {
-    emit({ type: 'phase', name, label, status: 'done', ms: Date.now() - t, note: note(value) });
-    return value;
-  });
-}
-
 export async function buildTrace(method, q, emit = () => {}) {
   let result;
   let steps;
@@ -100,7 +88,7 @@ export async function buildTrace(method, q, emit = () => {}) {
   } else if (method === 'spider') {
     ({ result, trace: steps } = await spiderWalk(q, emit));
   } else {
-    const { trace, ...pkg } = await phase(emit, 'map', 'csomag összeállítása', buildBrainMap({ question: q, withTrace: true }), (m) => (m.trace ? `${m.trace.length} lépés` : null));
+    const { trace, ...pkg } = await buildBrainMap({ question: q, withTrace: true, emit });
     if (pkg.error) return { error: pkg.error };
     result = pkg;
     steps = trace;

@@ -19,7 +19,7 @@
 
 import { buildOntology } from './routes/graph.js';
 import { getCachedGraph } from './graph-cache.js';
-import { phase } from './routes/trace.js';
+import { phase } from './phase.js';
 import { searchThoughts, recencyFactor } from './routes/search.js';
 import { matchAnchors } from './brain-map.js';
 import { getVaultContext } from './drive-context.js';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { search, getMap, streamTrace } from '../api.js';
+import { search, streamTrace } from '../api.js';
 import ThoughtBody from './ThoughtBody.jsx';
 import ThoughtFacts from './ThoughtFacts.jsx';
 import ChunkAnatomyModal from './ChunkAnatomyModal.jsx';
@@ -22,7 +22,8 @@ export default function Search({ onTraverse }) {
   const [results, setResults] = useState({ q: null, hits: [] });
   const [map, setMap] = useState({ q: null, data: null });
   const [spider, setSpider] = useState({ q: null, data: null });
-  const [spiderPhases, setSpiderPhases] = useState([]); // live stage list while spider runs
+  // Live stage list per streamed method (map, spider), shown while it runs and after.
+  const [phases, setPhases] = useState({ package: [], spider: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [anatomyId, setAnatomyId] = useState(null);
@@ -31,19 +32,18 @@ export default function Search({ onTraverse }) {
     setLoading(true);
     setError(null);
     try {
-      if (m === 'package') setMap({ q, data: await getMap(q) });
-      else if (m === 'spider') {
-        setSpider({ q, data: null });
-        setSpiderPhases([]);
+      if (m === 'package' || m === 'spider') {
+        const set = m === 'package' ? setMap : setSpider;
+        set({ q, data: null });
+        setPhases((all) => ({ ...all, [m]: [] }));
         // A stage's 'done' line replaces its 'start' line in place.
-        const data = await streamTrace('spider', q, (ev) => setSpiderPhases((prev) => {
+        const data = await streamTrace(METHOD_OF[m], q, (ev) => setPhases((all) => {
+          const prev = all[m];
           const at = prev.findIndex((p) => p.name === ev.name);
-          if (at < 0) return [...prev, ev];
-          const next = [...prev];
-          next[at] = ev;
-          return next;
+          const next = at < 0 ? [...prev, ev] : prev.map((p, i) => (i === at ? ev : p));
+          return { ...all, [m]: next };
         }));
-        setSpider({ q, data });
+        set({ q, data: m === 'package' ? data.result : data });
       }
       else setResults({ q, hits: await search(q) });
     } catch (err) {
@@ -107,8 +107,8 @@ export default function Search({ onTraverse }) {
         </button>
       )}
       {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">Error: {error}</p>}
+      {(mode === 'package' || mode === 'spider') && phases[mode].length > 0 && <SpiderProgress phases={phases[mode]} />}
       {mode === 'package' && map.data && <BrainMapPackage map={map.data} onShowHits={() => switchMode('hits')} />}
-      {mode === 'spider' && spiderPhases.length > 0 && <SpiderProgress phases={spiderPhases} />}
       {mode === 'spider' && spider.data && <SpiderResult key={spider.q} walk={spider.data.result} />}
       {mode === 'hits' && (
       <div>

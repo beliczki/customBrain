@@ -21,6 +21,7 @@ import { getVaultContext } from './drive-context.js';
 import { nameKey, resolveAliases, stripAccents } from './names.js';
 import { layerOf } from './ontology.js';
 import { spiderWalk } from './spider.js';
+import { stage } from './phase.js';
 
 // Per-section caps. Hand-set starting values; the AUTORESEARCH profile
 // (ROADMAP) is where they get calibrated per brain instance.
@@ -117,9 +118,12 @@ const viaAnchor = (via) => {
  * cap cut. Refs are names/ids; GET /trace resolves them to graph nodes. The
  * MCP tool does not ask for it, so the agent's package is unchanged.
  */
-export async function buildBrainMap({ question, project, person, days_back = 60, days_ahead = 7, withTrace = false } = {}) {
+// emit (0.67.0): progress stages for /trace?stream=1; the MCP tool passes none.
+export async function buildBrainMap({ question, project, person, days_back = 60, days_ahead = 7, withTrace = false, emit = () => {} } = {}) {
   if (!question && !project && !person) return { error: 'Provide question, project or person' };
+  let done = stage(emit, 'vault', 'horgonynevek (dossziék)');
   const vault = await getVaultContext();
+  done(`${vault.people.length} ember, ${vault.projects.length} projekt`);
   const gaps = [];
   const trace = [];
   // KORÁBBI (0.65.0): spider walks the graph from the same question in
@@ -127,13 +131,16 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   // section. The window keeps ELŐZMÉNYEK current; spider is the way past it.
   // Without recency: with it, the fresh threads take every step and nothing
   // old is left to list (measured on "humanody": KORÁBBI came back empty).
+  const earlierDone = stage(emit, 'earlier', 'KORÁBBI — bejárás a gráfon (párhuzamosan)');
   const earlierWalk = spiderWalk(question || project || person, undefined, { recency: false });
   // Awaited below; this only keeps an early failure from counting as an
   // unhandled rejection (which ends the process) while the readers run.
   earlierWalk.catch(() => {});
 
   // ── HORGONYOK ──
+  done = stage(emit, 'search', 'keresés');
   const hits = question ? await searchThoughts(question, MAX.search) : [];
+  done(`${hits.length} találat`);
   for (const h of hits) trace.push({ phase: 'search', ref: { id: h.id }, label: h.title, why: `${h.evidence} · ${h.score.toFixed(3)}` });
   const anchors = { projects: [], people: [], topics: [], candidates: [] };
   const ANCHOR_WHY = { param: 'paraméterben', question: 'a kérdésben', search_hits: 'a keresési találatokban ismétlődik' };
@@ -173,7 +180,10 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
     gaps.push({ kind: 'no_anchor', detail: 'no project, person or topic recognised — sections below rest on search hits only' });
   }
 
+  emit({ type: 'phase', name: 'anchors', label: 'HORGONYOK', status: 'done', ms: 0, note: [...anchors.projects, ...anchors.people, ...anchors.topics].map((a) => a.name).join(', ') || 'nincs' });
+
   // ── HELYZET ── repos + files per project anchor
+  done = stage(emit, 'situation', 'HELYZET — repó, fájlok');
   const repos = await readReposStatus();
   if (!repos) gaps.push({ kind: 'missing_state', detail: 'state/repos-status.json not built (cron/repos-status.js)' });
   else if (hoursSince(repos.generated_at) > STALE_HOURS.repos) gaps.push({ kind: 'stale_state', detail: `repos-status.json from ${repos.generated_at}` });
@@ -206,8 +216,10 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
     })));
   }
   if (catalogAt && hoursSince(catalogAt) > STALE_HOURS.files) gaps.push({ kind: 'stale_state', detail: `files catalog from ${catalogAt} (scripts/build-files-catalog.js)` });
+  done(`${situation.repos.length} repó, ${situation.files.length} fájl`);
 
   // ── ELŐZMÉNYEK + HÁTTÉR ── anchor lookups and search hits, one line per thought
+  done = stage(emit, 'history', 'ELŐZMÉNYEK, HÁTTÉR');
   const since = new Date(Date.now() - days_back * 86400000).toISOString().slice(0, 10);
   const byId = new Map();
   const collect = (t, via) => {
@@ -225,11 +237,13 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   const strip = ({ background, ...l }) => l;
   const history = lines.filter((l) => !l.background).slice(0, MAX.history).map(strip);
   const background = lines.filter((l) => l.background).slice(0, MAX.background).map(strip);
+  done(`${history.length} előzmény, ${background.length} háttér`);
   // ── KORÁBBI ── spider's thoughts older than the window, not already listed
   const { result: walk } = await earlierWalk;
   const reached = walk.layers.flatMap((l) => l.items)
     .filter((i) => !i.entity && i.date < since && !byId.has(i.id))
     .sort((a, b) => a.step - b.step);
+  earlierDone(`${Math.min(reached.length, MAX.earlier)} régebbi szál`);
   const earlier = reached.slice(0, MAX.earlier).map((i) => ({ date: i.date, type: i.type, source: i.source, title: i.title, id: i.id, via: [`spider #${i.step}: ${i.why}`] }));
   reached.forEach((i, n) => trace.push({
     phase: 'earlier', ref: { id: i.id }, label: i.title,
@@ -244,6 +258,7 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   }
 
   // ── KÖVETKEZŐ ── commitments + upcoming events tied to an anchor
+  done = stage(emit, 'next', 'KÖVETKEZŐ — vállalások, naptár');
   const projectKeys = new Set(anchors.projects.map((a) => nameKey(a.name)));
   const personKeys = new Set(anchors.people.map((a) => nameKey(a.name)));
   const all = await listCommitments({ limit: 1000 });
@@ -291,6 +306,8 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
       for (const e of list) trace.push({ phase: 'next', ref: null, label: `${e.start.slice(0, 16).replace('T', ' ')} ${e.title}`, why: `naptár · ${e.matched_by.join(', ')}${cut ? ` · levágva (max ${MAX.events})` : ''}`, cut });
     }
   }
+
+  done(`${commitments.length} vállalás, ${events.length} esemény`);
 
   // ── TOVÁBB ── the deeper call per section, ready to run
   const further = [];

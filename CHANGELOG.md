@@ -2,6 +2,18 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.67.0 — 2026-10-10
+
+**map shows its progress, and no request waits for the dossier load any more.**
+- **Vault context, stale-while-revalidate** (`server/drive-context.js`). A full load reads every People/Projects dossier from Drive, ~20–30 s. With the plain 5-minute TTL the first request after expiry waited for all of it, every 5 minutes; that was the 20–30 s map wait. Now only the very first load is awaited, and the server warms it at start. After that an expired context is served as-is while one background reload replaces it.
+- `listWithAliases` no longer swallows a failed folder listing into an empty name list. The load fails instead, so a failed reload keeps the last good context rather than caching "0 people".
+- **map stages**: `buildBrainMap({ emit })` reports, each with its time and a note:
+  - horgonynevek (the dossiers), keresés, HORGONYOK (the anchors found);
+  - HELYZET (repos, files), ELŐZMÉNYEK/HÁTTÉR, KORÁBBI (the parallel spider walk), KÖVETKEZŐ (commitments, calendar).
+
+  The Search tab's map mode now reads `/trace?stream=1` and lists the stages live above the package, like spider. The MCP tool passes no emit, so its output is unchanged.
+- `phase`/`stage` helpers moved to `server/phase.js` (shared by trace, spider and map).
+
 ## 0.66.0 — 2026-10-10
 
 **Bare first names are resolved from the thought's project, not from the name list.** "Csaba" alone is not a person. In an ERSTE Számlák thread it is Brunner Csaba; in an ERSTE thread "Dávid" may be Porkoláb or Kiricsi Dávid, and only the context can decide which.
