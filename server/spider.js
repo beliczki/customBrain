@@ -57,7 +57,7 @@ const LENSES = [
   // Louvain runs on thoughts only. A file, repo doc or commitment joins the
   // cluster most of its project's thoughts are in (0.73.1) — otherwise a walk
   // that runs through repo docs left the cluster lens nothing to step from.
-  { key: 'cluster', label: 'klaszter', keys: (n, week, ctx) => (n.community >= 0 ? [String(n.community)] : ctx.projectClusters(n)), show: (k) => `klaszter ${k}` },
+  { key: 'cluster', label: 'klaszter', topical: true, keys: (n, week, ctx) => (n.community >= 0 ? [String(n.community)] : ctx.projectClusters(n)), show: (k) => `klaszter ${k}` },
 ];
 
 /**
@@ -164,12 +164,19 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
     const node = nodes.get(id);
     trace.push({ phase: 'walk', round, lens, agree, ref: { id }, from: from ? { id: from } : null, label: node.title, why: `${why} · ${score.toFixed(3)}`, score, layer: node.layer });
   };
-  // Same source / type in the same week only counts on the same thread: the
-  // neighbour must share a project or a person (not Me) with where it came
-  // from. Measured on "confai": without this the week's gmail and meetings
+  // Same source / type in the same week (and, since 0.73.4, the same cluster)
+  // only counts on the walk's thread: the neighbour must share a project or a
+  // person (not Me) with where it came from. Measured on "confai": without this the week's gmail and meetings
   // walked straight into unrelated ERSTE campaigns.
   const sharesTopic = (a, b) => (a.projects || []).some((p) => (b.projects || []).includes(p))
     || (a.people || []).some((p) => p !== 'Me' && (b.people || []).includes(p));
+  // 0.73.4: measured against the walk's FOCUS — the projects of the starting
+  // points — not the parent. On "ERSTE SZA" a bm25 hit on customBrain's
+  // ROADMAP (it names "ERSTE SZA") let source/type/cluster step through all
+  // ten customBrain docs: siblings always share a project with each other.
+  // Without a project focus (no start carries one) the parent rule applies.
+  let focus = new Set();
+  const onTopic = (a, b) => (focus.size ? b.projects.some((p) => focus.has(p)) : sharesTopic(a, b));
   // Expand a visited node in every lens — that is how a walk crosses over.
   const expand = (id, base) => {
     const node = nodes.get(id);
@@ -184,7 +191,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
         if (!members) continue;
         const w = DECAY / Math.sqrt(members.length);
         for (const m of members) {
-          if (lens.topical && !sharesTopic(node, nodes.get(m))) continue;
+          if (lens.topical && !onTopic(node, nodes.get(m))) continue;
           if (m !== id && !visited.has(m)) offer(lens.key, m, base * w * age(nodes.get(m)), id, `[${lens.label}] ${lens.show(k)} ← ${node.title}`);
         }
       }
@@ -222,6 +229,10 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
     }
   }
   for (const [id, score, why] of starts) visit(id, 0, 'start', score, null, why);
+  focus = new Set(starts.flatMap(([id]) => {
+    const n = nodes.get(id);
+    return n.entity === 'dossier' ? (n.type === 'project dossier' ? [n.title] : []) : n.projects;
+  }));
   for (const [id, score] of starts) expand(id, score);
 
   // ── Waves: every lens takes its own best step, in parallel ──
