@@ -246,6 +246,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
     date: String(n.effective_date || n.created_at || '').slice(0, 10), type: n.type, source: n.source,
     // 0.69.0: what the stats panel weighs (word cloud)
     topics: n.topics, people: n.people, projects: n.projects, // every graph and ontology node carries the three arrays
+    link: n.link || null, // files and repo docs open on Drive / GitHub, not in the thought modal
   });
   emit({ type: 'phase', name: 'walk', label: 'bejárás', status: 'done', ms: Date.now() - walkStart, note: `${walked.length} lépés` });
   return {

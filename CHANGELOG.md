@@ -2,6 +2,24 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.71.0 — 2026-10-10
+
+**spider page reworked: fixed quality panel, linked hover, tag search, top panels; the search survives a trip to the graph.**
+- **Fixed footer strip:** `ShellFooter` portals a page's strip under the content, edge to edge, outside the scroll. The quality panel lives there, so it no longer moves while the lens columns fill.
+- **Explanations:** every chart has a short "what it shows" line.
+- **Linked hover:** one `hover` is shared by the lists and the charts.
+  - bar / tree node → that step;
+  - star label → that lens's column;
+  - sunburst ring → that layer or type;
+  - tag → the items carrying it.
+
+  The matching result rows are outlined above, and hovering a row lights it in the charts.
+- **Tag cloud from tags** (topics, projects, people). Clicking a tag opens a menu: search / map / spider on it, run as a new search.
+- **Top row, three panels:** Lépések (the stages + summary), Kiindulópontok, Ide ment volna még (5, "more" opens 10). Files and repo docs in the lists link out (Drive / GitHub); thoughts and dossiers open the modal.
+- **"Bejárás a gráfon ▶"** moved into the top bar, right-aligned. The Search page stays mounted while another tab shows, so coming back from the graph replay finds the results as they were. Only the active page draws into the header and footer.
+- The sunburst no longer collapses a full-circle arc (one-layer walks).
+- **repo docs:** task files and the ROADMAP are exempt from the 100 KB cap (only their open items are kept anyway). confAi2's ~2400-line `tasks/todo.md` was being skipped.
+
 ## 0.70.0 — 2026-10-10
 
 **Repos and files become sources everywhere.** Plan: `docs/repo-es-fajl-forras-terv-2026-10-10.md`. What matters in a repo is what it says about itself, not its commits or code.

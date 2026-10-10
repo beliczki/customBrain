@@ -15,8 +15,12 @@ import { ShellHeader } from './AppShell.jsx';
 // its text view reads the same /trace answer the graph replay plays.
 const MODES = [['hits', 'search'], ['package', 'map'], ['spider', 'spider']];
 const METHOD_OF = { hits: 'search', package: 'map', spider: 'spider' };
+const MODE_OF = { search: 'hits', map: 'package', spider: 'spider' };
 
-export default function Search({ onTraverse }) {
+// `active` (0.71.0): the page stays mounted while another tab shows (the
+// graph replay returns here with the results intact); only the active page
+// draws into the shell's header and footer.
+export default function Search({ active, onTraverse }) {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [mode, setMode] = useState('package');
@@ -60,6 +64,15 @@ export default function Search({ onTraverse }) {
     run(mode, query);
   }
 
+  // A new search from inside the results (spider's tag menu).
+  function searchFor(q, method) {
+    const m = MODE_OF[method];
+    setQuery(q);
+    setSubmittedQuery(q);
+    setMode(m);
+    run(m, q);
+  }
+
   function switchMode(m) {
     setMode(m);
     const loadedFor = { package: map.q, spider: spider.q, hits: results.q }[m];
@@ -69,6 +82,7 @@ export default function Search({ onTraverse }) {
   return (
     <div>
       {/* 0.68.0: the search bar lives in the shell's top bar — input · method switch · Search */}
+      {active && (
       <ShellHeader>
         <form onSubmit={handleSearch} className="search-bar flex items-center gap-2 w-full max-w-3xl">
           <input
@@ -99,22 +113,24 @@ export default function Search({ onTraverse }) {
             {loading ? '...' : 'Search'}
           </button>
         </form>
+        {submittedQuery && (
+          <button
+            type="button"
+            onClick={() => onTraverse(METHOD_OF[mode], submittedQuery)}
+            className="search-traverse-btn ml-auto shrink-0 px-3 py-1.5 text-xs border border-subtle text-txt-sec hover:text-txt transition-colors"
+            title="A módszer lépései lassítva, a Graph Ontológia nézetén — onnan visszalépve ez az eredmény vár"
+          >
+            Bejárás a gráfon ▶
+          </button>
+        )}
       </ShellHeader>
-      {submittedQuery && (
-        <button
-          type="button"
-          onClick={() => onTraverse(METHOD_OF[mode], submittedQuery)}
-          className="search-traverse-btn mb-6 px-3 py-1 text-xs border border-subtle text-txt-sec hover:text-txt transition-colors"
-          title="A módszer lépései lassítva, a Graph Ontológia nézetén"
-        >
-          Bejárás a gráfon ▶
-        </button>
       )}
       {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">Error: {error}</p>}
-      {(mode === 'package' || mode === 'spider') && phases[mode].length > 0 && <SpiderProgress phases={phases[mode]} />}
+      {/* map: stages above the package; spider: stages alone until the result, then in its top panel */}
+      {((mode === 'package') || (mode === 'spider' && !spider.data)) && phases[mode].length > 0 && <div className="mb-6"><SpiderProgress phases={phases[mode]} /></div>}
       {/* The page is wide for spider's lens columns; the other methods keep the reading width. */}
       {mode === 'package' && map.data && <div className="max-w-[852px] mx-auto"><BrainMapPackage map={map.data} onShowHits={() => switchMode('hits')} /></div>}
-      {mode === 'spider' && spider.data && <SpiderResult key={spider.q} walk={spider.data.result} />}
+      {mode === 'spider' && spider.data && <SpiderResult key={spider.q} walk={spider.data.result} phases={phases.spider} onSearch={searchFor} active={active} />}
       {mode === 'hits' && (
       <div className="max-w-[852px] mx-auto">
         {results.hits.map((r) => (

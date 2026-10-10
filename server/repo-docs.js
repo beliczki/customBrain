@@ -22,8 +22,10 @@ const MANIFEST_PATH = join(resolve(dirname(fileURLToPath(import.meta.url)), '..'
 const ROOT_DOCS = /^(README|ROADMAP|CLAUDE|AGENTS)\.md$/i;
 const DIR_DOCS = /^(docs|tasks)\/[^/]+\.md$/;
 const TASK_FILE = /^tasks\/|ROADMAP\.md$/i;
-// Hand-set: bigger files are data (raw transcripts, programmes — confAi2 has
-// 350–560 KB ones), not documentation.
+// Hand-set: bigger docs/ files are data (raw transcripts, programmes —
+// confAi2 has 350–560 KB ones), not documentation. Task files and the ROADMAP
+// are exempt: only their open items are kept, and confAi2's tasks/todo.md
+// (~2400 lines) is exactly what must not be missed.
 const MAX_FILE_BYTES = 100_000;
 const MAX_SECTION_CHARS = 4000;
 const MIN_SECTION_CHARS = 80;
@@ -90,7 +92,7 @@ export async function syncRepoDocs(repos) {
     const tree = await gh(`/repos/${r.repo}/git/trees/${r.default_branch}?recursive=1`);
     if (tree.truncated) throw new Error(`${r.repo}: git tree truncated — the file list is incomplete`);
     const files = tree.tree.filter((t) => t.type === 'blob' && (ROOT_DOCS.test(t.path) || DIR_DOCS.test(t.path))
-      && !/archive/i.test(t.path) && t.size <= MAX_FILE_BYTES);
+      && !/archive/i.test(t.path) && (TASK_FILE.test(t.path) || t.size <= MAX_FILE_BYTES));
     let indexed = 0; let sectionsIndexed = 0; let deleted = 0;
     const seen = new Set();
     for (const f of files) {

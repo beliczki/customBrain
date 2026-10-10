@@ -45,6 +45,12 @@ export function ShellHeader({ children }) {
   return ctx.headerNode ? createPortal(children, ctx.headerNode) : null;
 }
 
+/** Renders its children into a fixed strip under the content, edge to edge (0.71.0). */
+export function ShellFooter({ children }) {
+  const ctx = useContext(ToolbarContext);
+  return ctx.footerNode ? createPortal(children, ctx.footerNode) : null;
+}
+
 /** Renders its children into the shell's right toolbar while mounted. */
 export function ShellToolbar({ children }) {
   const ctx = useContext(ToolbarContext);
@@ -74,6 +80,7 @@ export default function AppShell({ appName, version, active, onNavigate, onLogou
   const [toolbarOpen, setToolbarOpen] = useState(() => readFlag(TOOLBAR_KEY, true));
   const [toolbarNode, setToolbarNode] = useState(null);
   const [headerNode, setHeaderNode] = useState(null);
+  const [footerNode, setFooterNode] = useState(null);
   const [toolbarUsers, setToolbarUsers] = useState(0);
   // Stable: ShellToolbar's effect depends on it. Returns the unregister.
   const [register] = useState(() => () => {
@@ -85,7 +92,7 @@ export default function AppShell({ appName, version, active, onNavigate, onLogou
   const toggleToolbar = () => { setToolbarOpen(!toolbarOpen); writeFlag(TOOLBAR_KEY, !toolbarOpen); };
 
   return (
-    <ToolbarContext.Provider value={{ node: toolbarNode, headerNode, register }}>
+    <ToolbarContext.Provider value={{ node: toolbarNode, headerNode, footerNode, register }}>
       <div className="app-shell flex h-screen overflow-hidden bg-primary">
         <aside className={`app-sidebar flex flex-col shrink-0 bg-surface border-r border-[var(--border)] transition-[width] duration-300 ${collapsed ? 'w-[60px]' : 'w-[240px]'}`}>
           <div className="app-sidebar__brand flex items-center gap-2 h-14 px-[18px] border-b border-[var(--border)]">
@@ -145,6 +152,8 @@ export default function AppShell({ appName, version, active, onNavigate, onLogou
               <div className={`${wide ? 'max-w-[1600px]' : 'max-w-[900px]'} mx-auto px-6 py-8`}>{children}</div>
             </div>
           )}
+          {/* A page's fixed bottom strip (ShellFooter) — outside the scroll, so it never moves. */}
+          <div ref={setFooterNode} className="app-content__footer shrink-0" />
         </main>
 
         <aside className={`app-toolbar flex flex-col shrink-0 bg-surface border-l border-[var(--border)] ${toolbarUsers ? '' : 'hidden'} ${toolbarOpen ? 'w-72' : 'w-10'}`}>
