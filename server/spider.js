@@ -203,8 +203,12 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   const seen = new Set();
   hits.map((h) => ({ ...h, node: nodes.has(h.id) ? h.id : sectionNode.get(h.id) }))
     .filter((h) => h.node && !seen.has(h.node) && seen.add(h.node))
-    .forEach((h, i) => {
-      if (i < SEED_VISITS) starts.push([h.node, h.score / top, `keresés: ${h.evidence}`]);
+    .forEach((h) => {
+      // A weak_semantic hit (only the fusion lifted it) is not a starting
+      // point: on "confai" a calendar note full of ERSTE/RMT tags started the
+      // walk and filled the tag cloud. It waits in the frontier instead, and
+      // is reached if the walk leads there.
+      if (h.evidence !== 'weak_semantic' && starts.length < SEED_VISITS) starts.push([h.node, h.score / top, `keresés: ${h.evidence}`]);
       else offer('ontology', h.node, h.score / top, null, `[ontológia] keresés: ${h.evidence}`);
     });
   const anchors = matchAnchors(question, vault);
@@ -220,7 +224,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
 
   // ── Waves: every lens takes its own best step, in parallel ──
   // Why a lens did or did not step, per wave — shown under an empty column.
-  const diag = Object.fromEntries(LENSES.map((l) => [l.key, { stepped: 0, gated: 0, below: 0, empty: 0, best: 0, bestShare: 0 }]));
+  const diag = Object.fromEntries(LENSES.map((l) => [l.key, { stepped: 0, gated: 0, below: 0, empty: 0, capped: 0, best: 0, bestShare: 0 }]));
   let round = 0;
   while (trace.length < MAX_STEPS) {
     round += 1;
@@ -253,9 +257,13 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       d.bestShare = Math.max(d.bestShare, combined(p.id) / best);
       if (!gated.includes(p)) d.gated += 1;
     }
+    // When the step budget cannot take every lens, the lens that has stepped
+    // least goes first — in LENSES order the cluster lens was always last and
+    // lost the final wave to the budget (measured on "confai").
+    gated.sort((a, b) => (diag[a.lens].stepped - diag[b.lens].stepped) || (combined(b.id) - combined(a.id)));
     const taken = [];
     for (const p of gated) {
-      if (trace.length >= MAX_STEPS) break;
+      if (trace.length >= MAX_STEPS) { diag[p.lens].capped += 1; continue; }
       const score = combined(p.id);
       const agree = agreeing(p.id);
       visit(p.id, round, p.lens, score, p.o.from, `${p.o.why}${agree.length > 1 ? ` · ${agree.length} lencse: ${agree.join(', ')}` : ''}`, agree.length);

@@ -17,10 +17,11 @@ const FRONTIER_SHORT = 5;
 // Why a lens stepped as much as it did (server diag per wave): the line under
 // its column, so an empty "klaszter" says what held it back.
 function lensWhy(d, params) {
-  const waves = d.stepped + d.gated + d.below + d.empty;
+  const waves = d.stepped + d.gated + d.below + d.empty + d.capped;
   const parts = [];
   if (d.gated) parts.push(`${d.gated}× a relevancia-kapu alatt — legjobb jelöltje a hullám legjobbjának legfeljebb ${Math.round(100 * d.bestShare)}%-a (kapu: ${Math.round(100 * params.GATE)}%)`);
   if (d.below) parts.push(`${d.below}× a küszöb alatt (legjobb ${d.best.toFixed(3)} < ${params.MIN_SCORE})`);
+  if (d.capped) parts.push(`${d.capped}× átjutott a kapun, de elfogyott a ${params.MAX_STEPS} lépéses keret`);
   if (d.empty) parts.push(`${d.empty}× nem volt jelöltje — a csoportjai nem érintették az addig bejárt elemeket`);
   return `${waves} hullámból ${d.stepped} lépés${parts.length ? ` · ${parts.join(' · ')}` : ''}`;
 }
