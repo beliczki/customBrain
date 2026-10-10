@@ -18,6 +18,8 @@ checked record in the `commitments` collection. Background:
 The judgment is yours (session inference); the server only lists and stores.
 **Nothing is saved before Robi approves.**
 
+A condensed copy of these rules runs daily as the Cowork scheduled task "Commitment steward" (`docs/cowork-scheduled-tasks.md`, Task 3). **When you change this skill, update that prompt too.**
+
 ## Tools (customBrain MCP)
 
 - `list_commitment_candidates({ since?, limit?, offset? })` — unreviewed thoughts with their action_items + `live_commitments` for dedup.

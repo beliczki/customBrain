@@ -55,6 +55,64 @@ Prompt:
 > of letting the newest text win. Do NOT write to any file — output the draft
 > blocks in chat for my review.
 
+## Task 3 — Commitment steward (weekdays 07:30 Europe/Budapest) — added 2026-10-10
+
+Unlike Tasks 1–2, this one **writes after approval in the same chat**: it
+proposes, Robert answers in the task's chat ("mehet", or "mehet, kivéve a
+3-ast"), and only then it calls `save_commitments`. Nothing is saved without
+that answer. Rejection memory needs no extra thought here: dropped items are
+stored as `status: dropped` with evidence, and reviewed thoughts carry
+`candidates_reviewed_at`, so they don't come back.
+
+Connectors: **brain** (the Claude tokens are unrestricted, so `save_commitments`
+— scope `curate` — is available), **Google Drive** (to read Grok's sheet).
+The rules below are a condensed copy of the repo skill
+`.claude/skills/review-commitments/SKILL.md` — Desktop tasks can't read the
+repo, so **when the skill changes, update this prompt too.**
+
+Prompt:
+
+> Run my commitment-steward pass. Commitments live in the brain (tools:
+> list_commitments, list_commitment_candidates, save_commitments); thought
+> action_items are only loose candidates.
+>
+> 1. list_commitments({}) to see what is live. Then
+>    list_commitment_candidates({limit: 20}), page by page until total is 0.
+> 2. Turn candidates into a proposal. Keep: my own commitments (owner "Me")
+>    and things others owe me (owner = them, counterparty includes "Me",
+>    status waiting). Drop: other people's tasks among themselves, plain
+>    descriptions, calendar routine, and repo feature requests (those belong
+>    in the repo's task list — just mention them). Split by deliverable, not
+>    by email thread: a new brief in an old thread is a new commitment. Read
+>    the whole thread — a later message can cancel an earlier ask; quote it
+>    and ask me. Merge only the same deliverable said again; the daily
+>    calendar/Teams summary notes restate items — use the email, meeting or
+>    calendar event as sources[0], not the summary note.
+>    Fields: title (one-line action), kind (penz | jog | ugyfel | belso), due
+>    only if a source states it, event_ref when tied to an event, sources
+>    with a verbatim quote and ref (Gmail thread id, Fireflies meeting id,
+>    calendar event id, or thought id for manual notes).
+> 3. Closing: if a meeting happened (its Fireflies transcript exists), propose
+>    done for its RSVP/prep items with evidence "fireflies:<id>". An open
+>    commitment whose event ended is expired. A deadline that passed with no
+>    evidence — ask me, don't guess.
+> 4. Compare with Grok's PM slip watch (Google Drive, spreadsheet
+>    1fdj1UaMXS5kjXLuV1BeVmP8e1gSRfu15f0Hdzt5sNIo, tabs ERSTE, Telekom,
+>    Grafia) — READ ONLY, never edit it. Match its pointer column (gmail:…,
+>    cal:…) to sources[].ref. Report: how many agree; status differences
+>    (show both, ask me); rows only in the sheet (propose as new, slipped
+>    first); items only in the brain (list them — Grok may have missed them).
+>    If the sheet read returned fewer rows than its table range, say so.
+> 5. Post, most urgent first: TODAY's KÖVETKEZŐ list (overdue, due in 3 days,
+>    then fresh undated requests from the last few days), then the proposal
+>    (new / merge / status change), then the slip-watch comparison. Keep it
+>    compact.
+> 6. Wait for my answer in this chat. Only after I say "mehet" (with any
+>    exceptions I name) call save_commitments: by "human" for statuses I set,
+>    evidence filled, reviewed_thought_ids = every thought you accounted for.
+>    Report saved/failed. If I don't answer, save nothing.
+> If there is nothing new and nothing changed, post only the KÖVETKEZŐ list.
+
 ## Not scheduled — evaluator-gardener
 
 Its trigger is "after you grade a batch", not a clock. Run manually in any
