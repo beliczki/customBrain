@@ -17,6 +17,7 @@ import { runHealthCheck } from './brain-health.js';
 import { quickLookup } from './quick-lookup.js';
 import { findFiles } from './files-catalog.js';
 import { reindexDossiers } from './dossier-index.js';
+import { listCommitments, listCommitmentCandidates, saveCommitments } from './commitments.js';
 import { registerAgentTools } from '../agent/register.js';
 import { applyScopeGate } from './mcp-scopes.js';
 
@@ -121,6 +122,74 @@ server.tool(
   },
   async (args) => {
     const result = await findFiles(args);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  'list_commitments',
+  'List verified commitments — the "what should happen next" layer. Each has one owner (Robi = "Me"), status (open | waiting | done | dropped | expired), kind (penz | jog | ugyfel | belso), optional due and event_ref, and at least one direct source with a verbatim quote. `expired` is derived on read: an open commitment whose event has ended. Sorted by urgency: earliest due first, undated last, then money → legal → client → internal; `overdue` marks open/waiting items past due. Filters combine; project is a case-insensitive substring.',
+  {
+    status: z.enum(['open', 'waiting', 'done', 'dropped', 'expired']).optional(),
+    owner: z.string().optional().describe('Canonical People name; Robi is "Me"'),
+    project: z.string().optional(),
+    kind: z.enum(['penz', 'jog', 'ugyfel', 'belso']).optional(),
+    due_before: z.string().optional().describe('ISO date; only commitments due on or before it'),
+    limit: z.number().optional().describe('Rows per page (default 50)'),
+    offset: z.number().optional(),
+  },
+  async (args) => {
+    const result = await listCommitments(args);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  'list_commitment_candidates',
+  'List commitment CANDIDATES: action_items of thoughts nobody has reviewed yet (or that were refreshed after the last review). Candidates are loose — they repeat across thoughts, mix other people\'s tasks and descriptions, and carry no status. Also returns live_commitments (open/waiting) so you can dedup. Workflow: follow the review-commitments skill — turn candidates into commitments, get Robi\'s approval, then save_commitments with reviewed_thought_ids. Oldest first, paged.',
+  {
+    since: z.string().optional().describe('ISO date lower bound on effective_date'),
+    limit: z.number().optional().describe('Thoughts per page (default 20)'),
+    offset: z.number().optional(),
+  },
+  async (args) => {
+    const result = await listCommitmentCandidates(args);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  'save_commitments',
+  'Create or update commitments in one batch, AFTER Robi approved them. Item without id = create; with id = merge into the stored one (sources and candidate_refs are appended, other fields replaced). Every commitment needs owner, kind, status and at least one source {source: gmail|fireflies|calendar|repo|manual|session, ref, quote (verbatim), at?}; items failing that are rejected, the rest still save. A status change is appended to status_history with `by` (human|agent|rule) and `evidence` (e.g. the Fireflies meeting id that shows it happened). Commitments are never deleted — use status dropped. reviewed_thought_ids stamps candidates_reviewed_at on the thoughts this batch accounted for, so they leave the candidate list.',
+  {
+    commitments: z.array(z.object({
+      id: z.string().optional(),
+      title: z.string().optional(),
+      owner: z.string().optional(),
+      counterparty: z.array(z.string()).optional(),
+      projects: z.array(z.string()).optional(),
+      kind: z.enum(['penz', 'jog', 'ugyfel', 'belso']).optional(),
+      status: z.enum(['open', 'waiting', 'done', 'dropped', 'expired']).optional(),
+      due: z.string().nullable().optional().describe('ISO date'),
+      event_ref: z.object({
+        calendar_event_id: z.string(),
+        start: z.string(),
+        end: z.string(),
+      }).nullable().optional(),
+      sources: z.array(z.object({
+        source: z.enum(['gmail', 'fireflies', 'calendar', 'repo', 'manual', 'session']),
+        ref: z.string(),
+        quote: z.string(),
+        at: z.string().optional(),
+      })).optional(),
+      candidate_refs: z.array(z.object({ thought_id: z.string(), text: z.string() })).optional(),
+      by: z.enum(['human', 'agent', 'rule']).optional().describe('Who decided this status (default agent)'),
+      evidence: z.string().optional().describe('What shows the status is true'),
+    })).optional(),
+    reviewed_thought_ids: z.array(z.string()).optional(),
+  },
+  async (args) => {
+    const result = await saveCommitments(args);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );

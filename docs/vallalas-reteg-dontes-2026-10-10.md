@@ -94,6 +94,30 @@ Mit dönt el:
 
 Ha a próba jó, akkor jön a `commitments` collection (minor bump), a három tool, és a `brain_map` KÖVETKEZŐ szekciója erre épül.
 
+### 5.1 A próba eredménye (2026-10-10)
+
+Bemenet: 2026-09-26 … 10-09, 97 thought, **388 jelölt** (a 117 ablakbeli thought teljes; a `quick_lookup` 142-es száma + 25 vault-dosszié).
+
+| Hova került | Tétel |
+|---|---|
+| Robi nyitott vállalásai (dedup után) | **27** — ebből 6 lejárt vagy 1–2 napon belül esedékes, 4 közeli dátumú |
+| Másra várok (`waiting`) | **~9** |
+| Eseményhez kötött, az esemény elmúlt → `expired` | ~71 (szinte mind az okt 6–7-i Internet Hungary) |
+| Lezárva bizonyítékkal (a meeting átirata megvan) | ~18 |
+| Repó-fejlesztési kérés → repó-backlog | ~55 (HINT-map, Miki/Balázs meetingjeiből) |
+| Mások teendői, leírások, naptár-rutin | a maradék |
+
+**388 jelöltből kb. 36 tétel lett.** Ez a „15–30 jó jel" sáv teteje, vagyis a modell működik.
+
+Amit a próba megmutatott:
+1. **A legtöbb zaj a naptár-összefoglaló jegyzetekből jön.** Az ablak 97 jelöltes thoughtjából 65 kézi, javarészt napi „Naptár / Teams what happened" jegyzet, és ezek ugyanazt a naptártételt napról napra újra kimondják (pl. a hangtechnikus-tétel 5×, a bútor-döntés 4×, a Daszi-RSVP 5×). → A naptár legyen a közvetlen forrás; ezek a jegyzetek ne termeljenek jelöltet, vagy a dedup a naptáreseményhez kösse őket.
+2. **Az automatikus `expired` (D4) a legnagyobb nyereség:** egyetlen elmúlt esemény ~71 tételt takarít el.
+3. **A bizonyíték-alapú lezárás már v1-ben is megéri:** ha egy meetingnek van Fireflies-átirata, a hozzá tartozó RSVP- és előkészítő tételek lezárhatók. Ez a „később" helyett bekerülhet v1-be.
+4. **A repó-kérések nem személyes vállalások.** A ~55 HINT-map fejlesztési kérés a repó taskjai közé tartozik (D2 strukturált forrás); a csomagban a repó HELYZET/KÖVETKEZŐ részén jelenjen meg, nem a személyes listán.
+5. **A „kész-e" a szabad szöveges forrásokból többnyire nem derül ki.** A 27 nyitott tételből ~10 határideje elmúlt bizonyíték nélkül. Az első feltöltéskor egy egyszeri, kb. 10 perces jelölés kell Robitól; utána a folyamatos lezárás a kérdés (D4).
+6. **A sürgősséghez elég a dátum, a fontossághoz kell egy jel.** A lista tetején pénz/jog/ügyfél-határidő tételek vannak (járulék, számla, THM-javítás, ügyfél-leadás). Javaslat: egy `kind` mező (pénz · jog · ügyfél · belső), mert ez kiírható jel, nem rangsoroló modell.
+7. **Ellentmondás is előjön:** két thought ellentétesen mondja meg, ki adja a grafikai besorolást. A vállalás-tár egy helyen tartja a kérdést, így ez láthatóvá válik.
+
 ## 6. Összefoglaló — mit kell eldönteni
 
 | # | Kérdés | Javaslat |

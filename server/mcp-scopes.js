@@ -28,6 +28,8 @@ export const TOOL_SCOPES = {
   get_thought: 'brain-read',
   quick_lookup: 'brain-read',
   find_files: 'brain-read', // reads state/files-catalog.json; no provider calls
+  list_commitments: 'brain-read',
+  list_commitment_candidates: 'brain-read',
   list_recent: 'brain-read',
   brain_stats: 'brain-read',
   find_overconnected: 'brain-read',
@@ -41,6 +43,7 @@ export const TOOL_SCOPES = {
   update_thought_text_with_summary: 'curate',
   rebuild_obsidian_vault: 'curate',
   reindex_dossiers: 'curate',
+  save_commitments: 'curate', // writes commitments + candidates_reviewed_at on thoughts
 
   // live-provider-read — reaches the mailbox, calendar, or meeting recorder.
   // A brain search must never quietly widen into a live mailbox search.

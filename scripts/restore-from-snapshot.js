@@ -1,7 +1,11 @@
 // Restore a Qdrant collection from a local .snapshot file.
 //
 // Usage:
-//   node scripts/restore-from-snapshot.js <path-to-snapshot> [--dry-run] [--into <collection>]
+//   node scripts/restore-from-snapshot.js <path-to-snapshot> --collection <name> [--dry-run] [--into <collection>]
+//
+// --collection names which backed-up collection the snapshot is of (since 0.53.0
+// there are two — see BACKED_UP in server/collections.js). It is required: an
+// implicit default is how a commitments snapshot would be recovered over thoughts.
 //
 // --into restores to a scratch collection instead of the live one. A restore you
 // have never rehearsed is not a backup, and the rehearsal must not be able to
@@ -31,7 +35,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, basename, resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { THOUGHTS } from '../server/collections.js';
+import { BACKED_UP } from '../server/collections.js';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(SCRIPT_DIR, '..', '.env') });
@@ -41,22 +45,32 @@ const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const intoIdx = args.indexOf('--into');
-const COLLECTION = intoIdx !== -1 ? args[intoIdx + 1] : THOUGHTS;
-// `--into` consumes the value after it; drop both so the positional scan below
-// cannot mistake a scratch collection name for the snapshot path. Guard on
-// intoIdx !== -1: without it the absent-flag case excludes index 0, which is
-// the snapshot path itself.
-const valueIdx = intoIdx !== -1 ? intoIdx + 1 : -1;
-const positional = args.filter((a, i) => !a.startsWith('--') && i !== valueIdx);
+const collectionIdx = args.indexOf('--collection');
+const SOURCE_COLLECTION = collectionIdx !== -1 ? args[collectionIdx + 1] : null;
+const COLLECTION = intoIdx !== -1 ? args[intoIdx + 1] : SOURCE_COLLECTION;
+// `--into` and `--collection` consume the value after them; drop those so the
+// positional scan below cannot mistake a collection name for the snapshot path.
+// Guard on idx !== -1: without it the absent-flag case excludes index 0, which
+// is the snapshot path itself.
+const valueIdxs = [intoIdx, collectionIdx].filter((i) => i !== -1).map((i) => i + 1);
+const positional = args.filter((a, i) => !a.startsWith('--') && !valueIdxs.includes(i));
 const snapshotPath = resolve(positional[0] || '');
 
+if (!BACKED_UP.includes(SOURCE_COLLECTION)) {
+  console.error(`--collection is required, one of: ${BACKED_UP.join(', ')}`);
+  process.exit(1);
+}
+if (!basename(snapshotPath).startsWith(`${SOURCE_COLLECTION}-`)) {
+  console.error(`Snapshot ${basename(snapshotPath)} is not a ${SOURCE_COLLECTION} snapshot (Qdrant names them "<collection>-…").`);
+  process.exit(1);
+}
 if (intoIdx !== -1 && !COLLECTION) {
   console.error('--into requires a collection name');
   process.exit(1);
 }
 
 if (!snapshotPath || !existsSync(snapshotPath)) {
-  console.error(`Usage: node scripts/restore-from-snapshot.js <path> [--dry-run] [--into <collection>]`);
+  console.error(`Usage: node scripts/restore-from-snapshot.js <path> --collection <name> [--dry-run] [--into <collection>]`);
   console.error(`File not found: ${snapshotPath}`);
   process.exit(1);
 }

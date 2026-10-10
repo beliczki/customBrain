@@ -13,7 +13,7 @@ import { google } from 'googleapis';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(SCRIPT_DIR, '..', '.env') });
 import { applySettingsToEnv } from '../server/config.js';
-import { THOUGHTS as COLLECTION } from '../server/collections.js';
+import { BACKED_UP } from '../server/collections.js';
 applySettingsToEnv();
 
 const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
@@ -46,28 +46,28 @@ async function getOrCreateFolder(drive, parentId, name) {
   return folder.data.id;
 }
 
-async function createSnapshot() {
-  const res = await fetch(`${QDRANT_URL}/collections/${COLLECTION}/snapshots`, { method: 'POST' });
+async function createSnapshot(collection) {
+  const res = await fetch(`${QDRANT_URL}/collections/${collection}/snapshots`, { method: 'POST' });
   if (!res.ok) throw new Error(`Snapshot create failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
   return data.result.name;
 }
 
-async function downloadSnapshot(name, localPath) {
-  const res = await fetch(`${QDRANT_URL}/collections/${COLLECTION}/snapshots/${name}`);
+async function downloadSnapshot(collection, name, localPath) {
+  const res = await fetch(`${QDRANT_URL}/collections/${collection}/snapshots/${name}`);
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   writeFileSync(localPath, buffer);
   return buffer.length;
 }
 
-async function deleteQdrantSnapshot(name) {
-  const res = await fetch(`${QDRANT_URL}/collections/${COLLECTION}/snapshots/${name}`, { method: 'DELETE' });
+async function deleteQdrantSnapshot(collection, name) {
+  const res = await fetch(`${QDRANT_URL}/collections/${collection}/snapshots/${name}`, { method: 'DELETE' });
   if (!res.ok) log(`WARN: failed to delete Qdrant-internal snapshot ${name}: ${res.status}`);
 }
 
-async function listQdrantSnapshots() {
-  const res = await fetch(`${QDRANT_URL}/collections/${COLLECTION}/snapshots`);
+async function listQdrantSnapshots(collection) {
+  const res = await fetch(`${QDRANT_URL}/collections/${collection}/snapshots`);
   if (!res.ok) return [];
   const data = await res.json();
   return data.result.map(s => s.name);
@@ -82,9 +82,12 @@ async function uploadToDrive(drive, folderId, localPath, fileName) {
   return res.data;
 }
 
-function rotateLocal() {
+// Count-based, so it runs per collection: Qdrant names snapshots
+// "<collection>-…", and a shared count would let the small nightly commitments
+// snapshots push the thoughts snapshots out.
+function rotateLocal(collection) {
   const files = readdirSync(BACKUPS_DIR)
-    .filter(f => f.endsWith('.snapshot'))
+    .filter(f => f.endsWith('.snapshot') && f.startsWith(`${collection}-`))
     .map(f => ({ name: f, mtime: statSync(join(BACKUPS_DIR, f)).mtimeMs }))
     .sort((a, b) => b.mtime - a.mtime);
   const toDelete = files.slice(LOCAL_KEEP);
@@ -121,43 +124,47 @@ async function run() {
     log(`Created backups dir: ${BACKUPS_DIR}`);
   }
 
-  // Log what we are actually about to snapshot. A wrong-but-existing collection
-  // is the failure this cron shipped with for 118 nights (see server/collections.js);
-  // the point count is what makes that visible in the log instead of silent.
-  const info = await fetch(`${QDRANT_URL}/collections/${COLLECTION}`);
-  if (!info.ok) throw new Error(`Collection ${COLLECTION} not reachable: ${info.status}`);
-  const points = (await info.json()).result.points_count;
-  log(`Triggering snapshot on ${COLLECTION} (${points} points)...`);
-  const snapshotName = await createSnapshot();
-  log(`Snapshot created: ${snapshotName}`);
-
-  const localPath = join(BACKUPS_DIR, snapshotName);
-  log(`Downloading to ${localPath}...`);
-  const bytes = await downloadSnapshot(snapshotName, localPath);
-  log(`Downloaded ${(bytes / 1024).toFixed(1)} KB`);
-
-  await deleteQdrantSnapshot(snapshotName);
-  log(`Cleared Qdrant-internal snapshot ${snapshotName}`);
-
   const drive = getDriveClient();
   const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
   if (!rootFolderId) throw new Error('GOOGLE_DRIVE_FOLDER_ID missing in env');
   log('Connecting to Google Drive...');
   const backupsFolderId = await getOrCreateFolder(drive, rootFolderId, DRIVE_BACKUPS_FOLDER);
 
-  log(`Uploading to Drive folder "${DRIVE_BACKUPS_FOLDER}"...`);
-  const driveFile = await uploadToDrive(drive, backupsFolderId, localPath, snapshotName);
-  log(`Uploaded: id=${driveFile.id} size=${driveFile.size}`);
+  for (const collection of BACKED_UP) {
+    // Log what we are actually about to snapshot. A wrong-but-existing collection
+    // is the failure this cron shipped with for 118 nights (see server/collections.js);
+    // the point count is what makes that visible in the log instead of silent.
+    const info = await fetch(`${QDRANT_URL}/collections/${collection}`);
+    if (!info.ok) throw new Error(`Collection ${collection} not reachable: ${info.status}`);
+    const points = (await info.json()).result.points_count;
+    log(`Triggering snapshot on ${collection} (${points} points)...`);
+    const snapshotName = await createSnapshot(collection);
+    log(`Snapshot created: ${snapshotName}`);
 
-  const localRot = rotateLocal();
-  const driveRot = await rotateDrive(drive, backupsFolderId);
-  log(`Local: kept ${localRot.kept}, deleted ${localRot.deleted}`);
-  log(`Drive: kept ${driveRot.kept}, deleted ${driveRot.deleted}`);
+    const localPath = join(BACKUPS_DIR, snapshotName);
+    log(`Downloading to ${localPath}...`);
+    const bytes = await downloadSnapshot(collection, snapshotName, localPath);
+    log(`Downloaded ${(bytes / 1024).toFixed(1)} KB`);
 
-  const qSnaps = await listQdrantSnapshots();
-  if (qSnaps.length > 0) {
-    log(`WARN: ${qSnaps.length} stale Qdrant-internal snapshot(s) remain: ${qSnaps.join(', ')}`);
+    await deleteQdrantSnapshot(collection, snapshotName);
+    log(`Cleared Qdrant-internal snapshot ${snapshotName}`);
+
+    log(`Uploading to Drive folder "${DRIVE_BACKUPS_FOLDER}"...`);
+    const driveFile = await uploadToDrive(drive, backupsFolderId, localPath, snapshotName);
+    log(`Uploaded: id=${driveFile.id} size=${driveFile.size}`);
+
+    const localRot = rotateLocal(collection);
+    log(`Local ${collection}: kept ${localRot.kept}, deleted ${localRot.deleted}`);
+
+    const qSnaps = await listQdrantSnapshots(collection);
+    if (qSnaps.length > 0) {
+      log(`WARN: ${qSnaps.length} stale Qdrant-internal snapshot(s) remain on ${collection}: ${qSnaps.join(', ')}`);
+    }
   }
+
+  // Drive rotation is age-based, so one pass covers every collection.
+  const driveRot = await rotateDrive(drive, backupsFolderId);
+  log(`Drive: kept ${driveRot.kept}, deleted ${driveRot.deleted}`);
 
   log(`=== Done in ${((Date.now() - startTime) / 1000).toFixed(1)}s ===`);
 }

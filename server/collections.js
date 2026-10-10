@@ -16,3 +16,13 @@
 // historical records of a run against that collection, not live paths.
 
 export const THOUGHTS = 'thoughts_v2';
+
+// Verified commitments (0.53.0) — see docs/commitments-terv-2026-10-10.md.
+// Thought `action_items` stay loose candidates in THOUGHTS; this collection
+// holds what was checked against a direct source and has a status.
+export const COMMITMENTS = 'commitments';
+
+// Every collection the nightly backup snapshots. A new collection goes here
+// in the same change that creates it — the S1 incident above is what an
+// unlisted collection looks like.
+export const BACKED_UP = [THOUGHTS, COMMITMENTS];

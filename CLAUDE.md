@@ -146,6 +146,10 @@ Core: `server/mcp.js` — `capture_thought`, `search_brain`, `list_recent`, `bra
 
 Files catalog (0.51.0): `find_files` reads `state/files-catalog.json` (`server/files-catalog.js`) — document-type files on My Drive + real attachments of `brain/captured` Gmail threads, metadata only. Built by hand on the server with `node scripts/build-files-catalog.js` (read-only against Drive/Gmail/Qdrant; writes the file only if every source was read completely). No cron yet.
 
+Commitments (0.53.0): `server/commitments.js`, own Qdrant collection `commitments` (dense + bm25, same schema as thoughts). Thought `action_items` are loose **candidates**; a commitment has one owner (Robi = `Me`), status (`open|waiting|done|dropped`, plus `expired` derived on read from `event_ref`), `kind` (`penz|jog|ugyfel|belso`), optional `due`, and ≥1 direct source with a verbatim quote. Tools: `list_commitment_candidates` + `list_commitments` (brain-read), `save_commitments` (curate). No server-side LLM — the session agent proposes, Robi approves; workflow in the repo skill `.claude/skills/review-commitments/`. A thought leaves the candidate list once `candidates_reviewed_at` is stamped, and returns when its `updated_at` (e.g. Gmail refresh) is later.
+
+**Collections:** names live only in `server/collections.js`; `BACKED_UP` is the list the nightly backup snapshots — a new collection goes there in the same change. `scripts/restore-from-snapshot.js` requires `--collection <name>`.
+
 Brain-hygiene trio (also in `server/mcp.js`) — `find_overconnected` → `suggest_metadata_fix` → `update_thought`. Intended workflow: find thoughts linked via over-broad metadata (sorted by hub_score), ask Haiku for tighter metadata, then apply after user review. `update_thought` only touches metadata (people/projects/topics/title/action_items); text/source/timestamps are immutable.
 
 Agent: `agent/register.js` — `get_fireflies_transcripts`, `get_youtube_likes`, `get_gmail_threads`, `get_calendar_events`, `get_event_context`, `get_task_context`, `manage_drafts`. Each tool implemented in its own file under `agent/tools/` (e.g., `calendar.js`, `gmail.js`, `context.js`).
