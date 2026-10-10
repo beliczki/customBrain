@@ -33,6 +33,7 @@ const MAX_STEPS = 36; // ~5 waves of six lenses after the starting points
 const MIN_SCORE = 0.05;
 const DECAY = 0.85;
 const SEEDS = 10; // search hits considered as starting points
+const GATE = 0.3; // a lens steps only if its candidate reaches this share of the wave's best
 const SEED_VISITS = 5; // of those, visited in round 0; the rest wait in the ontology frontier
 const CANDIDATES = 10; // frontier left over, shown as "would have gone here"
 const EDGE_WEIGHT = {
@@ -188,8 +189,14 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       if (best && best.o.score >= MIN_SCORE) picks.push({ id: best.id, lens: lens.key, o: best.o });
     }
     if (!picks.length) break;
+    // Relevance gate: a lens steps only when its candidate holds up against
+    // the wave's best. Without it the coarse lenses (same source/type that
+    // week) always took a step and dragged "confai" into ERSTE campaigns,
+    // which the project lens then followed — a cross-over nothing justified.
+    const best = Math.max(...picks.map((p) => combined(p.id)));
+    const gated = picks.filter((p) => combined(p.id) >= GATE * best);
     const taken = [];
-    for (const p of picks) {
+    for (const p of gated) {
       if (trace.length >= MAX_STEPS) break;
       const score = combined(p.id);
       const agree = agreeing(p.id);
@@ -233,7 +240,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       lenses: LENSES.map((l) => ({ key: l.key, label: l.label })),
       candidates: left.map(([id, f]) => ({ id, title: nodes.get(id).title, layer: nodes.get(id).layer, score: f.score, why: f.why })),
       stopped: walked.length >= MAX_STEPS ? 'max_steps' : 'min_score',
-      params: { MAX_STEPS, MIN_SCORE, DECAY, SEEDS, SEED_VISITS, lenses: LENSES.map((l) => l.key), recency },
+      params: { MAX_STEPS, MIN_SCORE, DECAY, SEEDS, SEED_VISITS, GATE, lenses: LENSES.map((l) => l.key), recency },
       rounds: Math.max(0, ...trace.filter((t) => t.phase === 'walk').map((t) => t.round)),
     },
     trace,
