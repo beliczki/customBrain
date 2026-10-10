@@ -125,7 +125,9 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   // KORÁBBI (0.65.0): spider walks the graph from the same question in
   // parallel; what it reaches beyond the days_back window becomes the
   // section. The window keeps ELŐZMÉNYEK current; spider is the way past it.
-  const earlierWalk = spiderWalk(question || project || person);
+  // Without recency: with it, the fresh threads take every step and nothing
+  // old is left to list (measured on "humanody": KORÁBBI came back empty).
+  const earlierWalk = spiderWalk(question || project || person, undefined, { recency: false });
   // Awaited below; this only keeps an early failure from counting as an
   // unhandled rejection (which ends the process) while the readers run.
   earlierWalk.catch(() => {});

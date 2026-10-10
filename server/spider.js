@@ -40,7 +40,11 @@ const EDGE_WEIGHT = {
 };
 const EDGE_LABEL = (e) => (e.kind === 'ontology' ? e.rel : e.kind);
 
-export async function spiderWalk(question, emit = () => {}) {
+/**
+ * recency: false walks on edge weights alone — map's KORÁBBI uses it, since
+ * its job is to see past the window that recency (rightly) favours.
+ */
+export async function spiderWalk(question, emit = () => {}, { recency = true } = {}) {
   const hhmm = (iso) => new Date(iso).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Budapest' });
   const [{ graph }, ontology, hits, vault] = await Promise.all([
     phase(emit, 'graph', 'gráf', getCachedGraph(), (c) => `${c.graph.nodes.length} thought, ${c.graph.edges.length} él · építve ${hhmm(c.built_at)}`),
@@ -98,8 +102,8 @@ export async function spiderWalk(question, emit = () => {}) {
     for (const { to, w, e } of adj.get(id)) {
       if (visited.has(to)) continue;
       const target = nodes.get(to);
-      const recency = target.entity ? 1 : recencyFactor(target, now);
-      offer(to, best.score * w * damp * recency, id, `${EDGE_LABEL(e)} ← ${node.title}`);
+      const age = !recency || target.entity ? 1 : recencyFactor(target, now);
+      offer(to, best.score * w * damp * age, id, `${EDGE_LABEL(e)} ← ${node.title}`);
     }
   }
 
@@ -129,7 +133,7 @@ export async function spiderWalk(question, emit = () => {}) {
       })),
       candidates: left.map(([id, f]) => ({ id, title: nodes.get(id).title, layer: nodes.get(id).layer, score: f.score, why: f.why })),
       stopped: walked.length >= MAX_STEPS ? 'max_steps' : 'min_score',
-      params: { MAX_STEPS, MIN_SCORE, DECAY, SEEDS },
+      params: { MAX_STEPS, MIN_SCORE, DECAY, SEEDS, recency },
     },
     trace,
   };
