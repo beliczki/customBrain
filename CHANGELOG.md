@@ -2,6 +2,11 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.72.1 — 2026-10-10
+
+**spider says why a lens did not step.** The walk records per lens per wave whether it stepped, was stopped by the relevance gate (and its best share of the wave's best), fell under the threshold, or had no candidate at all (`result.lenses[].diag`). An empty column now reads, for example, "nem lépett — 7 hullámból 0 lépés · 7× a relevancia-kapu alatt — legjobb jelöltje a hullám legjobbjának legfeljebb 27%-a (kapu: 30%)", and each column's count carries the same line as a tooltip. Measured on "conai": the walk went mostly into repo docs, which belong to no Louvain cluster (clusters are computed on thoughts), so the cluster lens could only expand from the few thoughts reached and its best candidate stayed at 27%. On "confai" it took 6 steps and on "humanody" 4.
+- Tag cloud: the pill menu marker is vertical (⋮), and the cloud scrolls when it overflows instead of cutting tags off (up to 40 tags). The menu stays pinned to the visible bottom.
+
 ## 0.72.0 — 2026-10-10
 
 **Fix: the spider page went blank at the end of the replay.** `TypeError: l.topics is not iterable`. The frontier ("ide ment volna még") items appear when the replay ends, and they were bare `{id, title, layer, score, why}`, while the hover matcher reads every item's tags. Fixed at the source: candidates now carry the same line shape as the walked items (`lineOf`: tags, date, type, source, entity, link).

@@ -14,6 +14,17 @@ const STOPPED = { max_steps: 'elérte a lépésszám-korlátot', min_score: 'a l
 const REVEAL_MS = 150;
 const FRONTIER_SHORT = 5;
 
+// Why a lens stepped as much as it did (server diag per wave): the line under
+// its column, so an empty "klaszter" says what held it back.
+function lensWhy(d, params) {
+  const waves = d.stepped + d.gated + d.below + d.empty;
+  const parts = [];
+  if (d.gated) parts.push(`${d.gated}× a relevancia-kapu alatt — legjobb jelöltje a hullám legjobbjának legfeljebb ${Math.round(100 * d.bestShare)}%-a (kapu: ${Math.round(100 * params.GATE)}%)`);
+  if (d.below) parts.push(`${d.below}× a küszöb alatt (legjobb ${d.best.toFixed(3)} < ${params.MIN_SCORE})`);
+  if (d.empty) parts.push(`${d.empty}× nem volt jelöltje — a csoportjai nem érintették az addig bejárt elemeket`);
+  return `${waves} hullámból ${d.stepped} lépés${parts.length ? ` · ${parts.join(' · ')}` : ''}`;
+}
+
 // Thoughts and dossiers open in the thought modal; files and repo docs have
 // an outside link; commitments and file bundles neither.
 const opener = (item) => (!item.entity || item.entity === 'dossier' || item.entity === 'repo' ? 'modal' : item.link ? 'link' : null);
@@ -138,10 +149,10 @@ export default function SpiderResult({ walk, phases, onSearch, active }) {
                 {/* lens colour, the same as in the quality panel */}
                 <span className="spider-lens__swatch inline-block w-2 h-2 shrink-0" style={{ backgroundColor: LENS_COLOR[lens.key] }} />
                 {lens.label}
-                <span className="text-[10px]">{items.length}</span>
+                <span className="text-[10px]" title={done ? lensWhy(lens.diag, walk.params) : undefined}>{items.length}</span>
               </h3>
               {items.length === 0
-                ? <p className="text-xs text-txt-ter italic">{done ? 'nem lépett' : '…'}</p>
+                ? <p className="text-xs text-txt-ter italic">{done ? `nem lépett — ${lensWhy(lens.diag, walk.params)}` : '…'}</p>
                 : <ul>{items.map((item) => <Item key={item.id} item={item} current={current(item)} compact {...itemProps} />)}</ul>}
             </div>
           );
