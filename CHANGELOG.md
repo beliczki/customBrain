@@ -2,6 +2,18 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.66.0 — 2026-10-10
+
+**Bare first names are resolved from the thought's project, not from the name list.** "Csaba" alone is not a person. In an ERSTE Számlák thread it is Brunner Csaba; in an ERSTE thread "Dávid" may be Porkoláb or Kiricsi Dávid, and only the context can decide which.
+- `server/project-people.js` `getProjectPeople(vault)` builds, per project, who belongs to it. Sources: the Projects dossier's `people:` frontmatter, plus everyone tagged with the project on at least 2 thoughts. It reads payload fields only (`payloadFieldRows` in `qdrant.js`, which `graphFingerprintRows` now uses too) and is cached for an hour, like the vault context.
+- `names.resolveFirstNames(names, projects, …)`: a one-word name becomes the full canonical name only when exactly one person of the thought's projects carries that word. Otherwise it stays as written, because a wrong guess would be worse than an open first name. Example: ERSTE Számlák "Csaba" → Csaba Brunner; ERSTE "Dávid" stays (two fit).
+- Capture (`extractMetadata`): the Haiku prompt gets a "People by project" block with the rule above, and the deterministic resolver runs after it, next to the alias resolution.
+- Export (`writeStubs`) no longer creates a People stub for a one-word name. A stub turned the bare name into a canonical "person" for every later capture.
+- `scripts/resolve-first-names.js` does the same retroactively: a dry run by default; `--apply` writes a snapshot to `tasks/first-names-<date>.json` first.
+- `getVaultContext`'s error fallback now carries `projectDocs: {}`, the same shape as success.
+
+Data (Drive, 2026-10-10): People cleanup round 2 (299 → 240, see ROADMAP); then the 27 one-word stub dossiers (Csaba, Dávid, Andi, Kari, …) were removed, leaving 213.
+
 ## 0.65.0 — 2026-10-10
 
 **spider weighs recency; map gains a KORÁBBI section from spider.** This follows the search/map/spider comparison on "humanody" (2026-10-10). There map and spider shared 20 of 25 nodes. spider alone reached five threads older than map's 60-day window, but it had no sense of time. About 15 thoughts reached through one `tag ← Humanody` edge tied at 0.104, so which of them fit into the 25 steps was arbitrary: a May auto-reply got in, while that week's "ConfAI IH éles szál" fell off.

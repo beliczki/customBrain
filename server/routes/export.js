@@ -415,6 +415,13 @@ export async function rebuildVault(onLog) {
         existing.push(name);
         continue;
       }
+      // 0.66.0: a one-word name is a reference, not a person — capture
+      // resolves it from the thought's project (names.resolveFirstNames), and
+      // a stub would turn it into a canonical "person" for every later capture.
+      if (folderName === 'People' && nameKey(name).split(' ').length === 1) {
+        skipped.push(name);
+        continue;
+      }
       if (skipAutoCreate) {
         emit(`[${ts()}]   ⚠ unknown ${folderName.toLowerCase()}: "${name}" — add to vault manually if real`);
         skipped.push(name);

@@ -202,13 +202,10 @@ export async function getAllWithVectors() {
 }
 
 /**
- * The thought-graph fingerprint rows (0.64.0, server/graph-cache.js): every
- * non-chunk point's id plus the payload fields buildGraph reads, and the
- * markers a re-embed or text change sets (updated_at, summary_appended_at).
- * No vectors and no text, so it is cheap enough to poll every minute.
+ * Selected payload fields of every non-chunk point, as [id, [values…]] rows
+ * in `fields` order. No vectors and no text, so it is cheap to run often.
  */
-export async function graphFingerprintRows() {
-  const fields = ['status', 'title', 'type', 'source', 'people', 'projects', 'topics', 'created_at', 'effective_date', 'supersedes', 'updated_at', 'summary_appended_at'];
+export async function payloadFieldRows(fields) {
   const all = [];
   let offset = undefined;
   while (true) {
@@ -224,6 +221,15 @@ export async function graphFingerprintRows() {
     offset = batch.next_page_offset;
   }
   return all;
+}
+
+/**
+ * The thought-graph fingerprint rows (0.64.0, server/graph-cache.js): the
+ * payload fields buildGraph reads, plus the markers a re-embed or text change
+ * sets (updated_at, summary_appended_at). Cheap enough to poll every minute.
+ */
+export function graphFingerprintRows() {
+  return payloadFieldRows(['status', 'title', 'type', 'source', 'people', 'projects', 'topics', 'created_at', 'effective_date', 'supersedes', 'updated_at', 'summary_appended_at']);
 }
 
 export async function deletePoint(id) {

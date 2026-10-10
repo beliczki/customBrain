@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { resolveAliases } from './names.js';
+import { resolveAliases, resolveFirstNames } from './names.js';
+import { getProjectPeople } from './project-people.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logAnthropicUsage } from './anthropic-usage.js';
@@ -14,7 +15,7 @@ function loadContext() {
   }
 }
 
-function buildPrompt(text, localCtx, vaultCtx) {
+function buildPrompt(text, localCtx, vaultCtx, projectPeople) {
   let contextBlock = '';
 
   if (localCtx?.notes) {
@@ -36,6 +37,13 @@ function buildPrompt(text, localCtx, vaultCtx) {
       ([canonical, alts]) => `- "${canonical}" is also known as: ${alts.join(', ')}`
     );
     contextBlock += `\n\nName aliases (always use the canonical name on the left, never the alias on the right):\n${lines.join('\n')}`;
+  }
+
+  // 0.66.0: a bare first name is resolved from the thought's project, not
+  // from the name list ("Csaba" in an ERSTE Számlák thread is Brunner Csaba).
+  if (projectPeople?.size) {
+    const lines = [...projectPeople.entries()].map(([project, people]) => `- ${project}: ${[...people].filter((p) => p !== 'Me').slice(0, 15).join(', ')}`);
+    contextBlock += `\n\nPeople by project. When the text names someone by first name only, write the full canonical name of the person from the thought's project below who carries that first name. If several people in the project fit, or none does, keep the first name as written — never guess:\n${lines.join('\n')}`;
   }
 
   if (vaultCtx?.projects?.length) {
@@ -318,6 +326,7 @@ Respond with JSON ONLY, matching this schema exactly:
 
 export async function extractMetadata(text, vaultContext) {
   const localCtx = loadContext();
+  const projectPeople = await getProjectPeople(vaultContext);
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -332,7 +341,7 @@ export async function extractMetadata(text, vaultContext) {
       messages: [
         {
           role: 'user',
-          content: buildPrompt(text, localCtx, vaultContext),
+          content: buildPrompt(text, localCtx, vaultContext, projectPeople),
         },
       ],
     }),
@@ -350,7 +359,10 @@ export async function extractMetadata(text, vaultContext) {
   const metadata = JSON.parse(match[1].trim());
   metadata.people = resolveAliases(metadata.people, vaultContext?.aliases, vaultContext?.people);
   metadata.projects = resolveAliases(metadata.projects, vaultContext?.projectAliases, vaultContext?.projects);
+  // The model was told to resolve first names; this makes sure it only did
+  // so where the project context decides it, and catches what it left.
+  metadata.people = resolveFirstNames(metadata.people, metadata.projects, { people: vaultContext.people, projectPeople });
   metadata.topics = resolveAliases(metadata.topics, vaultContext?.topicAliases);
-  metadata._prompt = buildPrompt(text, localCtx, vaultContext);
+  metadata._prompt = buildPrompt(text, localCtx, vaultContext, projectPeople);
   return metadata;
 }

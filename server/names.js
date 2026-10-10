@@ -23,3 +23,28 @@ export function resolveAliases(names, aliases, canonicals = []) {
   }
   return [...new Set(names.map((n) => byKey.get(nameKey(n)) ?? n))];
 }
+
+const isBare = (name) => nameKey(name).split(' ').length === 1;
+
+/**
+ * Bare first names resolved by context (0.66.0). "Csaba" alone is not a
+ * person; in an ERSTE Számlák thought it is Brunner Csaba, elsewhere someone
+ * else. A one-word name becomes the full canonical name only when exactly one
+ * canonical person carries that word AND belongs to one of the thought's
+ * projects (`projectPeople`: project → Set of canonical names). Otherwise it
+ * stays as written — a wrong guess would be worse than an open first name.
+ * "Me" and anything already canonical pass through.
+ */
+export function resolveFirstNames(names, projects, { people, projectPeople }) {
+  if (!names?.length) return names;
+  const full = people.filter((p) => !isBare(p));
+  const pool = new Set();
+  for (const pr of projects || []) for (const p of projectPeople.get(pr) || []) pool.add(p);
+  const out = names.map((n) => {
+    if (n === 'Me' || !isBare(n)) return n;
+    const word = nameKey(n);
+    const hits = full.filter((p) => pool.has(p) && nameKey(p).split(' ').includes(word));
+    return hits.length === 1 ? hits[0] : n;
+  });
+  return [...new Set(out)];
+}

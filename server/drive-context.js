@@ -404,6 +404,6 @@ export async function getVaultContext() {
     return cachedContext;
   } catch (err) {
     console.error('Failed to load vault context:', err.message, '\n', err.stack);
-    return { people: [], projects: [], aliases: {}, projectAliases: {}, peopleEmails: {}, topicCanonicals: [], topicAliases: {} };
+    return { people: [], projects: [], aliases: {}, projectAliases: {}, peopleEmails: {}, projectDocs: {}, topicCanonicals: [], topicAliases: {} };
   }
 }
