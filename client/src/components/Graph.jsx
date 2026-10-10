@@ -47,7 +47,7 @@ const LAYER_COLOR = { horgony: '#a78bfa', tortenes: '#60a5fa', targy: '#f59e0b',
 const GROUP_MODES = [
   { key: 'clusters', label: 'Clusters' },
   { key: 'project', label: 'Project' },
-  { key: 'person', label: 'Person' },
+  { key: 'person', label: 'People' },
   { key: 'type', label: 'Type' },
   { key: 'source', label: 'Source' },
   { key: 'layer', label: 'Ontológia' },
@@ -779,9 +779,22 @@ export default function Graph({ traversal, onCloseTraversal }) {
     const cache = nodeCacheRef.current;
     const orbitTag = ORBIT_LABEL[groupBy];
 
+    // 0.75.1: in Project / People grouping a group IS a dossier — "Istvan
+    // Hollosi (75)" the anchor and "Istvan Hollosi" the person dossier were
+    // two nodes. The dossier folds into its anchor: it is not drawn on its
+    // own, and its edges (tag, owner, …) land on the anchor instead.
+    const foldType = { project: 'project dossier', person: 'person dossier' }[groupBy];
+    const groupKeys = new Set(groups.map((grp) => grp.key));
+    const folded = new Map(); // dossier id → anchor id
+    if (foldType) {
+      for (const n of view.nodes) {
+        if (n.entity === 'dossier' && n.type === foldType && groupKeys.has(n.title)) folded.set(n.id, `g:${n.title}`);
+      }
+    }
+
     const thoughts = view.nodes
       .filter((n) => {
-        if (n.archived || !inTimeWindow(n)) return false;
+        if (n.archived || !inTimeWindow(n) || folded.has(n.id)) return false;
         const mems = memberships.get(n.id) || [];
         if (isolatedGroup === '__orbit') return mems.length === 0;
         if (isolatedGroup) return mems.includes(isolatedGroup);
@@ -867,11 +880,20 @@ export default function Graph({ traversal, onCloseTraversal }) {
     const present = new Set(nodes.map((n) => n.id));
     const seen = new Set();
     for (const e of activeEdges) {
-      if (!present.has(e.source) || !present.has(e.target)) continue;
-      const key = e.source < e.target ? `${e.source}|${e.target}` : `${e.target}|${e.source}`;
+      const source = folded.get(e.source) || e.source;
+      const target = folded.get(e.target) || e.target;
+      if (source === target || !present.has(source) || !present.has(target)) continue;
+      // A thought already pulled to that anchor by its membership needs no
+      // second line from the folded dossier's tag edge.
+      if (source !== e.source || target !== e.target) {
+        const other = source.startsWith('g:') ? target : source;
+        const anchor = source.startsWith('g:') ? source : target;
+        if ((memberships.get(other) || []).includes(anchor.slice(2))) continue;
+      }
+      const key = source < target ? `${source}|${target}` : `${target}|${source}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      links.push({ source: e.source, target: e.target, kind: e.kind, weight: e.weight, score: e.score, dist: 60 });
+      links.push({ source, target, kind: e.kind, weight: e.weight, score: e.score, dist: 60 });
     }
 
     // Timeline scrubs skip the warmup (new nodes animate in from their
