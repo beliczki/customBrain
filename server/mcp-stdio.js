@@ -46,7 +46,7 @@ server.tool(
 );
 
 server.tool(
-  'search_brain',
+  'search',
   'Search your brain. Simple: pass query (hybrid dense+BM25, RRF-fused). Advanced: pass queries=[{type:"lex"|"vec",q}] to compose your own retrieval legs — lex is BM25-only (exact words, names, IDs), vec is dense-only (meaning, paraphrase) — fused server-side (RRF k=60). Every hit carries an evidence tag: exact_title | bm25_exact | high_dense | weak_semantic — WHY it surfaced, so you can weigh hits categorically instead of by raw score. Hits longer than 8000 chars come back as summary + matched_chunk_text + text_omitted (page the full text with get_thought from_line/max_lines).',
   {
     query: z.string().optional().describe('Simple-mode query (required unless queries is set)'),
@@ -88,7 +88,7 @@ server.tool(
 
 server.tool(
   'quick_lookup',
-  'Deterministic metadata lookup — zero model calls, zero embeddings. Answers counts / who / when / list-by questions from payload filters alone: thoughts by person, project, topic, type, source, or date range. Use this INSTEAD of search_brain when the question is about metadata ("how many meetings with X?", "what did I capture about project Y in June?") — it is exact and instant. Filters are case-insensitive substrings; combine freely.',
+  'Deterministic metadata lookup — zero model calls, zero embeddings. Answers counts / who / when / list-by questions from payload filters alone: thoughts by person, project, topic, type, source, or date range. Use this INSTEAD of search when the question is about metadata ("how many meetings with X?", "what did I capture about project Y in June?") — it is exact and instant. Filters are case-insensitive substrings; combine freely.',
   {
     person: z.string().optional(),
     project: z.string().optional(),
@@ -128,7 +128,7 @@ server.tool(
 );
 
 server.tool(
-  'brain_map',
+  'map',
   'Situation map for a question or anchor — the first call when someone asks "where are we with X?" / "what is going on with Y?". Returns one structured package, NOT a merged hit list: HORGONYOK (recognised projects/people/topics; per project whether a repo and Drive files exist), HELYZET (repo version/last commit/drift, latest files), ELŐZMÉNYEK (timeline: date · type · source · title · thought id), KÖVETKEZŐ (open/waiting commitments + upcoming calendar events tied to the anchors), HÁTTÉR (syntheses, decisions, dossiers, YouTube), HIÁNYOK (gaps across sources: drift, unreadable repo, project without Drive folder, overdue commitment, stale state, empty section), TOVÁBB (the deeper tool call per section, ready to run). One line per item with a ref — no full texts. Anchors in the question are matched on whole words; a bare first name is listed under candidates, not used. Calendar is read from the hourly agenda cache, not live. Zero LLM calls.',
   {
     question: z.string().optional().describe('Free-text question; anchors are recognised in it'),
@@ -360,7 +360,7 @@ server.tool(
 
 server.tool(
   'reindex_dossiers',
-  'Re-index the canonical People/Projects/Topics/Files/Repos dossiers into the search index so their content is retrievable by search_brain. Call this right after editing a dossier `.md` on Drive so the change is searchable immediately (don\'t wait for the hourly reconcile). No args = re-index only files whose content changed since last run. Optional: paths (e.g. ["Projects/Bizi"]) or types (["person"|"project"|"topic"|"file"|"repo"]) to scope; reconcile=true deletes points for dossiers removed from Drive (the hash gate still skips unchanged files); force=true re-embeds even unchanged dossiers (e.g. after an embedding-model change).',
+  'Re-index the canonical People/Projects/Topics/Files/Repos dossiers into the search index so their content is retrievable by search. Call this right after editing a dossier `.md` on Drive so the change is searchable immediately (don\'t wait for the hourly reconcile). No args = re-index only files whose content changed since last run. Optional: paths (e.g. ["Projects/Bizi"]) or types (["person"|"project"|"topic"|"file"|"repo"]) to scope; reconcile=true deletes points for dossiers removed from Drive (the hash gate still skips unchanged files); force=true re-embeds even unchanged dossiers (e.g. after an embedding-model change).',
   {
     paths: z.array(z.string()).optional().describe('Specific dossier paths, e.g. ["Projects/Bizi", "People/Porkoláb Dávid"]'),
     types: z.array(z.enum(['person', 'project', 'topic', 'file', 'repo'])).optional(),

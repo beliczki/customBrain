@@ -18,8 +18,8 @@ import { quickLookup } from '../server/quick-lookup.js';
  *     (what an MCP client actually pays to read the result)
  *
  * Paths compared:
- *   hybrid — search_brain simple mode (dense+BM25 RRF, chunk rollup, decay)
- *   multi  — search_brain typed mode (explicit lex+vec legs, JS RRF fusion)
+ *   hybrid — search simple mode (dense+BM25 RRF, chunk rollup, decay)
+ *   multi  — search typed mode (explicit lex+vec legs, JS RRF fusion)
  *   quick  — quick_lookup on the query as a topic/person filter (zero-model;
  *            only meaningful for metadata-shaped queries — reported for
  *            completeness, expected to lose on content queries)

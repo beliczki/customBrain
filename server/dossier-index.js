@@ -10,7 +10,7 @@ import { CHUNK_THRESHOLD } from './chunking.js';
 
 /**
  * Dossier indexing (Option B). Makes the canonical People/Projects/Topics `.md`
- * dossiers retrievable by search_brain — today they are only read at capture
+ * dossiers retrievable by search — today they are only read at capture
  * time for Haiku metadata and are invisible to search, so the richest curated
  * truth Robert maintains never surfaces.
  *

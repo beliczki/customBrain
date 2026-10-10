@@ -87,7 +87,7 @@ No `test` or `lint` scripts defined in any package.json. Verification is manual.
 
 ### Files & Repos dossiers (0.41.0)
 - Two more dossier folders beside People/Projects/Topics: `Files/` (one .md per delivered/received document — what it is, where it lives on Drive, which task it belongs to) and `Repos/` (one .md per repository — purpose, stack, deploy, state).
-- Hand/session-authored. Index-only: embedded + searchable via `search_brain` through the hourly dossier reindex (or `reindex_dossiers` on demand); they do NOT feed the capture-time Haiku prompt.
+- Hand/session-authored. Index-only: embedded + searchable via `search` through the hourly dossier reindex (or `reindex_dossiers` on demand); they do NOT feed the capture-time Haiku prompt.
 - `Files/` frontmatter convention: `drive_link`, `project`, `direction: received|delivered`, `from`, `date`. `Repos/`: `repo`, `deploy`, plus `aliases:` as everywhere.
 - Habit: when substantial work in a repo wraps up, update that repo's dossier.
 
@@ -112,7 +112,7 @@ All routes behind auth middleware. Route files in `server/routes/`:
 | `/thoughts/:id` | PATCH | `recent.js` | — (metadata edits; backs `update_thought`) |
 | `/stats` | GET | `stats.js` | `getStats` |
 | `/export` | POST | `export.js` | `exportThoughts` |
-| `/brain-map` | GET | `brain-map.js` | `buildBrainMap` (Search tab "Csomag" mode; same package as the `brain_map` MCP tool) |
+| `/map` | GET | `map.js` | `buildBrainMap` (Search tab `map` method; same package as the `map` MCP tool) |
 | `/agent-runs` | GET | `agent-runs.js` | `readAgentRuns` (Runs tab; MCP call log grouped into runs) |
 | `/mcp/http` | ALL | `mcp.js` | `handleMcpHttp` |
 | `/fireflies-webhook` | POST | `fireflies-webhook.js` | — (HMAC secret, **not** Bearer; mounted above the Bearer middleware in `server/index.js`) |
@@ -121,8 +121,8 @@ All routes behind auth middleware. Route files in `server/routes/`:
 
 Cheapest tool first — climb only when the rung below can't answer:
 
-1. **`quick_lookup`** — metadata questions (counts, who/when, list by person/project/topic/type/source/date range). Zero model calls, exact answers. Never use search_brain for "how many…" / "list my…" questions.
-2. **`search_brain`** — content questions. Simple `query` for hybrid dense+BM25; typed `queries=[{type:'lex'|'vec',q}]` when you want to compose exact-words + meaning legs yourself. Read the `evidence` tag on every hit (`exact_title | bm25_exact | high_dense | weak_semantic`) to weigh results categorically.
+1. **`quick_lookup`** — metadata questions (counts, who/when, list by person/project/topic/type/source/date range). Zero model calls, exact answers. Never use search for "how many…" / "list my…" questions.
+2. **`search`** (before 0.60.0: `search_brain`) — content questions. Simple `query` for hybrid dense+BM25; typed `queries=[{type:'lex'|'vec',q}]` when you want to compose exact-words + meaning legs yourself. Read the `evidence` tag on every hit (`exact_title | bm25_exact | high_dense | weak_semantic`) to weigh results categorically.
 3. **`get_thought` with `from_line`/`max_lines`** — page through long thoughts (Fireflies transcripts, refreshed Gmail threads) instead of loading full text.
 4. Vault-side (Obsidian/Drive sessions): check `index.md` first — one line per thought, regenerated on every rebuild — then open files second.
 
@@ -145,17 +145,17 @@ Route files export an Express router (default) and a named function for core log
 
 ## MCP tools
 
-Core: `server/mcp.js` — `capture_thought`, `search_brain`, `list_recent`, `brain_stats`, `rebuild_obsidian_vault`.
+Core: `server/mcp.js` — `capture_thought`, `search`, `list_recent`, `brain_stats`, `rebuild_obsidian_vault`.
 
 Files catalog (0.51.0): `find_files` reads `state/files-catalog.json` (`server/files-catalog.js`) — document-type files on My Drive + real attachments of `brain/captured` Gmail threads, metadata only. A Drive file's project is the deepest folder some Projects dossier declares in its `drive_folder:` frontmatter list (folder links; matched by id, so renames and shared folders work) — Projects dossiers without it get no Drive files. Built by hand on the server with `node scripts/build-files-catalog.js` (read-only against Drive/Gmail/Qdrant; writes the file only if every source was read completely). No cron yet.
 
 Commitments (0.53.0): `server/commitments.js`, own Qdrant collection `commitments` (dense + bm25, same schema as thoughts). Thought `action_items` are loose **candidates**; a commitment has one owner (Robi = `Me`), status (`open|waiting|done|dropped`, plus `expired` derived on read from `event_ref`), `kind` (`penz|jog|ugyfel|belso`), optional `due`, and ≥1 direct source with a verbatim quote. Tools: `list_commitment_candidates` + `list_commitments` (brain-read), `save_commitments` (curate). No server-side LLM — the session agent proposes, Robi approves; workflow in the repo skill `.claude/skills/review-commitments/`. A thought leaves the candidate list once `candidates_reviewed_at` is stamped, and returns when its `updated_at` (e.g. Gmail refresh) is later.
 
-brain_map (0.56.0): `server/brain-map.js`. It assembles the spec's situation package (HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB) from existing readers: vault context, `repos-status.json`, `findFiles`, `quickLookup`, `searchThoughts`, `listCommitments`, the agenda cache. It never fetches new data and makes no LLM call. Scope `brain-read`, because the calendar is read from the agenda cache. Section caps and stale thresholds are constants at the top of the file, the future AUTORESEARCH knobs. A new source joins as a reader there, not as a new search.
+map (0.56.0; named `brain_map` until 0.60.0): `server/brain-map.js`. Tool names drop the redundant "brain" (it is the brain MCP): the retrieval methods are `search`, `map`, and the planned `spider` — see `docs/bejaras-modszerek-terv-2026-10-10.md`. It assembles the spec's situation package (HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB) from existing readers: vault context, `repos-status.json`, `findFiles`, `quickLookup`, `searchThoughts`, `listCommitments`, the agenda cache. It never fetches new data and makes no LLM call. Scope `brain-read`, because the calendar is read from the agenda cache. Section caps and stale thresholds are constants at the top of the file, the future AUTORESEARCH knobs. A new source joins as a reader there, not as a new search.
 
 MCP call log (0.58.0): `server/mcp-call-log.js` → `state/mcp-calls.jsonl`, written from `applyScopeGate`'s handler wrap (HTTP callers only, `caller` = token name). A new tool is logged automatically; nothing to add per tool. No full result text — clipped args + `{id, title}` refs.
 
-Ontology layers (0.59.0): `server/ontology.js` `layerOf()` is the ONE rule for which layer a point belongs to (Horgony · Történés · Tárgy · Vállalás · Tudás). `brain_map` HÁTTÉR and the Graph's Ontológia mode both use it — change the rule there, never in a caller.
+Ontology layers (0.59.0): `server/ontology.js` `layerOf()` is the ONE rule for which layer a point belongs to (Horgony · Történés · Tárgy · Vállalás · Tudás). `map` HÁTTÉR and the Graph's Ontológia mode both use it — change the rule there, never in a caller.
 
 **Collections:** names live only in `server/collections.js`; `BACKED_UP` is the list the nightly backup snapshots — a new collection goes there in the same change. `scripts/restore-from-snapshot.js` requires `--collection <name>`.
 

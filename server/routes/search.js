@@ -280,7 +280,7 @@ export async function searchThoughtsMulti(subQueries, limit = 5) {
   return decayed.slice(0, limit);
 }
 
-// MCP output shape (search_brain, both MCP surfaces). A hit's full text rides
+// MCP output shape (search, both MCP surfaces). A hit's full text rides
 // along only up to AGENT_TEXT_MAX chars; a longer thought comes back as its
 // stored summary + the matched chunk + a pointer to page the rest with
 // get_thought. Measured 2026-10-09: two hits = 121k chars (one 107k-char

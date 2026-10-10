@@ -42,9 +42,9 @@ export async function search(q, limit = 5) {
   return jsonOrThrow(res, 'search');
 }
 
-export async function brainMap(q) {
-  const res = await fetch(`${BASE}/brain-map?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
-  return jsonOrThrow(res, 'brain-map');
+export async function getMap(q) {
+  const res = await fetch(`${BASE}/map?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
+  return jsonOrThrow(res, 'map');
 }
 
 export async function agentRuns(days = 7) {

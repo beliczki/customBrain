@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import ThoughtModal from './ThoughtModal.jsx';
 
-// The brain_map package (0.57.0) — the same seven sections the MCP tool hands
+// The map package (0.57.0) — the same seven sections the MCP tool hands
 // an agent, rendered as-is. No retrieval logic lives here: the server builds
 // the package, this only lays it out. Row and header styles follow the Agenda
 // tab (agenda-day__header, agenda-thought-link); chip colours follow Search.
@@ -156,9 +156,9 @@ export default function BrainMapPackage({ map, onShowHits }) {
           {further.map((f, i) => (
             <li key={i} className="brain-map__row flex items-baseline gap-2 text-xs">
               <span className="w-24 shrink-0 text-[10px] uppercase tracking-wider text-txt-ter">{f.section}</span>
-              {f.tool === 'search_brain' ? (
+              {f.tool === 'search' ? (
                 <button type="button" onClick={onShowHits} className="brain-map__to-hits text-txt-sec underline underline-offset-2 hover:text-txt">
-                  Találatok mód →
+                  search mód →
                 </button>
               ) : (
                 <span className="font-mono text-txt-sec">{f.tool}({argsText(f.args)})</span>

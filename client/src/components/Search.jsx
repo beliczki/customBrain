@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { search, brainMap } from '../api.js';
+import { search, getMap } from '../api.js';
 import ThoughtBody from './ThoughtBody.jsx';
 import ThoughtFacts from './ThoughtFacts.jsx';
 import ChunkAnatomyModal from './ChunkAnatomyModal.jsx';
 import BrainMapPackage from './BrainMapPackage.jsx';
 
-// Two modes over one input (0.57.0): "Csomag" is the brain_map package the
-// agent gets; "Találatok" is the raw hybrid hit list with the anatomy view.
+// Two methods over one input (0.57.0; named after their MCP tools since 0.60.0): "map" is the package the
+// agent gets; "search" is the raw hybrid hit list with the anatomy view.
 // A submit fetches only the active mode; switching fetches the other one for
 // the same query the first time it is shown.
-const MODES = [['package', 'Csomag'], ['hits', 'Találatok']];
+const MODES = [['hits', 'search'], ['package', 'map']];
 
 export default function Search() {
   const [query, setQuery] = useState('');
@@ -25,7 +25,7 @@ export default function Search() {
     setLoading(true);
     setError(null);
     try {
-      if (m === 'package') setMap({ q, data: await brainMap(q) });
+      if (m === 'package') setMap({ q, data: await getMap(q) });
       else setResults({ q, hits: await search(q) });
     } catch (err) {
       setError(err.message);

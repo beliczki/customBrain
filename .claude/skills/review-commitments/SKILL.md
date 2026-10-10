@@ -25,7 +25,7 @@ A condensed copy of these rules runs daily as the Cowork scheduled task "Commitm
 - `list_commitment_candidates({ since?, limit?, offset? })` — unreviewed thoughts with their action_items + `live_commitments` for dedup.
 - `list_commitments({ status?, owner?, project?, kind?, due_before? })` — the current list, urgency-sorted, `expired` derived.
 - `save_commitments({ commitments, reviewed_thought_ids })` — batch write after approval.
-- For evidence: `get_thought`, `quick_lookup` (e.g. `source: "fireflies"` on the event's date), `search_brain`.
+- For evidence: `get_thought`, `quick_lookup` (e.g. `source: "fireflies"` on the event's date), `search`.
 
 ## Rules
 

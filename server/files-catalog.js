@@ -52,7 +52,7 @@ export function variantKey(name) {
 
 const norm = (s) => stripAccents(String(s || '')).toLowerCase();
 
-// Same curve as search_brain's applyTimeDecay (server/routes/search.js): older
+// Same curve as search's applyTimeDecay (server/routes/search.js): older
 // files rank lower but never reach zero — the past stays findable, it is just
 // not the most probable target of a query.
 const HALF_LIFE_DAYS = 90;

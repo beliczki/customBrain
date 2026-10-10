@@ -2,6 +2,17 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.60.0 — 2026-10-10
+
+**Breaking: the retrieval tools drop "brain" from their names.** This is the brain MCP, so the word was redundant. `search_brain` → `search`, `brain_map` → `map`; the planned third method will be `spider` (plan: `docs/bejaras-modszerek-terv-2026-10-10.md`). No alias is kept for the old names: connected clients need a fresh session (some a connector refresh) to see the new tool list, and saved prompts outside this repo that name `search_brain` stop working. Changed together:
+- the registrations in `server/mcp.js` and `server/mcp-stdio.js`, their `TOOL_SCOPES` entries (scopes unchanged: both `brain-read`), and the tool descriptions that point to `search` (`quick_lookup`, `reindex_dossiers`);
+- the `map` package's TOVÁBB entry now names `search`;
+- HTTP: `GET /brain-map` → `GET /map` (`server/routes/map.js`), the SPA wildcard guard, and `client/src/api.js` (`getMap`);
+- the Search tab's switch reads `search | map` (default still `map`);
+- the `review-commitments` skill, CLAUDE.md and README.
+
+Internal names (`server/brain-map.js`, `buildBrainMap`, the `brain-map__*` CSS classes) stay; they are not part of any interface. History (CHANGELOG, older plans) keeps the old names.
+
 ## 0.59.0 — 2026-10-10
 
 **Graph: a new Ontológia mode shows all five layers as bubbles.** It is a new grouping in the existing anchor machinery (`GROUP_MODES` + `layer`). Five layer anchors sit around the BRAIN, and each node is tied to its own layer: Horgony, Történés, Tárgy, Vállalás, Tudás. Cross-layer edges are a new edge kind, `ontology`, with a `rel` subtype, toggled from the Edges panel. `tag` links a thought to a project, person or topic dossier. `source` links a commitment to its source thought (gmail/fireflies `ref` = `source_id`, plus `candidate_refs`). `owner` links a commitment to a person or project dossier. `repo` links a repo to a project. `files` links a file bundle to a project. The extra nodes load the first time the mode is picked, from the new `GET /graph/ontology` (`buildOntology` in `server/routes/graph.js`), so the default graph payload does not grow, and Louvain still runs on thoughts only. Nodes:

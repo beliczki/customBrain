@@ -114,12 +114,12 @@ capture_thought({
 }
 ```
 
-#### `search_brain`
+#### `search`
 
 Semantic search over all active thoughts. Time-decay applied (newer thoughts score slightly higher).
 
 ```
-search_brain({ query: "onboarding flow decisions", limit: 5 })
+search({ query: "onboarding flow decisions", limit: 5 })
 → [{ id, text, title, metadata, created_at, score, cosine_score }, …]
 ```
 

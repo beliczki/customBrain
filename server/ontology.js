@@ -1,6 +1,6 @@
 // The ontology's layers (docs/ontologia-es-helyzetcsomag-spec-2026-10-10.md,
 // section 2) — ONE definition of which layer an item belongs to, shared by
-// brain_map (HÁTTÉR = Tudás) and the Graph's Ontológia mode. Two hand-kept
+// map (HÁTTÉR = Tudás) and the Graph's Ontológia mode. Two hand-kept
 // lists would drift apart; this is the place to change the rule.
 
 export const LAYERS = [

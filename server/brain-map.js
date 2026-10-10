@@ -1,4 +1,4 @@
-// brain_map (0.56.0) — the situation package of the ontology spec
+// map (0.56.0; brain_map until 0.60.0) — the situation package of the ontology spec
 // (docs/ontologia-es-helyzetcsomag-spec-2026-10-10.md, plan:
 // docs/brain-map-terv-2026-10-10.md). One question or anchor in, seven
 // sections out: HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR ·
@@ -242,7 +242,7 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   }
   for (const e of events) further.push({ section: 'KÖVETKEZŐ', tool: 'get_event_context', args: { event_title: e.title }, note: 'live Gmail + Fireflies' });
   if (history.length) further.push({ section: 'ELŐZMÉNYEK', tool: 'get_thought', args: { thought_id: history[0].id, from_line: 1, max_lines: 80 } });
-  if (question) further.push({ section: 'ELŐZMÉNYEK', tool: 'search_brain', args: { query: question, limit: 20 } });
+  if (question) further.push({ section: 'ELŐZMÉNYEK', tool: 'search', args: { query: question, limit: 20 } });
 
   // An empty section is said out loud, not left for the agent to guess at.
   const sections = { HELYZET: situation.repos.length + situation.files.length, ELŐZMÉNYEK: history.length, KÖVETKEZŐ: commitments.length + events.length, HÁTTÉR: background.length };

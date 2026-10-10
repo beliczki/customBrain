@@ -26,13 +26,13 @@ export const TOOL_SCOPES = {
   manage_drafts: 'capture', // approve calls captureThought
 
   // brain-read — reads only what is already in the brain
-  search_brain: 'brain-read',
+  search: 'brain-read',
   get_thought: 'brain-read',
   quick_lookup: 'brain-read',
   find_files: 'brain-read', // reads state/files-catalog.json; no provider calls
   list_commitments: 'brain-read',
   list_commitment_candidates: 'brain-read',
-  brain_map: 'brain-read', // agenda cache, not live Calendar; no provider calls
+  map: 'brain-read', // agenda cache, not live Calendar; no provider calls
   list_recent: 'brain-read',
   brain_stats: 'brain-read',
   find_overconnected: 'brain-read',
