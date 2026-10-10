@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.63.2 — 2026-10-10
+
+**Menu details after HINT-map.** The version sits above the footer rule. In the collapsed 60 px strip it is turned on its side (`-rotate-90`, the outer box keeps the space), as in HINT-map's rail. With the menu collapsed, the brain logo moves in front of the page title in the content header.
+
 ## 0.63.1 — 2026-10-10
 
 **Settings is a dialog, with a tab per section.** The menu footer's Settings opens it over the current page instead of navigating to a Settings page. It is sized like the other large dialogs (90vw × 90vh, max-w-6xl), with square corners and the `ThoughtModal` look. The header holds the title, last-saved time, Save, Save & Restart and close. The tabs are OAuth clients, MCP tokens, then every `settings.json` category in its existing order, and only one section shows at a time. Unsaved edits are one state across tabs, so Save writes them wherever they were typed; a tab with unsaved fields shows a dot. Closing with Esc, ✕ or a backdrop click asks first when there are unsaved edits.

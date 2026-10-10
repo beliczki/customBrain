@@ -98,20 +98,34 @@ export default function AppShell({ appName, version, active, onNavigate, onLogou
               <NavItem key={key} icon={icon} label={key} active={active === key} collapsed={collapsed} onClick={() => onNavigate(key)} />
             ))}
           </nav>
-          <div className="app-sidebar__footer mt-auto border-t border-[var(--border)] py-2">
+          {/* Version above the footer rule, as in HINT-map: in the 60 px strip
+              it only fits on its side — the outer box holds the space (a
+              rotation does not change the layout box), the inner one turns. */}
+          {version && (collapsed ? (
+            <span className="app-version flex h-14 w-full shrink-0 items-center justify-center">
+              <span className="-rotate-90 whitespace-nowrap font-mono text-[10px] leading-none text-txt-ter">v{version}</span>
+            </span>
+          ) : (
+            <p className="app-version shrink-0 px-[21px] pb-2 font-mono text-[10px] text-txt-ter">v{version}</p>
+          ))}
+          <div className="app-sidebar__footer border-t border-[var(--border)] py-2">
             <div className={`app-sidebar__theme h-11 flex items-center ${collapsed ? 'justify-center' : 'px-[18px]'}`}>
               <ThemeToggle inline compact={collapsed} />
             </div>
             <NavItem icon={Settings} label="Settings" active={settingsOpen} collapsed={collapsed} onClick={onOpenSettings} />
             <NavItem icon={LogOut} label="Kijelentkezés" active={false} collapsed={collapsed} onClick={onLogout} />
-            {version && (
-              <p className={`app-version text-[10px] text-txt-ter font-mono pt-2 ${collapsed ? 'text-center' : 'px-[21px]'}`}>v{version}</p>
-            )}
           </div>
         </aside>
 
         <main className="app-content flex-1 min-w-0 flex flex-col">
-          <header className="app-content__header flex items-center h-14 shrink-0 px-6 border-b border-[var(--border)]">
+          <header className="app-content__header flex items-center gap-2 h-14 shrink-0 px-6 border-b border-[var(--border)]">
+            {/* The brand leaves the collapsed menu, so it moves in front of the title. */}
+            {collapsed && (
+              <>
+                <img src="/brain_darkmode.svg" alt="" className="w-6 h-6 hidden dark:block" />
+                <img src="/brain.svg" alt="" className="w-6 h-6 dark:hidden" />
+              </>
+            )}
             <h1 className="text-lg font-semibold text-txt truncate">{title}</h1>
           </header>
           {fullBleed ? (
