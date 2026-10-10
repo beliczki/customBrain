@@ -2,6 +2,13 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.74.0 — 2026-10-10
+
+**spider starts from the anchor the question names; dossiers link to their product family.**
+- **Anchor first.** When the question names an anchor (matchAnchors, the same as map; "ERSTE SZA" → ERSTE Számlák via its `SZA` alias, plus ERSTE itself), the walk starts there. A search hit then starts only if it is tied to an anchor: the anchor's own dossier, an item tagged with it, or its repo, whose dossier node now carries the project. Untied hits are dropped. On "ERSTE SZA" the top 5 hits used to be five ERSTE dossiers matching the shared word "ERSTE" (Market, VAL, SZK…): siblings, not the thing named. Without an anchor in the question, the top search hits start as before.
+- **Dossier edges from the Projects frontmatter** (`buildOntology`): `projects:` wikilinks give the family edge (rel `dossier`, e.g. ERSTE Számlák → ERSTE) and `related:` wikilinks a declared overlap (rel `related`). Only wikilinks count; ERSTE.md's plain child codes do not. spider weights: dossier 0.5, related 0.7. The parsing is the shared `frontmatterLinks()` (`server/project-people.js`).
+- **Data (Drive):** ERSTE Számlák lists "Vállalkozói számla" among its products and `related: [[ERSTE Vállakozók]]` (Robi, 2026-10-10).
+
 ## 0.73.4 — 2026-10-10
 
 **spider stays on the question's topic, and hover outlines take the chart's colour.**

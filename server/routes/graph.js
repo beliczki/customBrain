@@ -292,6 +292,9 @@ export async function buildOntology() {
     if (d.dossier_type === 'repo') {
       const r = reposByDossier.get(d.name);
       node.entity = 'repo';
+      // The repo's project (repos-status) — so an anchor-first walk counts the
+      // repo as tied to its project ("confai" → confAi2), 0.74.0.
+      if (r && r.project) node.projects = [r.project.replace(/^["'[]+|["'\]]+$/g, '')];
       node.detail = !r ? ['repos-status.json: no entry']
         : r.error ? [r.error]
           : [`${r.repo} · ${r.version ? `v${r.version}` : 'no package.json version'}`, `last commit ${r.last_commit.date.slice(0, 10)}`, ...r.drift];
