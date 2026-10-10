@@ -18,6 +18,8 @@ const router = Router();
 // {type:'error'}. The Search tab uses it to say what is happening meanwhile.
 router.get('/trace', async (req, res) => {
   const { method, q, stream } = req.query;
+  // spider's step budget (0.75.0); absent → the spider default
+  const opts = req.query.steps ? { steps: Number(req.query.steps) } : {};
   if (!q) return res.status(400).json({ error: 'q is required' });
   if (!METHODS.includes(method)) return res.status(400).json({ error: `method must be one of ${METHODS.join(', ')}` });
   if (stream === '1') {
@@ -26,7 +28,7 @@ router.get('/trace', async (req, res) => {
     res.setHeader('X-Accel-Buffering', 'no'); // nginx must pass lines through as written
     const send = (obj) => res.write(JSON.stringify(obj) + '\n');
     try {
-      const out = await buildTrace(method, q, send);
+      const out = await buildTrace(method, q, send, opts);
       send(out.error ? { type: 'error', error: out.error } : { type: 'result', ...out });
     } catch (err) {
       console.error('Trace error:', err.message);
@@ -35,7 +37,7 @@ router.get('/trace', async (req, res) => {
     return res.end();
   }
   try {
-    const out = await buildTrace(method, q);
+    const out = await buildTrace(method, q, undefined, opts);
     if (out.error) return res.status(400).json(out);
     res.json(out);
   } catch (err) {
@@ -79,14 +81,14 @@ async function resolver() {
   };
 }
 
-export async function buildTrace(method, q, emit = () => {}) {
+export async function buildTrace(method, q, emit = () => {}, opts = {}) {
   let result;
   let steps;
   if (method === 'search') {
     result = await phase(emit, 'search', 'keresés', searchThoughts(q, SEARCH_LIMIT), (r) => `${r.length} találat`);
     steps = result.map((h) => ({ phase: 'search', ref: { id: h.id }, label: h.title, why: `${h.evidence} · ${h.score.toFixed(3)}` }));
   } else if (method === 'spider') {
-    ({ result, trace: steps } = await spiderWalk(q, emit));
+    ({ result, trace: steps } = await spiderWalk(q, emit, opts));
   } else {
     const { trace, ...pkg } = await buildBrainMap({ question: q, withTrace: true, emit });
     if (pkg.error) return { error: pkg.error };

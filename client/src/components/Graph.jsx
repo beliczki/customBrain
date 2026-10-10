@@ -277,7 +277,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
     savedGroupByRef.current = groupBy;
     setGroupBy('layer');
     setTrace(null);
-    getTrace(traversal.method, traversal.q)
+    getTrace(traversal.method, traversal.q, traversal.steps)
       .then((t) => { setTrace(t); setTraceCursor(0); setTracePlaying(true); })
       .catch((err) => setError(err.message));
     // groupBy is read once, at the start of a replay — not a trigger.

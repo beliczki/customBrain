@@ -2,6 +2,21 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.75.0 — 2026-10-10
+
+**spider becomes an MCP tool; the three methods' tool descriptions say what to expect, from a measurement.**
+- **Measurement** (10 work questions, search vs map vs spider; Haiku judged every returned item relevant / context / off-subject; the result is in `/root/eval-three-methods.json` on the server):
+  - search: 36 relevant of 100 (precision 0.36, 85% at least context), ~130k chars per call;
+  - map: 99 relevant of 545 lines (0.18), ~13k chars. By section: KÖVETKEZŐ 26%, ELŐZMÉNYEK 20%, HELYZET 19%, HÁTTÉR 18%, KORÁBBI 5%;
+  - spider: 93 relevant of 360 (0.26), ~27k chars. By lens: project 27%, source 24%, cluster 20%, ontology 13%;
+  - overlap: 151 distinct relevant items in all; map ∩ spider 41, search ∩ map 28.
+
+  The judge varies between runs (Humanody: 6 → 3 relevant), so these numbers give a direction, not an exact value. As Robi notes, "off-subject" lines are often adjacent connections, a place for new ideas, not noise to drop. The descriptions say so.
+- **`spider` MCP tool** (brain-read, both surfaces): question plus optional `steps`. It returns the reached items per layer (title, type, date, step, lens, why, link) and the frontier, plus per lens why it stopped. Titles only; follow up with `get_thought`.
+- **Configurable step budget:** `spiderWalk(..., { steps })`, default 24 (from 36), clamped to 6–60; `/trace?steps=`. The Search tab gets a 12/24/36/48 selector in spider mode, carried in the URL (`&s=`) and into the graph replay. Steps 25–36 were as often relevant as the first 24 (27% vs 25%), so a smaller budget is a shorter answer, not a cleaner one.
+- **Ontology lens damped (×0.6):** it was the least precise lens (13%).
+- **`search` and `map` descriptions** now state precision, reach, payload size, which sections to read for what, and when to use which method. CLAUDE.md's retrieval routing says the same.
+
 ## 0.74.0 — 2026-10-10
 
 **spider starts from the anchor the question names; dossiers link to their product family.**

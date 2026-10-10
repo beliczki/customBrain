@@ -169,7 +169,7 @@ export default function App() {
       {active === 'Capture' && <Capture />}
       {/* Search stays mounted (0.71.0): back from the graph replay, its results are still there. */}
       <div className={active === 'Search' ? '' : 'hidden'}>
-        <Search active={active === 'Search'} onTraverse={(method, q) => { setTraversal({ method, q }); setActive('Graph'); }} />
+        <Search active={active === 'Search'} onTraverse={(method, q, steps) => { setTraversal({ method, q, steps }); setActive('Graph'); }} />
       </div>
       {active === 'Recent' && <Recent />}
       {active === 'Agenda' && <Agenda />}

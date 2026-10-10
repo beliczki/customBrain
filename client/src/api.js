@@ -47,15 +47,15 @@ export async function getMap(q) {
   return jsonOrThrow(res, 'map');
 }
 
-export async function getTrace(method, q) {
-  const res = await fetch(`${BASE}/trace?method=${method}&q=${encodeURIComponent(q)}`, { headers: authHeaders() });
+export async function getTrace(method, q, steps = null) {
+  const res = await fetch(`${BASE}/trace?method=${method}&q=${encodeURIComponent(q)}${steps ? `&steps=${steps}` : ''}`, { headers: authHeaders() });
   return jsonOrThrow(res, 'trace');
 }
 
 // NDJSON stream (0.64.0): calls onEvent for every {type:'phase'} line as it
 // arrives and resolves with the final {type:'result'} line.
-export async function streamTrace(method, q, onEvent) {
-  const res = await fetch(`${BASE}/trace?method=${method}&q=${encodeURIComponent(q)}&stream=1`, { headers: authHeaders() });
+export async function streamTrace(method, q, onEvent, steps = null) {
+  const res = await fetch(`${BASE}/trace?method=${method}&q=${encodeURIComponent(q)}&stream=1${steps ? `&steps=${steps}` : ''}`, { headers: authHeaders() });
   if (!res.ok) return jsonOrThrow(res, 'trace');
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

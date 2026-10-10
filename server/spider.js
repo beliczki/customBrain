@@ -29,7 +29,15 @@ import { nameKey } from './names.js';
 import { LAYERS } from './ontology.js';
 
 // Hand-set starting values, like brain_map's MAX — the AUTORESEARCH knobs.
-const MAX_STEPS = 36; // ~5 waves of six lenses after the starting points
+// Default step budget (0.75.0: per call via `steps`). Measured 2026-10-10 on
+// 10 questions: steps 25–36 were as often relevant (27%) as the first 24
+// (25%), so a smaller budget is a shorter answer, not a cleaner one.
+export const DEFAULT_STEPS = 24;
+export const MAX_STEPS_LIMIT = 60;
+// The ontology lens (semantic kNN, supersedes, cross-layer edges) was the
+// least precise lens in that measurement: 13% relevant, against 24–27% for
+// project/source/cluster. Its graph offers are damped by this factor.
+const ONTOLOGY_DAMP = 0.6;
 const MIN_SCORE = 0.05;
 const DECAY = 0.85;
 const SEEDS = 10; // search hits considered as starting points
@@ -64,7 +72,8 @@ const LENSES = [
  * recency: false walks on edge weights alone — map's KORÁBBI uses it, since
  * its job is to see past the window that recency (rightly) favours.
  */
-export async function spiderWalk(question, emit = () => {}, { recency = true } = {}) {
+export async function spiderWalk(question, emit = () => {}, { recency = true, steps = DEFAULT_STEPS } = {}) {
+  const MAX_STEPS = Math.max(6, Math.min(MAX_STEPS_LIMIT, Math.round(steps)));
   const hhmm = (iso) => new Date(iso).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Budapest' });
   const [{ graph }, ontology, hits, vault] = await Promise.all([
     phase(emit, 'graph', 'gráf', getCachedGraph(), (c) => `${c.graph.nodes.length} thought, ${c.graph.edges.length} él · építve ${hhmm(c.built_at)}`),
@@ -182,7 +191,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
     const node = nodes.get(id);
     const damp = DECAY / Math.sqrt(Math.max(1, adj.get(id).length));
     for (const { to, w, e } of adj.get(id)) {
-      if (!visited.has(to)) offer('ontology', to, base * w * damp * age(nodes.get(to)), id, `[ontológia] ${EDGE_LABEL(e)} ← ${node.title}`);
+      if (!visited.has(to)) offer('ontology', to, base * w * damp * ONTOLOGY_DAMP * age(nodes.get(to)), id, `[ontológia] ${EDGE_LABEL(e)} ← ${node.title}`);
     }
     for (const lens of LENSES) {
       if (!lens.keys) continue;

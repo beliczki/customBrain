@@ -33,6 +33,7 @@ export const TOOL_SCOPES = {
   list_commitments: 'brain-read',
   list_commitment_candidates: 'brain-read',
   map: 'brain-read', // agenda cache, not live Calendar; no provider calls
+  spider: 'brain-read', // graph walk over the brain's own graph; no provider calls
   list_recent: 'brain-read',
   brain_stats: 'brain-read',
   find_overconnected: 'brain-read',

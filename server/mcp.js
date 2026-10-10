@@ -20,6 +20,7 @@ import { findFiles } from './files-catalog.js';
 import { reindexDossiers } from './dossier-index.js';
 import { listCommitments, listCommitmentCandidates, saveCommitments } from './commitments.js';
 import { buildBrainMap } from './brain-map.js';
+import { spiderWalk } from './spider.js';
 import { applyScopeGate } from './mcp-scopes.js';
 
 /**
@@ -51,7 +52,7 @@ export function createMcpServer({ scopes = null, caller = null } = {}) {
 
   server.tool(
     'search',
-    'Search your brain. Simple: pass query (hybrid dense+BM25, RRF-fused). Advanced: pass queries=[{type:"lex"|"vec",q}] to compose your own retrieval legs — lex is BM25-only (exact words, names, IDs), vec is dense-only (meaning, paraphrase) — fused server-side (RRF k=60). Every hit carries an evidence tag: exact_title | bm25_exact | high_dense | weak_semantic — WHY it surfaced, so you can weigh hits categorically instead of by raw score. Hits longer than 8000 chars come back as summary + matched_chunk_text + text_omitted (page the full text with get_thought from_line/max_lines).',
+    'Search your brain for exact content — the specific thought, document section or wording. Pick by question type (measured on 10 work questions, 2026-10-10): search has the highest precision of the three methods (~36% of hits directly relevant, ~85% at least useful context) but the narrowest reach (~4 relevant per 10 hits); it never returns commitments, and files only as repo-doc sections. It returns full texts (~130k chars per 10 hits), so it is the heaviest on context. Use it for "what exactly did X write / where is the spec for Y"; for status, next steps or what connects to a person/project, use map or spider first. Simple: pass query (hybrid dense+BM25, RRF-fused). Advanced: pass queries=[{type:"lex"|"vec",q}] to compose your own retrieval legs — lex is BM25-only (exact words, names, IDs), vec is dense-only (meaning, paraphrase) — fused server-side (RRF k=60). Every hit carries an evidence tag: exact_title | bm25_exact | high_dense | weak_semantic — WHY it surfaced, so you can weigh hits categorically instead of by raw score. Hits longer than 8000 chars come back as summary + matched_chunk_text + text_omitted (page the full text with get_thought from_line/max_lines).',
     {
       query: z.string().optional().describe('Simple-mode query (required unless queries is set)'),
       limit: z.number().optional(),
@@ -133,7 +134,7 @@ export function createMcpServer({ scopes = null, caller = null } = {}) {
 
   server.tool(
     'map',
-    'Situation map for a question or anchor — the first call when someone asks "where are we with X?" / "what is going on with Y?". Returns one structured package, NOT a merged hit list: HORGONYOK (recognised projects/people/topics; per project whether a repo and Drive files exist), HELYZET (repo version/last commit/drift, latest files), ELŐZMÉNYEK (timeline: date · type · source · title · thought id), KORÁBBI (older than the window: what a graph walk from the same question reached, with the edge that led there), KÖVETKEZŐ (open/waiting commitments + upcoming calendar events tied to the anchors), HÁTTÉR (syntheses, decisions, dossiers, YouTube), HIÁNYOK (gaps across sources: drift, unreadable repo, project without Drive folder, overdue commitment, stale state, empty section), TOVÁBB (the deeper tool call per section, ready to run). One line per item with a ref — no full texts. Anchors in the question are matched on whole words; a bare first name is listed under candidates, not used. Calendar is read from the hourly agenda cache, not live. Zero LLM calls.',
+    'Situation map for a question or anchor — the first call when someone asks "where are we with X?" / "what is going on with Y?". Measured (10 work questions, 2026-10-10): the widest coverage of the three methods (~10 directly relevant lines per question, the most) at the lowest precision per line (~18% directly relevant, ~55% at least context), but the lines are short (~13k chars per package). Where to look: KÖVETKEZŐ is the best next-step source (~26% directly relevant: commitments); ELŐZMÉNYEK and HELYZET carry the status (~20%); KORÁBBI is mostly peripheral (~5% directly relevant) — lateral context, read it when you want the wider picture. Lines that are not on the exact subject are often adjacent connections, not noise to discard. Needs an anchor in the question (project/person/topic name or alias) to be at its best. Returns one structured package, NOT a merged hit list: HORGONYOK (recognised projects/people/topics; per project whether a repo and Drive files exist), HELYZET (repo version/last commit/drift, latest files), ELŐZMÉNYEK (timeline: date · type · source · title · thought id), KORÁBBI (older than the window: what a graph walk from the same question reached, with the edge that led there), KÖVETKEZŐ (open/waiting commitments + upcoming calendar events tied to the anchors), HÁTTÉR (syntheses, decisions, dossiers, YouTube), HIÁNYOK (gaps across sources: drift, unreadable repo, project without Drive folder, overdue commitment, stale state, empty section), TOVÁBB (the deeper tool call per section, ready to run). One line per item with a ref — no full texts. Anchors in the question are matched on whole words; a bare first name is listed under candidates, not used. Calendar is read from the hourly agenda cache, not live. Zero LLM calls.',
     {
       question: z.string().optional().describe('Free-text question; anchors are recognised in it'),
       project: z.string().optional().describe('Project anchor (alias-resolved)'),
@@ -144,6 +145,28 @@ export function createMcpServer({ scopes = null, caller = null } = {}) {
     async (args) => {
       const result = await buildBrainMap(args);
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    'spider',
+    'Graph walk from the question: it starts at the anchors the question names (or, without one, the strongest search hits) and walks the brain in parallel waves through six lenses — ontology (semantic/structural edges), project, person, source and type (same thread that week), cluster — each wave every lens takes its own best step, and a node several lenses reach scores higher. Returns the reached items per ontology layer (Horgony / Történés / Tárgy / Vállalás / Tudás) with the step, the lens and WHY (the edge it came through), the frontier it did not reach, and per lens why it stopped. Titles only, no texts (~27k chars) — follow up with get_thought. Measured (10 work questions, 2026-10-10): ~9 directly relevant items per question (~26% directly, ~70% at least context); strongest on next steps (it reaches commitments), person-centric questions ("what did X ask") and project status — 78 relevant items over 10 questions that search never returned. Weak for exact-content lookups (use search). The rest are adjacent connections, not noise to discard: lateral links worth reading when you want ideas or the wider picture. steps: budget (default 24, 6–60); later steps were as often relevant as early ones, so more steps = more recall, longer answer. Zero LLM calls.',
+    {
+      question: z.string().describe('Free-text question; anchors (project/person/topic names, aliases) are recognised in it'),
+      steps: z.number().optional().describe('Step budget (default 24, 6–60)'),
+    },
+    async ({ question, steps }) => {
+      const { result } = await spiderWalk(question, undefined, steps ? { steps } : {});
+      // The agent gets lines, not the UI's per-item tag arrays.
+      const line = (i) => ({ id: i.id, title: i.title, type: i.type, date: i.date, step: i.step, lens: i.lens, why: i.why, ...(i.link ? { link: i.link } : {}) });
+      const out = {
+        question,
+        layers: result.layers.filter((l) => l.items.length).map((l) => ({ layer: l.label, items: l.items.map(line) })),
+        frontier: result.candidates.map((c) => ({ id: c.id, title: c.title, why: c.why })),
+        lenses: result.lenses.map((l) => ({ lens: l.label, ...l.diag })),
+        stopped: result.stopped, rounds: result.rounds, params: result.params,
+      };
+      return { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }] };
     }
   );
 

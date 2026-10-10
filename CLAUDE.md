@@ -123,9 +123,10 @@ All routes behind auth middleware. Route files in `server/routes/`:
 Cheapest tool first — climb only when the rung below can't answer:
 
 1. **`quick_lookup`** — metadata questions (counts, who/when, list by person/project/topic/type/source/date range). Zero model calls, exact answers. Never use search for "how many…" / "list my…" questions.
-2. **`search`** (before 0.60.0: `search_brain`) — content questions. Simple `query` for hybrid dense+BM25; typed `queries=[{type:'lex'|'vec',q}]` when you want to compose exact-words + meaning legs yourself. Read the `evidence` tag on every hit (`exact_title | bm25_exact | high_dense | weak_semantic`) to weigh results categorically.
-3. **`get_thought` with `from_line`/`max_lines`** — page through long thoughts (Fireflies transcripts, refreshed Gmail threads) instead of loading full text.
-4. Vault-side (Obsidian/Drive sessions): check `index.md` first — one line per thought, regenerated on every rebuild — then open files second.
+2. **`map` / `spider`** — status, next steps, "what connects to X". Measured 2026-10-10 on 10 work questions (search vs map vs spider, Haiku-judged): map has the widest coverage (KÖVETKEZŐ = commitments is its best section), spider reaches what search never does (commitments, person threads; `steps` default 24), search has the best precision. The off-subject lines of map/spider are often adjacent connections — worth a look, not noise to drop.
+3. **`search`** (before 0.60.0: `search_brain`) — exact-content questions. Simple `query` for hybrid dense+BM25; typed `queries=[{type:'lex'|'vec',q}]` when you want to compose exact-words + meaning legs yourself. Read the `evidence` tag on every hit (`exact_title | bm25_exact | high_dense | weak_semantic`) to weigh results categorically.
+4. **`get_thought` with `from_line`/`max_lines`** — page through long thoughts (Fireflies transcripts, refreshed Gmail threads) instead of loading full text.
+5. Vault-side (Obsidian/Drive sessions): check `index.md` first — one line per thought, regenerated on every rebuild — then open files second.
 
 **Write-back (compounding memory):** when a search-and-synthesize session produces a genuinely useful answer, capture it with a leading `Synthesis: <question>` line → `type=synthesis`. Next session hits the pre-digested answer instead of re-deriving from raw thoughts. Don't file trivia — only answers that took real work to assemble.
 
@@ -158,7 +159,7 @@ MCP call log (0.58.0): `server/mcp-call-log.js` → `state/mcp-calls.jsonl`, wri
 
 Graph cache (0.64.0): `server/graph-cache.js` — never call `buildGraph()` on a request path; use `getCachedGraph()`. The build runs in `graph-worker.js` (a main-thread build blocks the server for seconds and leaves stale Qdrant keep-alive sockets behind); a 60 s fingerprint poll rebuilds it after any write, crons included.
 
-spider (0.63.0; recency since 0.65.0 via search's `recencyFactor`, the one recency rule; six lenses in parallel waves since 0.68.0): `server/spider.js`, walk over buildGraph + buildOntology from search hits + question anchors — ontology/project/person/source/type/cluster lenses, cross-lens agreement combines scores; knobs (steps, threshold, decay, edge weights) at the top of the file. UI-only for now (Search tab + `/trace`), not an MCP tool until it beats `map`.
+spider (0.63.0; an MCP tool since 0.75.0, `steps` default 24, 6–60; recency since 0.65.0 via search's `recencyFactor`, the one recency rule; six lenses in parallel waves since 0.68.0): `server/spider.js`, walk over buildGraph + buildOntology from search hits + question anchors — ontology/project/person/source/type/cluster lenses, cross-lens agreement combines scores; knobs (steps, threshold, decay, edge weights) at the top of the file. Also in the Search tab and `/trace` (`&steps=`).
 
 Ontology layers (0.59.0): `server/ontology.js` `layerOf()` is the ONE rule for which layer a point belongs to (Horgony · Történés · Tárgy · Vállalás · Tudás). `map` HÁTTÉR and the Graph's Ontológia mode both use it — change the rule there, never in a caller.
 

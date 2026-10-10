@@ -16,6 +16,8 @@ import { ShellHeader } from './AppShell.jsx';
 const MODES = [['hits', 'search'], ['package', 'map'], ['spider', 'spider']];
 const METHOD_OF = { hits: 'search', package: 'map', spider: 'spider' };
 const MODE_OF = { search: 'hits', map: 'package', spider: 'spider' };
+// spider's step budget (0.75.0): the server default is 24.
+const STEP_CHOICES = [12, 24, 36, 48];
 
 // `active` (0.71.0): the page stays mounted while another tab shows (the
 // graph replay returns here with the results intact); only the active page
@@ -24,6 +26,7 @@ export default function Search({ active, onTraverse }) {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [mode, setMode] = useState('package');
+  const [steps, setSteps] = useState(24);
   const [results, setResults] = useState({ q: null, hits: [] });
   const [map, setMap] = useState({ q: null, data: null });
   const [spider, setSpider] = useState({ q: null, data: null });
@@ -33,7 +36,7 @@ export default function Search({ active, onTraverse }) {
   const [error, setError] = useState(null);
   const [anatomyId, setAnatomyId] = useState(null);
 
-  async function run(m, q) {
+  async function run(m, q, stepBudget = steps) {
     setLoading(true);
     setError(null);
     try {
@@ -47,7 +50,7 @@ export default function Search({ active, onTraverse }) {
           const at = prev.findIndex((p) => p.name === ev.name);
           const next = at < 0 ? [...prev, ev] : prev.map((p, i) => (i === at ? ev : p));
           return { ...all, [m]: next };
-        }));
+        }), m === 'spider' ? stepBudget : null);
         set({ q, data: m === 'package' ? data.result : data });
       }
       else setResults({ q, hits: await search(q) });
@@ -60,8 +63,8 @@ export default function Search({ active, onTraverse }) {
   // Browser history (0.72.0): every search and method switch is a history
   // entry (?q=…&m=search|map|spider), so Back returns to the previous search
   // and a link opens straight into it.
-  const pushHistory = (m, q) => {
-    const url = `?q=${encodeURIComponent(q)}&m=${METHOD_OF[m]}`;
+  const pushHistory = (m, q, stepBudget = steps) => {
+    const url = `?q=${encodeURIComponent(q)}&m=${METHOD_OF[m]}${m === 'spider' ? `&s=${stepBudget}` : ''}`;
     if (window.location.search !== url) window.history.pushState(null, '', url);
   };
 
@@ -72,10 +75,12 @@ export default function Search({ active, onTraverse }) {
       const q = p.get('q');
       if (!q) return;
       const m = MODE_OF[p.get('m')] || 'package';
+      const st = Number(p.get('s')) || 24;
       setQuery(q);
       setSubmittedQuery(q);
       setMode(m);
-      run(m, q);
+      setSteps(st);
+      run(m, q, st);
     };
     fromUrl();
     window.addEventListener('popstate', fromUrl);
@@ -135,6 +140,20 @@ export default function Search({ active, onTraverse }) {
               </button>
             ))}
           </div>
+          {mode === 'spider' && (
+            <select
+              value={steps}
+              onChange={(e) => {
+                const st = Number(e.target.value);
+                setSteps(st);
+                if (submittedQuery) { pushHistory('spider', submittedQuery, st); run('spider', submittedQuery, st); }
+              }}
+              title="A spider lépéskerete — több lépés = több találat, hosszabb válasz"
+              className="search-steps shrink-0 px-2 py-1.5 bg-surface border border-subtle text-txt-sec text-xs"
+            >
+              {STEP_CHOICES.map((n) => <option key={n} value={n}>{n} lépés</option>)}
+            </select>
+          )}
           <button
             type="submit"
             disabled={loading}
@@ -146,7 +165,7 @@ export default function Search({ active, onTraverse }) {
         {submittedQuery && (
           <button
             type="button"
-            onClick={() => onTraverse(METHOD_OF[mode], submittedQuery)}
+            onClick={() => onTraverse(METHOD_OF[mode], submittedQuery, mode === 'spider' ? steps : null)}
             className="search-traverse-btn ml-auto shrink-0 px-3 py-1.5 text-xs border border-subtle text-txt-sec hover:text-txt transition-colors"
             title="A módszer lépései lassítva, a Graph Ontológia nézetén — onnan visszalépve ez az eredmény vár"
           >
