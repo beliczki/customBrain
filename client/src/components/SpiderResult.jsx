@@ -67,10 +67,12 @@ function Item({ item, current, hover, setHover, onOpen, compact = false }) {
   const label = <span className={`text-xs text-txt-sec [overflow-wrap:anywhere] ${how ? 'underline-offset-2 hover:underline' : ''}`}>{item.title}</span>;
   return (
     <li
-      onMouseEnter={() => setHover({ kind: 'item', id: item.id })}
+      onMouseEnter={() => setHover({ kind: 'item', id: item.id, color: LENS_COLOR[item.lens] || LENS_COLOR.start })}
       onMouseLeave={() => setHover(null)}
       className={`spider-item py-1 border-t border-[var(--border)] first:border-t-0 -mx-1 px-1 transition-colors ${
-        current ? 'spider-item--current bg-[var(--border)]' : ''} ${on ? 'spider-item--hover bg-[var(--border)] ring-1 ring-[var(--accent-blue)]' : ''}`}
+        current ? 'spider-item--current bg-[var(--border)]' : ''} ${on ? 'spider-item--hover bg-[var(--border)]' : ''}`}
+      // The outline takes the colour of the chart part being hovered (a runtime value).
+      style={on ? { boxShadow: `inset 0 0 0 1px ${hover.color}` } : undefined}
     >
       <span className="font-mono text-[10px] text-txt-ter mr-1">{item.step != null ? `#${item.step}` : '—'}</span>
       {!compact && <span className="font-mono text-[10px] text-txt-ter mr-1">{item.score.toFixed(3)}</span>}

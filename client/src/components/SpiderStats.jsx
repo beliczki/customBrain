@@ -62,7 +62,7 @@ function Radar({ items, lenses, hover, setHover }) {
         return (
           <text key={l.key} x={x} y={y} fontSize="9" textAnchor="middle" dominantBaseline="middle" fill={LENS_COLOR[l.key]}
             fontWeight={on ? 700 : 400} className="cursor-pointer"
-            onMouseEnter={() => setHover({ kind: 'lens', lens: l.key })} onMouseLeave={() => setHover(null)}>
+            onMouseEnter={() => setHover({ kind: 'lens', lens: l.key, color: LENS_COLOR[l.key] })} onMouseLeave={() => setHover(null)}>
             {l.label} {counts[i]}
           </text>
         );
@@ -94,7 +94,7 @@ function Sunburst({ items, hover, setHover }) {
     paths.push(
       <path key={layer} d={arc(20, 42, a, a + span - 0.005)} fill={LAYER_COLOR[layer]} fillOpacity={isOn(layer) ? 1 : 0.85}
         stroke={isOn(layer) ? 'var(--text-primary)' : 'none'} className="cursor-pointer"
-        onMouseEnter={() => setHover({ kind: 'layer', layer })} onMouseLeave={() => setHover(null)}>
+        onMouseEnter={() => setHover({ kind: 'layer', layer, color: LAYER_COLOR[layer] })} onMouseLeave={() => setHover(null)}>
         <title>{LAYER_LABEL[layer]}: {n}</title>
       </path>,
     );
@@ -104,7 +104,7 @@ function Sunburst({ items, hover, setHover }) {
       paths.push(
         <path key={`${layer}/${type}`} d={arc(44, 64, b, b + s2 - 0.005)} fill={LAYER_COLOR[layer]} fillOpacity={isOn(layer, type) ? 0.9 : 0.5}
           stroke={hover && hover.kind === 'layer' && hover.type === type && hover.layer === layer ? 'var(--text-primary)' : 'none'} className="cursor-pointer"
-          onMouseEnter={() => setHover({ kind: 'layer', layer, type })} onMouseLeave={() => setHover(null)}>
+          onMouseEnter={() => setHover({ kind: 'layer', layer, type, color: LAYER_COLOR[layer] })} onMouseLeave={() => setHover(null)}>
           <title>{LAYER_LABEL[layer]} › {type}: {c}</title>
         </path>,
       );
@@ -127,7 +127,7 @@ function Bars({ items, total, hover, setHover }) {
         const h = ((H - 26) * i.score) / max;
         const on = matchesHover(i, hover);
         return (
-          <g key={i.id} className="cursor-pointer" onMouseEnter={() => setHover({ kind: 'item', id: i.id })} onMouseLeave={() => setHover(null)}>
+          <g key={i.id} className="cursor-pointer" onMouseEnter={() => setHover({ kind: 'item', id: i.id, color: LENS_COLOR[i.lens] })} onMouseLeave={() => setHover(null)}>
             <rect className="spider-stats__bar" x={5 + (i.step - 1) * bw} y={H - 12 - h} width={Math.max(1, bw - 1)} height={h}
               fill={LENS_COLOR[i.lens]} fillOpacity={hover && !on ? 0.35 : 1} stroke={on ? 'var(--text-primary)' : 'none'}>
               <title>#{i.step} {i.title} · {i.score.toFixed(3)}{i.agree > 1 ? ` · ${i.agree} lencse` : ''}</title>
@@ -170,7 +170,7 @@ function Tree({ items, hover, setHover }) {
         const on = matchesHover(i, hover);
         return (
           <circle key={i.id} cx={x} cy={y} r={on ? 4 : 2.6} fill={LENS_COLOR[i.lens]} className="cursor-pointer"
-            onMouseEnter={() => setHover({ kind: 'item', id: i.id })} onMouseLeave={() => setHover(null)}>
+            onMouseEnter={() => setHover({ kind: 'item', id: i.id, color: LENS_COLOR[i.lens] })} onMouseLeave={() => setHover(null)}>
             <title>#{i.step} {i.title}</title>
           </circle>
         );
@@ -183,6 +183,8 @@ function Tree({ items, hover, setHover }) {
 // person / topic — the Search chip colours), sized by score weight. Hover
 // highlights the items carrying the tag; the ⋮ at the end of a pill opens the
 // menu that runs it as a new search with any method.
+// The pill colours as plain hex, for outlining the matching results.
+const TAG_COLOR = { project: '#a855f7', person: '#10b981', topic: '#6366f1' };
 const TAG_CHIP = {
   project: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
   person: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
@@ -207,7 +209,7 @@ function Tags({ items, hover, setHover, onSearch }) {
         return (
           <span
             key={tag}
-            onMouseEnter={() => setHover({ kind: 'tag', tag })}
+            onMouseEnter={() => setHover({ kind: 'tag', tag, color: TAG_COLOR[kind[tag]] })}
             onMouseLeave={() => setHover(null)}
             className={`spider-stats__tag inline-flex items-center gap-1 rounded-full pl-2 pr-1 py-0.5 leading-tight transition-all duration-300 ${TAG_CHIP[kind[tag]]} ${on ? 'ring-1 ring-[var(--accent-blue)]' : ''}`}
             style={{ fontSize: `${10 + 5 * (v / max)}px`, opacity: 0.6 + 0.4 * (v / max) }}

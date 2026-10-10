@@ -2,6 +2,16 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.73.4 — 2026-10-10
+
+**spider stays on the question's topic, and hover outlines take the chart's colour.**
+- **weak_semantic hits stay out of the walk entirely,** neither start nor offer. In 0.73.3 they waited in the frontier at their full search score, and on "confai" the ERSTE/RMT/Anna Bodiss calendar note was stepped in wave 1 (0.436). If such a hit is related, an edge leads there.
+- **The topical lenses (source, type and now cluster) are measured against the walk's focus,** the projects of the starting points, not against the parent. On "ERSTE SZA" a bm25 hit on customBrain's ROADMAP (it names "ERSTE SZA") let those lenses step through all ten customBrain docs, because siblings always share a project with each other. Without a project focus the parent rule applies.
+- **Measured:**
+  - confai: tags ConfAI, Humanody, Barta Attila, Miklos Kun, … — no Anna Bodiss and no customBrain; cluster 4 steps.
+  - ERSTE SZA and ERSTE Bird: ERSTE-only tags.
+- **Hover:** the outline around the matching results takes the colour of what is hovered — a lens colour (star label, bar, tree node), a layer colour (sunburst) or a tag-kind colour (pill: project, person or topic). Before it was always the accent blue.
+
 ## 0.73.3 — 2026-10-10
 
 **spider on "confai": no more ERSTE/RMT drift, and the cluster lens gets its turn.**
