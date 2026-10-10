@@ -54,7 +54,10 @@ const LENSES = [
   { key: 'person', label: 'ember', keys: (n) => n.people.filter((p) => p !== 'Me'), show: (k) => `ember: ${k}` },
   { key: 'source', label: 'forrás', topical: true, keys: (n, week) => [`${n.source}|${week(n)}`], show: (k) => `${k.split('|')[0]}, ugyanazon a héten` },
   { key: 'type', label: 'típus', topical: true, keys: (n, week) => [`${n.type}|${week(n)}`], show: (k) => `${k.split('|')[0]}, ugyanazon a héten` },
-  { key: 'cluster', label: 'klaszter', keys: (n) => (n.community >= 0 ? [String(n.community)] : []), show: (k) => `klaszter ${k}` },
+  // Louvain runs on thoughts only. A file, repo doc or commitment joins the
+  // cluster most of its project's thoughts are in (0.73.1) — otherwise a walk
+  // that runs through repo docs left the cluster lens nothing to step from.
+  { key: 'cluster', label: 'klaszter', keys: (n, week, ctx) => (n.community >= 0 ? [String(n.community)] : ctx.projectClusters(n)), show: (k) => `klaszter ${k}` },
 ];
 
 /**
@@ -90,13 +93,32 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   // group says nothing; the same week's thread does).
   const week = (n) => Math.floor(new Date(n.effective_date || n.created_at).getTime() / (7 * 86400000));
   const groups = Object.fromEntries(LENSES.filter((l) => l.keys).map((l) => [l.key, new Map()]));
+  // project → the community most of its thoughts belong to
+  const projectCluster = new Map();
+  {
+    const counts = new Map();
+    for (const n of graph.nodes) {
+      if (n.archived || n.community < 0) continue;
+      for (const p of n.projects) {
+        const k = `${p}\u0000${n.community}`;
+        counts.set(k, (counts.get(k) || 0) + 1);
+      }
+    }
+    const best = new Map();
+    for (const [k, c] of counts) {
+      const [p, comm] = k.split('\u0000');
+      if (!best.has(p) || c > best.get(p)[1]) best.set(p, [comm, c]);
+    }
+    for (const [p, [comm]] of best) projectCluster.set(p, comm);
+  }
+  const ctx = { projectClusters: (n) => [...new Set(n.projects.filter((p) => projectCluster.has(p)).map((p) => projectCluster.get(p)))] };
   const keysOf = (lens, n) => {
     if (n.entity === 'dossier') { // a dossier opens its own group: the cross into project/person
       if (lens.key === 'project' && n.type === 'project dossier') return [n.title];
       if (lens.key === 'person' && n.type === 'person dossier') return [n.title];
       return [];
     }
-    return lens.keys(n, week);
+    return lens.keys(n, week, ctx);
   };
   // 0.70.0: files, repo docs and commitments join the groups too (they carry
   // projects, a source and a type), so the project lens reaches a project's
@@ -105,7 +127,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
     if (n.entity === 'dossier' || n.entity === 'repo') continue;
     for (const lens of LENSES) {
       if (!lens.keys) continue;
-      for (const k of lens.keys(n, week)) {
+      for (const k of lens.keys(n, week, ctx)) {
         if (!groups[lens.key].has(k)) groups[lens.key].set(k, []);
         groups[lens.key].get(k).push(n.id);
       }
