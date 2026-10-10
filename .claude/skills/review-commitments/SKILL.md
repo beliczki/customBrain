@@ -39,6 +39,10 @@ The judgment is yours (session inference); the server only lists and stores.
 
 **Dedup:** many candidates → one commitment. The daily calendar/Teams summary notes restate the same item day after day — merge them, keep every thought in `candidate_refs`, and use the most direct source (the calendar event, the email, the meeting) — not the summary note — as `sources[0]`.
 
+**Split by deliverable, not by thread.** One email thread often carries several deliverables over weeks; a new brief arriving in an existing thread is a NEW commitment, not a sub-point of the old one (2026-10-10 pilot: a new currency-campaign brief got folded into the "Bird mutations" commitment and vanished). Merge only when it is the same deliverable said again.
+
+**Read the whole thread for reversals.** A later message can cancel or change an earlier ask ("végül … nem kell ezzel elkészíteni"); candidates extracted from the thread often still list the original ask. Quote the reversal and ask Robi before keeping the item.
+
 **Fields:**
 - `title`: one line, an action ("Nyomdai verziók Emőnek").
 - `kind`: `penz` (payment, invoice, contributions) · `jog` (legal, compliance, e.g. a THM value) · `ugyfel` (client delivery) · `belso` (everything else).
@@ -56,6 +60,6 @@ The judgment is yours (session inference); the server only lists and stores.
 1. `list_commitments({})` — know what's already live.
 2. `list_commitment_candidates({ limit: 20 })` — one page at a time.
 3. Build the proposal: new commitments, merges into existing ones (by id), status changes with evidence, and the list of dropped candidates grouped by reason.
-4. Show it to Robi compactly, most urgent first (overdue / due soon, then `kind`). Ask about deadlines that passed without evidence.
+4. Show it to Robi **in full**, most urgent first (overdue / due soon, then `kind`), and put **fresh undated requests** (asked in the last few days, no deadline) right after the dated ones — undated is not the same as not urgent. Ask about deadlines that passed without evidence.
 5. After approval: `save_commitments` with `by: "human"` for statuses Robi set, and `reviewed_thought_ids` = every thought on the page you accounted for (including the ones whose candidates were all dropped).
 6. Report saved / failed counts; fix and resend failed items. Loop to step 2 until `total` is 0.
