@@ -7,7 +7,7 @@ Semantic versioning (`major.minor.patch`). One version for all of customBrain: t
 **spider's cluster lens steps where the walk runs through repo docs and files, without drifting to them.**
 - Louvain clusters exist only for thoughts. A file, repo doc, commitment or file bundle now joins the cluster that most of its project's thoughts belong to. On "conai" the walk went mostly into repo docs, so the cluster lens had nothing to step from and was stopped by the gate 7 times out of 7.
 - Files, repo docs and file bundles now decay with recency like thoughts, using their modified date, last commit, or newest file. Exempt, they took every cluster step: old files and "Fájlok · …" bundles beat that week's threads. Dossiers and commitments stay undated.
-- **Measured after the fix:** cluster steps — conai 1, humanody 5 (commitments, a deck, notes in cluster 9), ERSTE SZA 5.
+- **Measured with both changes:** cluster steps — humanody 5 (a commitment, the Humanody file bundle, a deck, notes), ERSTE SZA 3 (commitments: Wizz THM fix, Bird mutations, FX creative), conai 0. On conai the lens is still stopped by the gate every wave, and the column says so: its best candidate stays under 30% of the wave's best.
 - **UI:**
   - all five quality charts share one body height, so the tag cloud lines up with the SVG charts;
   - scrollbars follow the theme: thin, the border token on a clear track.
