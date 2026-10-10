@@ -40,7 +40,7 @@ const EDGE_WEIGHT = {
   semantic: (e) => e.score, // cosine, ≥ SEMANTIC_MIN_SCORE in buildGraph
   metadata: (e) => Math.min(1, e.weight / 3), // shared tags
   supersedes: () => 0.3,
-  ontology: (e) => ({ tag: 0.6, source: 0.8, owner: 0.8, repo: 0.5, files: 0.5 })[e.rel],
+  ontology: (e) => ({ tag: 0.6, source: 0.8, owner: 0.8, repo: 0.5, files: 0.5, file: 0.5, doc: 0.6 })[e.rel],
 };
 const EDGE_LABEL = (e) => (e.kind === 'ontology' ? e.rel : e.kind);
 
@@ -96,10 +96,13 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       if (lens.key === 'person' && n.type === 'person dossier') return [n.title];
       return [];
     }
-    return n.entity ? [] : lens.keys(n, week);
+    return lens.keys(n, week);
   };
-  for (const n of graph.nodes) {
-    if (n.archived) continue;
+  // 0.70.0: files, repo docs and commitments join the groups too (they carry
+  // projects, a source and a type), so the project lens reaches a project's
+  // repo tasks and files, not only its thoughts. Dossiers open groups instead.
+  for (const n of nodes.values()) {
+    if (n.entity === 'dossier' || n.entity === 'repo') continue;
     for (const lens of LENSES) {
       if (!lens.keys) continue;
       for (const k of lens.keys(n, week)) {
@@ -167,10 +170,16 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   // frontier. Anchor dossiers from the question are visited at 1.0.
   const top = hits.length ? hits[0].score : 1;
   const starts = [];
-  hits.filter((h) => nodes.has(h.id)).forEach((h, i) => {
-    if (i < SEED_VISITS) starts.push([h.id, h.score / top, `keresés: ${h.evidence}`]);
-    else offer('ontology', h.id, h.score / top, null, `[ontológia] keresés: ${h.evidence}`);
-  });
+  // A hit on a repo-doc section starts from that doc's file node.
+  const sectionNode = new Map();
+  for (const n of ontology.nodes) if (n.entity === 'repodoc') for (const sid of n.sections) sectionNode.set(sid, n.id);
+  const seen = new Set();
+  hits.map((h) => ({ ...h, node: nodes.has(h.id) ? h.id : sectionNode.get(h.id) }))
+    .filter((h) => h.node && !seen.has(h.node) && seen.add(h.node))
+    .forEach((h, i) => {
+      if (i < SEED_VISITS) starts.push([h.node, h.score / top, `keresés: ${h.evidence}`]);
+      else offer('ontology', h.node, h.score / top, null, `[ontológia] keresés: ${h.evidence}`);
+    });
   const anchors = matchAnchors(question, vault);
   const dossierByName = new Map(ontology.nodes.filter((n) => n.entity === 'dossier').map((n) => [nameKey(n.title), n.id]));
   for (const [bucket, label] of [['projects', 'projekt'], ['people', 'ember'], ['topics', 'téma']]) {

@@ -60,7 +60,7 @@ const points = [];
 let offset;
 do {
   const b = await q.scroll(THOUGHTS, {
-    filter: { must_not: [{ key: 'kind', match: { any: ['chunk', 'dossier'] } }] },
+    filter: { must_not: [{ key: 'kind', match: { any: ['chunk', 'dossier', 'repo_doc'] } }] },
     limit: 256, offset, with_payload: ['people', 'title'], with_vector: false,
   });
   points.push(...b.points);

@@ -85,7 +85,7 @@ export default function BrainMapPackage({ map, onShowHits }) {
         </div>
       </Section>
 
-      <Section title="Helyzet" count={situation.repos.length + situation.files.length}>
+      <Section title="Helyzet" count={situation.repos.length + situation.docs.length + situation.files.length}>
         <ul className="space-y-1">
           {situation.repos.map((r) => (
             <li key={r.repo} className="brain-map__row flex items-baseline gap-2 text-xs">
@@ -97,6 +97,14 @@ export default function BrainMapPackage({ map, onShowHits }) {
                   v{r.version} · {r.last_commit.date.slice(0, 10)} {r.last_commit.message}
                 </span>
               )}
+            </li>
+          ))}
+          {/* 0.70.0: the repo's own docs — open tasks and ROADMAP first */}
+          {situation.docs.map((d) => (
+            <li key={d.id} className="brain-map__row brain-map__row--doc flex items-baseline gap-2 text-xs">
+              <span className="font-mono w-20 shrink-0 text-txt-ter">{d.date}</span>
+              <span className="w-20 shrink-0 text-[10px] uppercase tracking-wider text-txt-ter">{d.open ? `${d.open} nyitott` : 'repó-doksi'}</span>
+              <a href={d.link} target="_blank" rel="noreferrer" className="text-txt-sec flex-1 underline-offset-2 hover:underline">{d.path} › {d.heading}</a>
             </li>
           ))}
           {situation.files.map((f) => (

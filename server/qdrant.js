@@ -120,8 +120,9 @@ export async function getByIds(ids) {
 // Common filter for "list of thoughts" queries: exclude both v2 chunk points
 // AND canonical dossier points (People/Projects/Topics indexed for retrieval).
 // Chunks are a search-augmenting layer; dossiers are canonical reference docs —
-// neither is a THOUGHT for Recent / stats / export / hygiene purposes.
-const NOT_CHUNK = { must_not: [{ key: 'kind', match: { any: ['chunk', 'dossier'] } }] };
+// neither is a THOUGHT for Recent / stats / export / hygiene purposes. Nor are
+// repo_doc points (0.70.0, repo README/ROADMAP/tasks sections).
+const NOT_CHUNK = { must_not: [{ key: 'kind', match: { any: ['chunk', 'dossier', 'repo_doc'] } }] };
 
 export async function scrollRecent(limit = 10) {
   // Order by effective_date — the date the CONTENT happened, not when it was
@@ -202,10 +203,10 @@ export async function getAllWithVectors() {
 }
 
 /**
- * Selected payload fields of every non-chunk point, as [id, [values…]] rows
- * in `fields` order. No vectors and no text, so it is cheap to run often.
+ * Selected payload fields of every point matching `filter` (default: the
+ * thoughts), as [id, [values…]] rows in `fields` order. No vectors and no text, so it is cheap to run often.
  */
-export async function payloadFieldRows(fields) {
+export async function payloadFieldRows(fields, filter = NOT_CHUNK) {
   const all = [];
   let offset = undefined;
   while (true) {
@@ -214,7 +215,7 @@ export async function payloadFieldRows(fields) {
       with_payload: { include: fields },
       with_vector: false,
       offset,
-      filter: NOT_CHUNK,
+      filter,
     });
     all.push(...batch.points.map((p) => [p.id, fields.map((f) => p.payload[f])]));
     if (!batch.next_page_offset) break;

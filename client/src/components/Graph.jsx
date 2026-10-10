@@ -291,18 +291,20 @@ export default function Graph({ traversal, onCloseTraversal }) {
     return () => clearTimeout(t);
   }, [tracePlaying, traceCursor, traceSpeed, trace]);
 
-  // The non-thought layers load the first time Ontológia mode is picked.
+  // The non-thought layers (dossiers, files, repo docs, commitments) load once
+  // and show in every grouping since 0.70.0 — Source groups gain repo/files/
+  // vault, Project groups a project's repo docs and files.
   useEffect(() => {
-    if (groupBy !== 'layer' || ontology) return;
+    if (ontology) return;
     getGraphOntology().then(setOntology).catch((err) => setError(err.message));
-  }, [groupBy, ontology]);
+  }, [ontology]);
 
-  // What the scene shows: thoughts alone, or thoughts + the ontology layers.
+  // What the scene shows: thoughts plus the ontology layers once loaded.
   const view = useMemo(() => {
     if (!data) return null;
-    if (groupBy !== 'layer' || !ontology) return data;
+    if (!ontology) return data;
     return { ...data, nodes: [...data.nodes, ...ontology.nodes], edges: [...data.edges, ...ontology.edges] };
-  }, [data, groupBy, ontology]);
+  }, [data, ontology]);
 
   // Persist view prefs.
   useEffect(() => {

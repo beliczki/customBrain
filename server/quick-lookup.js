@@ -13,7 +13,7 @@ import { resolveAliases, stripAccents } from './names.js';
  */
 export async function quickLookup({ person, project, topic, type, source, since, until, limit = 50, count_only = false } = {}) {
   // Raw scroll keeps the point id so the caller can chain into get_thought.
-  const payloads = await scrollFilteredRaw({ must_not: [{ key: 'kind', match: { value: 'chunk' } }] });
+  const payloads = await scrollFilteredRaw({ must_not: [{ key: 'kind', match: { any: ['chunk', 'repo_doc'] } }] });
   const vault = await getVaultContext();
   const canon = (name, aliases, canonicals) => name && resolveAliases([name], aliases, canonicals)[0];
   person = canon(person, vault.aliases, vault.people);

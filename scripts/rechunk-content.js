@@ -50,7 +50,7 @@ function originalText(p) {
   return t;
 }
 
-const parents = (await scrollAll({ must_not: [{ key: 'kind', match: { any: ['chunk', 'dossier'] } }, { key: 'status', match: { value: 'archived' } }] }))
+const parents = (await scrollAll({ must_not: [{ key: 'kind', match: { any: ['chunk', 'dossier', 'repo_doc'] } }, { key: 'status', match: { value: 'archived' } }] }))
   .filter((p) => (IDS ? IDS.includes(p.id) : true))
   .filter((p) => originalText(p).length > CHUNK_THRESHOLD && p.payload.content_chunking !== MARK);
 console.log(`rechunk: ${parents.length} long thoughts to re-cut${DRY ? ' (dry run)' : ''}; limit ${LIMIT}`);

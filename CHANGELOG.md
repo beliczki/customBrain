@@ -2,6 +2,24 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.70.0 — 2026-10-10
+
+**Repos and files become sources everywhere.** Plan: `docs/repo-es-fajl-forras-terv-2026-10-10.md`. What matters in a repo is what it says about itself, not its commits or code.
+- **Repo docs → Qdrant** (`server/repo-docs.js`, run by the daily `cron/repos-status.js` after the status).
+  - **Which repos:** every repo the status could read.
+  - **Which files:** root README/ROADMAP/CLAUDE/AGENTS and top-level `tasks/*.md` / `docs/*.md`. Archives are skipped, and so are files over 100 KB (confAi2 has 350–560 KB raw transcripts and programmes: data, not docs).
+  - **Points:** one per `#`/`##` section (`kind: 'repo_doc'`, `source: 'repo'`, single `project` field, effective_date = the file's last commit). In task files and the ROADMAP only the open `- [ ]` items are kept.
+  - **Change detection:** the git-tree blob sha gates download and re-embedding (`state/repo-docs-manifest.json`, deterministic ids). Files gone from a fully listed tree are deleted.
+- **Kept out of the thought lists:** `NOT_CHUNK` (Recent, Stats, export, graph, fingerprint), `buildOntology`'s thought scroll, `quick_lookup` and the People/rechunk scripts now exclude `repo_doc`. Search returns it.
+- **`layerOf`:** repo_doc → Tárgy.
+- **Graph / ontology:**
+  - one `repodoc` node per doc file (its sections listed, edge `doc` to the repo dossier, GitHub link);
+  - each project's 10 most recent files as `file` nodes (edge `file` to the project's file bundle);
+  - the layers now show in **every** grouping, not only Ontológia. Source gains `repo`/`files`/`vault` groups, Project a project's repo docs and files.
+- **map:** HELYZET lists the anchor project's repo docs, open tasks and ROADMAP first (max 8, with the open count and a GitHub link). A search hit on a repo-doc section goes to HELYZET, not ELŐZMÉNYEK.
+- **spider:** files, repo docs and commitments join the lens groups (project, source, type), so the walk reaches a project's tasks and files. A search hit on a section starts from its doc node. New edge weights: `doc` 0.6, `file` 0.5.
+- `payloadFieldRows(fields, filter)` takes a filter.
+
 ## 0.69.0 — 2026-10-10
 
 **spider gets a quality panel pinned to the bottom of the page, animating as the six lens columns fill.** `client/src/components/SpiderStats.jsx` is hand-drawn SVG (no chart library). Every chart is computed from the steps revealed so far, so it grows with the replay, eases between states (CSS transitions on path `d`, bar height/y) and settles when the replay ends; "mind" jumps it to the end state. Collapsible.

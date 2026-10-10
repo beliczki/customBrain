@@ -2,7 +2,7 @@ import { Router } from 'express';
 import Graph from 'graphology';
 import louvain from 'graphology-communities-louvain';
 import { readFile } from 'node:fs/promises';
-import { getAllWithVectors, scrollFilteredRaw } from '../qdrant.js';
+import { getAllWithVectors, scrollFilteredRaw, payloadFieldRows } from '../qdrant.js';
 import { LAYERS, layerOf } from '../ontology.js';
 import { nameKey } from '../names.js';
 import { listCommitments } from '../commitments.js';
@@ -235,6 +235,8 @@ export async function buildGraph(points = null) {
 // Graph's Person grouping sets (MIN_ANCHOR_SIZE in Graph.jsx). Robi ("Me") is
 // on nearly every thought, so his dossier would only add a hairball hub.
 const PERSON_MIN_THOUGHTS = 3;
+// Individual file nodes per project (0.70.0); the rest stay in the bundle count.
+const FILES_PER_PROJECT = 10;
 const SELF = 'Me';
 
 async function readJson(path) {
@@ -253,15 +255,16 @@ async function readJson(path) {
  * their layer from buildGraph. Reads only what is stored — no new search.
  */
 export async function buildOntology() {
-  const [thoughts, dossiers, commitments, repos, catalog] = await Promise.all([
+  const [thoughts, dossiers, commitments, repos, catalog, repoDocs] = await Promise.all([
     scrollFilteredRaw({ must_not: [
-      { key: 'kind', match: { any: ['chunk', 'dossier'] } },
+      { key: 'kind', match: { any: ['chunk', 'dossier', 'repo_doc'] } },
       { key: 'status', match: { value: 'archived' } },
     ] }, 256),
     scrollFilteredRaw({ must: [{ key: 'kind', match: { value: 'dossier' } }] }, 256),
     listCommitments({ limit: 1000 }),
     readJson(REPOS_STATUS_PATH),
     readJson(CATALOG_PATH),
+    payloadFieldRows(['repo', 'path', 'project', 'heading', 'branch', 'effective_date'], { must: [{ key: 'kind', match: { value: 'repo_doc' } }] }),
   ]);
 
   const nodes = [];
@@ -275,6 +278,7 @@ export async function buildOntology() {
 
   const reposByDossier = new Map((repos ? repos.repos : []).map((r) => [r.dossier, r]));
   const repoNodes = [];
+  const repoDossierBySlug = new Map();
   for (const d of dossiers) {
     if (d.dossier_type === 'person' && (d.name === SELF || (personCount.get(nameKey(d.name)) || 0) < PERSON_MIN_THOUGHTS)) continue;
     const node = {
@@ -289,6 +293,7 @@ export async function buildOntology() {
         : r.error ? [r.error]
           : [`${r.repo} · ${r.version ? `v${r.version}` : 'no package.json version'}`, `last commit ${r.last_commit.date.slice(0, 10)}`, ...r.drift];
       if (r && r.project) repoNodes.push({ id: d.id, project: r.project.replace(/^["'[]+|["'\]]+$/g, '') });
+      if (r && r.repo) repoDossierBySlug.set(r.repo, d.id);
     } else {
       for (const name of [d.name, ...(d.aliases || [])]) index[d.dossier_type].set(nameKey(name), d.id);
     }
@@ -334,6 +339,51 @@ export async function buildOntology() {
       const target = index.project.get(nameKey(project));
       if (target) edge(id, target, 'files');
     }
+  }
+
+  // 0.70.0: each project's most recent files as their own nodes, beside the
+  // bundle — what the bundle holds becomes reachable, not just countable.
+  if (catalog) {
+    const byProject = new Map();
+    for (const f of catalog.records) for (const p of f.projects) {
+      if (!byProject.has(p)) byProject.set(p, []);
+      byProject.get(p).push(f);
+    }
+    for (const [project, list] of byProject) {
+      for (const f of list.sort((a, b) => b.modified.localeCompare(a.modified)).slice(0, FILES_PER_PROJECT)) {
+        const id = `file:${f.id}:${project}`;
+        nodes.push({
+          id, entity: 'file', title: f.name, layer: 'targy', type: f.kind, source: 'files',
+          created_at: f.modified, people: [], projects: [project], topics: [], link: f.link,
+          detail: [`${f.kind} · ${f.modified.slice(0, 10)}`, f.link],
+        });
+        edge(id, `files:${project}`, 'file');
+      }
+    }
+  }
+
+  // 0.70.0: repo documentation (server/repo-docs.js) — one node per file, its
+  // heading sections listed in `sections` so a search hit on a section maps
+  // onto the node. Edge to the repo's dossier.
+  const docFiles = new Map();
+  for (const [sid, [repo, path, project, heading, branch, date]] of repoDocs) {
+    const key = `${repo}:${path}`;
+    if (!docFiles.has(key)) docFiles.set(key, { repo, path, project, branch, date, headings: [], sections: [] });
+    const d = docFiles.get(key);
+    d.headings.push(heading);
+    d.sections.push(sid);
+    if (date > d.date) d.date = date;
+  }
+  for (const [key, d] of docFiles) {
+    const id = `repodoc:${key}`;
+    nodes.push({
+      id, entity: 'repodoc', title: `${d.repo.split('/')[1]}/${d.path}`, layer: 'targy', type: 'repo doc', source: 'repo',
+      created_at: d.date, people: [], projects: d.project ? [d.project] : [], topics: [], sections: d.sections,
+      link: `https://github.com/${d.repo}/blob/${d.branch}/${d.path}`,
+      detail: [`${d.sections.length} fejezet`, ...d.headings.slice(0, 5), `https://github.com/${d.repo}/blob/${d.branch}/${d.path}`],
+    });
+    const dossierId = repoDossierBySlug.get(d.repo);
+    if (dossierId) edge(id, dossierId, 'doc');
   }
 
   // Commitment → its source thought(s) and its owner/counterparty/projects.

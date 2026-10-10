@@ -19,6 +19,7 @@ const KNOWLEDGE_TYPES = new Set(['reference', 'synthesis', 'decision']);
 /** Layer of a stored point: a thought, or a dossier (kind: 'dossier'). */
 export function layerOf(p) {
   if (p.kind === 'dossier') return p.dossier_type === 'repo' ? 'targy' : 'horgony';
+  if (p.kind === 'repo_doc') return 'targy'; // a repo's own docs belong with the repo
   if (p.source === 'youtube' || KNOWLEDGE_TYPES.has(p.type)) return 'tudas';
   return 'tortenes';
 }

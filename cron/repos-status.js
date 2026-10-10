@@ -10,6 +10,7 @@ import { applySettingsToEnv } from '../server/config.js';
 applySettingsToEnv();
 
 import { buildReposStatus } from '../server/repos-status.js';
+import { syncRepoDocs } from '../server/repo-docs.js';
 
 async function run() {
   const startTime = Date.now();
@@ -22,6 +23,10 @@ async function run() {
     );
     for (const r of errors) console.log(`  ! ${r.dossier}: ${r.error}`);
     for (const r of drifting) console.log(`  ~ ${r.dossier}: ${r.drift.join(' · ')}`);
+    // 0.70.0: the repos' own docs (README, ROADMAP, tasks, docs) into the brain.
+    for (const d of await syncRepoDocs(out.repos)) {
+      console.log(d.skipped ? `  docs ${d.repo}: skipped (${d.skipped})` : `  docs ${d.repo}: ${d.files} files, ${d.indexed} re-indexed (${d.sections} sections), ${d.deleted} points deleted`);
+    }
   } catch (err) {
     console.error(`[${new Date().toISOString()}] Repos status failed:`, err.message);
     console.error(err);

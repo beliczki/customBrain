@@ -22,10 +22,11 @@ import { nameKey, resolveAliases, stripAccents } from './names.js';
 import { layerOf } from './ontology.js';
 import { spiderWalk } from './spider.js';
 import { stage } from './phase.js';
+import { scrollFilteredRaw, getByIds } from './qdrant.js';
 
 // Per-section caps. Hand-set starting values; the AUTORESEARCH profile
 // (ROADMAP) is where they get calibrated per brain instance.
-const MAX = { search: 10, history: 25, files: 8, commitments: 15, events: 10, background: 10, anchors: 3, earlier: 10 };
+const MAX = { search: 10, history: 25, files: 8, commitments: 15, events: 10, background: 10, anchors: 3, earlier: 10, docs: 8 };
 // How old a state file may be before HIÁNYOK says so. Agenda: hourly cron.
 // Repos: daily 04:30 cron. Files catalog: built by hand, no cron yet.
 const STALE_HOURS = { agenda: 2, repos: 36, files: 24 * 14 };
@@ -188,7 +189,14 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   if (!repos) gaps.push({ kind: 'missing_state', detail: 'state/repos-status.json not built (cron/repos-status.js)' });
   else if (hoursSince(repos.generated_at) > STALE_HOURS.repos) gaps.push({ kind: 'stale_state', detail: `repos-status.json from ${repos.generated_at}` });
 
-  const situation = { repos: [], files: [] };
+  const situation = { repos: [], docs: [], files: [] };
+  // 0.70.0: a repo's own docs (server/repo-docs.js), open tasks and ROADMAP first.
+  const docLine = (p) => ({
+    repo: p.repo, path: p.path, heading: p.heading, date: String(p.effective_date).slice(0, 10), id: p.id,
+    open: (p.text.match(/^\s*[-*] \[ \]/gm) || []).length,
+    link: `https://github.com/${p.repo}/blob/${p.branch}/${p.path}`,
+  });
+  const isPlan = (p) => /^tasks\/|ROADMAP\.md$/i.test(p.path);
   let catalogAt = null;
   for (const a of anchors.projects) {
     const repo = repos?.repos.find((r) => repoProject(r, vault) === a.name) || null;
@@ -203,6 +211,12 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
         pushed_at: repo.pushed_at, drift: repo.drift,
       });
       for (const d of repo.drift) gaps.push({ kind: 'repo_drift', detail: `${repo.repo}: ${d}`, ref: repo.repo });
+      const docs = (await scrollFilteredRaw({ must: [{ key: 'kind', match: { value: 'repo_doc' } }, { key: 'repo', match: { value: repo.repo } }] }, 256))
+        .sort((x, y) => (isPlan(y) - isPlan(x)) || String(y.effective_date).localeCompare(String(x.effective_date)));
+      for (const d of docs.slice(0, MAX.docs)) {
+        situation.docs.push(docLine(d));
+        trace.push({ phase: 'situation', ref: { id: `repodoc:${d.repo}:${d.path}` }, from: { repo: repo.dossier }, label: `${d.path} › ${d.heading}`, why: `a repó saját dokumentációja${isPlan(d) ? ' (terv/task)' : ''}` });
+      }
     }
     const files = await findFiles({ project: a.name, limit: MAX.files });
     if (files.error) { gaps.push({ kind: 'missing_state', detail: files.error }); continue; }
@@ -216,7 +230,7 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
     })));
   }
   if (catalogAt && hoursSince(catalogAt) > STALE_HOURS.files) gaps.push({ kind: 'stale_state', detail: `files catalog from ${catalogAt} (scripts/build-files-catalog.js)` });
-  done(`${situation.repos.length} repó, ${situation.files.length} fájl`);
+  done(`${situation.repos.length} repó, ${situation.docs.length} repó-doksi, ${situation.files.length} fájl`);
 
   // ── ELŐZMÉNYEK + HÁTTÉR ── anchor lookups and search hits, one line per thought
   done = stage(emit, 'history', 'ELŐZMÉNYEK, HÁTTÉR');
@@ -231,7 +245,12 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   for (const a of anchors.projects) (await quickLookup({ project: a.name, since, limit: MAX.history })).thoughts.forEach((t) => collect(t, `project:${a.name}`));
   for (const a of anchors.people) (await quickLookup({ person: a.name, since, limit: MAX.history })).thoughts.forEach((t) => collect(t, `person:${a.name}`));
   for (const a of anchors.topics) (await quickLookup({ topic: a.name, since, limit: MAX.history })).thoughts.forEach((t) => collect(t, `topic:${a.name}`));
-  for (const h of hits) collect({ ...h, type: hitType(h) }, `search:${h.evidence}`);
+  // A repo-doc section hit is the repo's state, not a past event: HELYZET.
+  // Search hits carry no repo/path, so the payloads are fetched by id.
+  for (const d of await getByIds(hits.filter((h) => h.kind === 'repo_doc').map((h) => h.id))) {
+    if (!situation.docs.some((x) => x.id === d.id)) situation.docs.push(docLine(d));
+  }
+  for (const h of hits) if (h.kind !== 'repo_doc') collect({ ...h, type: hitType(h) }, `search:${h.evidence}`);
 
   const lines = [...byId.values()].sort((a, b) => b.date.localeCompare(a.date));
   const strip = ({ background, ...l }) => l;
@@ -325,7 +344,7 @@ export async function buildBrainMap({ question, project, person, days_back = 60,
   if (question) further.push({ section: 'ELŐZMÉNYEK', tool: 'search', args: { query: question, limit: 20 } });
 
   // An empty section is said out loud, not left for the agent to guess at.
-  const sections = { HELYZET: situation.repos.length + situation.files.length, ELŐZMÉNYEK: history.length, KÖVETKEZŐ: commitments.length + events.length, HÁTTÉR: background.length };
+  const sections = { HELYZET: situation.repos.length + situation.docs.length + situation.files.length, ELŐZMÉNYEK: history.length, KÖVETKEZŐ: commitments.length + events.length, HÁTTÉR: background.length };
   for (const [name, n] of Object.entries(sections)) if (!n) gaps.push({ kind: 'empty_section', detail: name });
 
   return {
