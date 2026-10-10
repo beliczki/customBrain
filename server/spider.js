@@ -192,6 +192,8 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
   for (const [id, score] of starts) expand(id, score);
 
   // ── Waves: every lens takes its own best step, in parallel ──
+  // Why a lens did or did not step, per wave — shown under an empty column.
+  const diag = Object.fromEntries(LENSES.map((l) => [l.key, { stepped: 0, gated: 0, below: 0, empty: 0, best: 0, bestShare: 0 }]));
   let round = 0;
   while (trace.length < MAX_STEPS) {
     round += 1;
@@ -206,7 +208,11 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       // (an ERSTE cluster of ~150) makes every single-lens offer tiny (DECAY/√150
       // ≈ 0.07 × the parent), so the cluster lens never stepped on "ERSTE SZA".
       // With combined, a lens steps where the other views back the candidate.
-      if (best && combined(best.id) >= MIN_SCORE) picks.push({ id: best.id, lens: lens.key, o: best.o });
+      if (!best) { diag[lens.key].empty += 1; continue; }
+      const c = combined(best.id);
+      diag[lens.key].best = Math.max(diag[lens.key].best, c);
+      if (c >= MIN_SCORE) picks.push({ id: best.id, lens: lens.key, o: best.o });
+      else diag[lens.key].below += 1;
     }
     if (!picks.length) break;
     // Relevance gate: a lens steps only when its candidate holds up against
@@ -215,6 +221,11 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
     // which the project lens then followed — a cross-over nothing justified.
     const best = Math.max(...picks.map((p) => combined(p.id)));
     const gated = picks.filter((p) => combined(p.id) >= GATE * best);
+    for (const p of picks) {
+      const d = diag[p.lens];
+      d.bestShare = Math.max(d.bestShare, combined(p.id) / best);
+      if (!gated.includes(p)) d.gated += 1;
+    }
     const taken = [];
     for (const p of gated) {
       if (trace.length >= MAX_STEPS) break;
@@ -222,6 +233,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
       const agree = agreeing(p.id);
       visit(p.id, round, p.lens, score, p.o.from, `${p.o.why}${agree.length > 1 ? ` · ${agree.length} lencse: ${agree.join(', ')}` : ''}`, agree.length);
       taken.push([p.id, score]);
+      diag[p.lens].stepped += 1;
     }
     for (const [id, score] of taken) expand(id, score);
   }
@@ -260,7 +272,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
         key: l.key, label: l.label,
         items: walked.filter((t) => t.layer === l.key).map((t) => ({ ...lineOf(nodes.get(t.ref.id)), step: walked.indexOf(t) + 1, score: t.score, why: t.why, lens: t.lens, round: t.round, agree: t.agree, from: t.from ? t.from.id : null })),
       })),
-      lenses: LENSES.map((l) => ({ key: l.key, label: l.label })),
+      lenses: LENSES.map((l) => ({ key: l.key, label: l.label, diag: diag[l.key] })),
       // Same line shape as the walked items (tags included) — the client's hover
       // matching reads `topics` on every item; a bare candidate crashed it.
       candidates: left.map(([id, f]) => ({ ...lineOf(nodes.get(id)), layer: nodes.get(id).layer, score: f.score, why: f.why })),
