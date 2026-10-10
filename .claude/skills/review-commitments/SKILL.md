@@ -63,3 +63,16 @@ The judgment is yours (session inference); the server only lists and stores.
 4. Show it to Robi **in full**, most urgent first (overdue / due soon, then `kind`), and put **fresh undated requests** (asked in the last few days, no deadline) right after the dated ones — undated is not the same as not urgent. Ask about deadlines that passed without evidence.
 5. After approval: `save_commitments` with `by: "human"` for statuses Robi set, and `reviewed_thought_ids` = every thought on the page you accounted for (including the ones whose candidates were all dropped).
 6. Report saved / failed counts; fix and resend failed items. Loop to step 2 until `total` is 0.
+7. **Compare with Grok's ledger** (below) and report the result.
+
+## Comparing with Grok's ledger — never write into it
+
+Two independent ledgers by decision (Robi, 2026-10-10): **Grok keeps its Google Sheets** (PM slip watch `1fdj1UaMXS5kjXLuV1BeVmP8e1gSRfu15f0Hdzt5sNIo`, tabs ERSTE / Telekom / Grafia), **the brain and Claude keep `commitments`.** Neither edits the other's. The value is the comparison: where they agree, both are confirmed; where they differ, each side learns what it missed.
+
+Read the slip watch (read-only), match rows to commitments by `pointer` (`gmail:<thread>`, `cal:<event>`) ↔ `sources[].ref`, and report four groups:
+- **Agree** — same item, compatible status (`mine_open`/`slipped`/`to_deliver` ↔ `open`; `waiting_on_other` ↔ `waiting`; `closed` ↔ `done`/`dropped`). Say how many; this is the good news.
+- **Status differs** — same item, incompatible status. Show both sides and their last signal; ask Robi which is right. Fix only the brain side.
+- **Only in Grok's sheet** — propose as new commitments (Robi approves, as usual). Rows Grok marks `slipped` first.
+- **Only in the brain** — list them for Robi; Grok may have missed them (e.g. Teams-only items). Do not add them to the sheet.
+
+The Drive connector may return only a sample of a sheet's rows — check the table range against the rows you got, and say so if the read was partial.
