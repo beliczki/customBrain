@@ -2,6 +2,17 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.63.0 — 2026-10-10
+
+**spider: the third retrieval method, a best-first walk over the brain graph.** Plan: `docs/bejaras-modszerek-terv-2026-10-10.md`, step 3. `server/spider.js` `spiderWalk(question)`:
+- **Graph:** the one the Graph tab shows, `buildGraph()` (metadata, semantic, supersedes) plus `buildOntology()` (dossiers, file bundles, commitments, cross-layer edges). Archived nodes are left out.
+- **Seeds:** the question's top 10 `searchThoughts` hits, scaled so the best is 1.0 (RRF scores only mean something as an order), and the anchor dossiers `matchAnchors` recognises in the question, at 1.0.
+- **Step:** expand the highest-scored unvisited node; offer each neighbour `score × edge weight × DECAY / √degree(parent)`. The √degree is the hub penalty. Edge weights: semantic = cosine, metadata = min(1, shared tags / 3), tag 0.6, source/owner 0.8, repo/files 0.5, supersedes 0.3. Stops after `MAX_STEPS` (25) or when the best offer falls under `MIN_SCORE` (0.05). `DECAY` 0.85. All hand-set constants at the top of the file.
+- **Result:** the visited nodes per layer, in step order, each with its score and *why* (the edge kind and the node it came from), plus the 10 best offers left on the frontier.
+- No LLM call; one embedding. Not an MCP tool yet: it first has to prove itself against `map` in the UI.
+
+UI: the Search tab's `spider` method is enabled. Its text view (`SpiderResult.jsx`) shows the layers and the "ide ment volna még" frontier. "Bejárás a gráfon ▶" replays the walk; frontier offers stay half-lit and struck through. Both read `GET /trace?method=spider`; there is no separate spider route.
+
 ## 0.62.0 — 2026-10-10
 
 **App shell after confAi2's HINT-map.** Plan: `docs/app-shell-terv-2026-10-10.md`. The header + tab row is replaced by `client/src/components/AppShell.jsx`:

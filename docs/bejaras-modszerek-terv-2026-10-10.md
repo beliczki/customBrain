@@ -1,6 +1,6 @@
 # Bejárási módszerek, lassítva a gráfon — terv
 
-**Dátum:** 2026-10-10 · **Állapot:** jóváhagyva 2026-10-10; 1. lépés (0.60.0) és 2. lépés (0.61.0) kész · **ROADMAP:** „UI-teendők az ontológiához”, 3. tétel, a (b) helyett · Előzmény: Runs tab (0.58.0, valódi agent-hívások visszajátszása, marad)
+**Dátum:** 2026-10-10 · **Állapot:** jóváhagyva 2026-10-10; mindhárom lépés kész: 0.60.0, 0.61.0, 0.63.0 (a 0.62.0 az app shell) · **ROADMAP:** „UI-teendők az ontológiához”, 3. tétel, a (b) helyett · Előzmény: Runs tab (0.58.0, valódi agent-hívások visszajátszása, marad)
 
 ## Cél
 

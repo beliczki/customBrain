@@ -64,7 +64,7 @@ const MIN_ANCHOR_SIZE = 3;
 const TRACE_SEL = '__trace'; // selectedRef value while a trace drives the highlight
 const TRACE_SPEEDS = [1, 4, 16];
 const TRACE_STEP_MS = 1600; // at 1×; a step is a decision, not a clock tick
-const TRACE_PHASE = { search: 'keresés', anchor: 'HORGONYOK', situation: 'HELYZET', history: 'ELŐZMÉNYEK', background: 'HÁTTÉR', next: 'KÖVETKEZŐ' };
+const TRACE_PHASE = { walk: 'bejárás', frontier: 'ide ment volna még', search: 'keresés', anchor: 'HORGONYOK', situation: 'HELYZET', history: 'ELŐZMÉNYEK', background: 'HÁTTÉR', next: 'KÖVETKEZŐ' };
 const LAYER_LABEL = { horgony: 'Horgony', tortenes: 'Történés', targy: 'Tárgy', vallalas: 'Vállalás', tudas: 'Tudás' };
 
 // Orbit = thoughts with no anchored group; they ring the whole system.

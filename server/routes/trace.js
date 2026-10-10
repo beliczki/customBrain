@@ -3,6 +3,7 @@ import { buildBrainMap } from '../brain-map.js';
 import { searchThoughts } from './search.js';
 import { buildOntology } from './graph.js';
 import { nameKey } from '../names.js';
+import { spiderWalk } from '../spider.js';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.get('/trace', async (req, res) => {
 
 export default router;
 
-const METHODS = ['search', 'map'];
+const METHODS = ['search', 'map', 'spider'];
 
 // The MCP `search` default (searchThoughts' own), so the replay shows what an
 // agent calling without `limit` gets.
@@ -65,6 +66,8 @@ export async function buildTrace(method, q) {
   if (method === 'search') {
     result = await searchThoughts(q, SEARCH_LIMIT);
     steps = result.map((h) => ({ phase: 'search', ref: { id: h.id }, label: h.title, why: `${h.evidence} · ${h.score.toFixed(3)}` }));
+  } else if (method === 'spider') {
+    ({ result, trace: steps } = await spiderWalk(q));
   } else {
     const { trace, ...pkg } = await buildBrainMap({ question: q, withTrace: true });
     if (pkg.error) return { error: pkg.error };

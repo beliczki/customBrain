@@ -15,7 +15,8 @@ const CHIP = {
 
 const DERIVED_LABEL = { search_hits: 'keresésből', param: 'megadva' };
 
-function Section({ title, count, children }) {
+// Shared with SpiderResult (0.63.0): one section look for every method's text view.
+export function Section({ title, count, children }) {
   return (
     <section className="brain-map__section mb-8">
       <h2 className="brain-map__header text-xs uppercase tracking-wider text-txt-ter mb-3 pb-1 border-b border-subtle flex items-baseline gap-2">

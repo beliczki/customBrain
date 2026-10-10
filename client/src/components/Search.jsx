@@ -1,18 +1,19 @@
 import { useState } from 'react';
-import { search, getMap } from '../api.js';
+import { search, getMap, getTrace } from '../api.js';
 import ThoughtBody from './ThoughtBody.jsx';
 import ThoughtFacts from './ThoughtFacts.jsx';
 import ChunkAnatomyModal from './ChunkAnatomyModal.jsx';
 import BrainMapPackage from './BrainMapPackage.jsx';
+import SpiderResult from './SpiderResult.jsx';
 
 // Two methods over one input (0.57.0; named after their MCP tools since 0.60.0): "map" is the package the
 // agent gets; "search" is the raw hybrid hit list with the anatomy view.
 // A submit fetches only the active mode; switching fetches the other one for
 // the same query the first time it is shown.
-// [mode key, label = method name]. spider is planned (0.63.0) and shown
-// disabled so the three methods read as one family.
+// [mode key, label = method name]. spider (0.63.0) has no route of its own:
+// its text view reads the same /trace answer the graph replay plays.
 const MODES = [['hits', 'search'], ['package', 'map'], ['spider', 'spider']];
-const METHOD_OF = { hits: 'search', package: 'map' };
+const METHOD_OF = { hits: 'search', package: 'map', spider: 'spider' };
 
 export default function Search({ onTraverse }) {
   const [query, setQuery] = useState('');
@@ -20,6 +21,7 @@ export default function Search({ onTraverse }) {
   const [mode, setMode] = useState('package');
   const [results, setResults] = useState({ q: null, hits: [] });
   const [map, setMap] = useState({ q: null, data: null });
+  const [spider, setSpider] = useState({ q: null, data: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [anatomyId, setAnatomyId] = useState(null);
@@ -29,6 +31,7 @@ export default function Search({ onTraverse }) {
     setError(null);
     try {
       if (m === 'package') setMap({ q, data: await getMap(q) });
+      else if (m === 'spider') setSpider({ q, data: await getTrace('spider', q) });
       else setResults({ q, hits: await search(q) });
     } catch (err) {
       setError(err.message);
@@ -45,7 +48,7 @@ export default function Search({ onTraverse }) {
 
   function switchMode(m) {
     setMode(m);
-    const loadedFor = m === 'package' ? map.q : results.q;
+    const loadedFor = { package: map.q, spider: spider.q, hits: results.q }[m];
     if (submittedQuery && loadedFor !== submittedQuery) run(m, submittedQuery);
   }
 
@@ -72,9 +75,7 @@ export default function Search({ onTraverse }) {
             key={m}
             type="button"
             onClick={() => switchMode(m)}
-            disabled={m === 'spider'}
-            title={m === 'spider' ? 'jön a 0.63.0-ban' : undefined}
-            className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`px-3 py-1 text-xs font-medium uppercase tracking-wider transition-colors ${
               mode === m ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
             }`}
           >
@@ -94,6 +95,7 @@ export default function Search({ onTraverse }) {
       )}
       {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">Error: {error}</p>}
       {mode === 'package' && map.data && <BrainMapPackage map={map.data} onShowHits={() => switchMode('hits')} />}
+      {mode === 'spider' && spider.data && <SpiderResult walk={spider.data.result} />}
       {mode === 'hits' && (
       <div>
         {results.hits.map((r) => (

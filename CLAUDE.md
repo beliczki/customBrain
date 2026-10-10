@@ -114,7 +114,7 @@ All routes behind auth middleware. Route files in `server/routes/`:
 | `/export` | POST | `export.js` | `exportThoughts` |
 | `/map` | GET | `map.js` | `buildBrainMap` (Search tab `map` method; same package as the `map` MCP tool) |
 | `/agent-runs` | GET | `agent-runs.js` | `readAgentRuns` (MCP log tab; MCP call log grouped into runs) |
-| `/trace` | GET | `trace.js` | `buildTrace` (traversal replay: a Search method's steps → Graph; `method=search\|map`) |
+| `/trace` | GET | `trace.js` | `buildTrace` (traversal replay: a Search method's steps → Graph; `method=search\|map\|spider`; also spider's only route) |
 | `/mcp/http` | ALL | `mcp.js` | `handleMcpHttp` |
 | `/fireflies-webhook` | POST | `fireflies-webhook.js` | — (HMAC secret, **not** Bearer; mounted above the Bearer middleware in `server/index.js`) |
 
@@ -155,6 +155,8 @@ Commitments (0.53.0): `server/commitments.js`, own Qdrant collection `commitment
 map (0.56.0; named `brain_map` until 0.60.0): `server/brain-map.js`. Tool names drop the redundant "brain" (it is the brain MCP): the retrieval methods are `search`, `map`, and the planned `spider` — see `docs/bejaras-modszerek-terv-2026-10-10.md`. It assembles the spec's situation package (HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB) from existing readers: vault context, `repos-status.json`, `findFiles`, `quickLookup`, `searchThoughts`, `listCommitments`, the agenda cache. It never fetches new data and makes no LLM call. Scope `brain-read`, because the calendar is read from the agenda cache. Section caps and stale thresholds are constants at the top of the file, the future AUTORESEARCH knobs. A new source joins as a reader there, not as a new search.
 
 MCP call log (0.58.0): `server/mcp-call-log.js` → `state/mcp-calls.jsonl`, written from `applyScopeGate`'s handler wrap (HTTP callers only, `caller` = token name). A new tool is logged automatically; nothing to add per tool. No full result text — clipped args + `{id, title}` refs.
+
+spider (0.63.0): `server/spider.js`, best-first walk over buildGraph + buildOntology from search hits + question anchors; knobs (steps, threshold, decay, edge weights) at the top of the file. UI-only for now (Search tab + `/trace`), not an MCP tool until it beats `map`.
 
 Ontology layers (0.59.0): `server/ontology.js` `layerOf()` is the ONE rule for which layer a point belongs to (Horgony · Történés · Tárgy · Vállalás · Tudás). `map` HÁTTÉR and the Graph's Ontológia mode both use it — change the rule there, never in a caller.
 
