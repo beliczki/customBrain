@@ -19,6 +19,7 @@ import { quickLookup } from './quick-lookup.js';
 import { searchThoughts } from './routes/search.js';
 import { getVaultContext } from './drive-context.js';
 import { nameKey, resolveAliases, stripAccents } from './names.js';
+import { layerOf } from './ontology.js';
 
 // Per-section caps. Hand-set starting values; the AUTORESEARCH profile
 // (ROADMAP) is where they get calibrated per brain instance.
@@ -27,13 +28,13 @@ const MAX = { search: 10, history: 25, files: 8, commitments: 15, events: 10, ba
 // Repos: daily 04:30 cron. Files catalog: built by hand, no cron yet.
 const STALE_HOURS = { agenda: 2, repos: 36, files: 24 * 14 };
 
-const BACKGROUND_TYPES = new Set(['synthesis', 'decision']);
 const OPEN_STATUSES = new Set(['open', 'waiting', 'expired']);
 
 const norm = (s) => stripAccents(String(s || '')).toLowerCase();
 const hoursSince = (iso) => (Date.now() - new Date(iso).getTime()) / 3600000;
 const dateOf = (t) => String(t.effective_date || t.created_at || '').slice(0, 10);
-const isBackground = (t) => BACKGROUND_TYPES.has(t.type) || t.source === 'youtube' || t.type === 'dossier';
+// HÁTTÉR = the Tudás layer (server/ontology.js) plus dossier hits.
+const isBackground = (t) => t.type === 'dossier' || layerOf(t) === 'tudas';
 
 /**
  * Anchors named in a question, matched word by word, order- and

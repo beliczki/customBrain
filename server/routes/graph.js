@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import Graph from 'graphology';
 import louvain from 'graphology-communities-louvain';
-import { getAllWithVectors } from '../qdrant.js';
+import { readFile } from 'node:fs/promises';
+import { getAllWithVectors, scrollFilteredRaw } from '../qdrant.js';
+import { LAYERS, layerOf } from '../ontology.js';
+import { nameKey } from '../names.js';
+import { listCommitments } from '../commitments.js';
+import { REPOS_STATUS_PATH } from '../repos-status.js';
+import { CATALOG_PATH } from '../files-catalog.js';
 
 const router = Router();
 
@@ -23,6 +29,17 @@ router.get('/graph', async (req, res) => {
     res.json(await buildGraph());
   } catch (err) {
     console.error('Graph error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Ontológia mode (0.59.0): the non-thought layers, loaded the first time the
+// mode is picked so the default graph payload does not grow.
+router.get('/graph/ontology', async (req, res) => {
+  try {
+    res.json(await buildOntology());
+  } catch (err) {
+    console.error('Graph ontology error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -69,6 +86,7 @@ export async function buildGraph(points = null) {
     topics: p.payload.topics || [],
     created_at: p.payload.created_at,
     effective_date: p.payload.effective_date,
+    layer: layerOf(p.payload),
   }));
 
   const edges = [];
@@ -207,5 +225,153 @@ export async function buildGraph(points = null) {
       community_count: communities.length,
     },
     tunables: { SEMANTIC_MIN_SCORE, SEMANTIC_K, TAG_FANOUT_CAP },
+  };
+}
+
+// A person needs this many thoughts to get a Horgony node — the same bar the
+// Graph's Person grouping sets (MIN_ANCHOR_SIZE in Graph.jsx). Robi ("Me") is
+// on nearly every thought, so his dossier would only add a hairball hub.
+const PERSON_MIN_THOUGHTS = 3;
+const SELF = 'Me';
+
+async function readJson(path) {
+  try {
+    return JSON.parse(await readFile(path, 'utf8'));
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+/**
+ * The layers beyond thoughts, as extra nodes + cross-layer edges (kind
+ * 'ontology', with `rel`): dossiers (Horgony; Repos → Tárgy), one file bundle
+ * per project (Tárgy), commitments (Vállalás). Thought nodes already carry
+ * their layer from buildGraph. Reads only what is stored — no new search.
+ */
+export async function buildOntology() {
+  const [thoughts, dossiers, commitments, repos, catalog] = await Promise.all([
+    scrollFilteredRaw({ must_not: [
+      { key: 'kind', match: { any: ['chunk', 'dossier'] } },
+      { key: 'status', match: { value: 'archived' } },
+    ] }, 256),
+    scrollFilteredRaw({ must: [{ key: 'kind', match: { value: 'dossier' } }] }, 256),
+    listCommitments({ limit: 1000 }),
+    readJson(REPOS_STATUS_PATH),
+    readJson(CATALOG_PATH),
+  ]);
+
+  const nodes = [];
+  const edges = [];
+  const edge = (source, target, rel) => edges.push({ source, target, kind: 'ontology', rel, weight: 1 });
+
+  // Name → dossier id per dossier type, via the dossier name and its aliases.
+  const index = { person: new Map(), project: new Map(), topic: new Map() };
+  const personCount = new Map();
+  for (const t of thoughts) for (const p of t.people || []) personCount.set(nameKey(p), (personCount.get(nameKey(p)) || 0) + 1);
+
+  const reposByDossier = new Map((repos ? repos.repos : []).map((r) => [r.dossier, r]));
+  const repoNodes = [];
+  for (const d of dossiers) {
+    if (d.dossier_type === 'person' && (d.name === SELF || (personCount.get(nameKey(d.name)) || 0) < PERSON_MIN_THOUGHTS)) continue;
+    const node = {
+      id: d.id, entity: 'dossier', title: d.name, layer: layerOf(d),
+      type: `${d.dossier_type} dossier`, source: 'vault', created_at: d.effective_date,
+      people: [], projects: [], topics: [], openable: true,
+    };
+    if (d.dossier_type === 'repo') {
+      const r = reposByDossier.get(d.name);
+      node.entity = 'repo';
+      node.detail = !r ? ['repos-status.json: no entry']
+        : r.error ? [r.error]
+          : [`${r.repo} · v${r.version}`, `last commit ${r.last_commit.date.slice(0, 10)}`, ...r.drift];
+      if (r && r.project) repoNodes.push({ id: d.id, project: r.project.replace(/^["'[]+|["'\]]+$/g, '') });
+    } else {
+      for (const name of [d.name, ...(d.aliases || [])]) index[d.dossier_type].set(nameKey(name), d.id);
+    }
+    nodes.push(node);
+  }
+
+  // Thought → anchor (rel: tag). Only to anchors that made it into the graph.
+  for (const t of thoughts) {
+    const targets = new Set();
+    for (const [field, type] of [['projects', 'project'], ['people', 'person'], ['topics', 'topic']]) {
+      for (const v of t[field] || []) {
+        const id = index[type].get(nameKey(v));
+        if (id) targets.add(id);
+      }
+    }
+    for (const id of targets) edge(t.id, id, 'tag');
+  }
+
+  for (const r of repoNodes) {
+    const id = index.project.get(nameKey(r.project));
+    if (id) edge(r.id, id, 'repo');
+  }
+
+  // One file bundle per project: 1090 single files would outnumber thoughts.
+  if (catalog) {
+    const bundles = new Map();
+    for (const f of catalog.records) {
+      for (const p of f.projects) {
+        const b = bundles.get(p) || { count: 0, latest: '' };
+        b.count += 1;
+        if (f.modified > b.latest) b.latest = f.modified;
+        bundles.set(p, b);
+      }
+    }
+    for (const [project, b] of bundles) {
+      const id = `files:${project}`;
+      nodes.push({
+        id, entity: 'filebundle', title: `Fájlok · ${project}`, layer: 'targy',
+        type: 'file bundle', source: 'files', created_at: b.latest, count: b.count,
+        people: [], projects: [project], topics: [],
+        detail: [`${b.count} files`, `latest ${b.latest.slice(0, 10)}`, `find_files(project="${project}")`],
+      });
+      const target = index.project.get(nameKey(project));
+      if (target) edge(id, target, 'files');
+    }
+  }
+
+  // Commitment → its source thought(s) and its owner/counterparty/projects.
+  const bySourceId = new Map(thoughts.filter((t) => t.source_id).map((t) => [`${t.source}:${t.source_id}`, t.id]));
+  const thoughtIds = new Set(thoughts.map((t) => t.id));
+  for (const c of commitments.commitments) {
+    nodes.push({
+      id: c.id, entity: 'commitment', title: c.title, layer: 'vallalas',
+      type: `commitment · ${c.status}`, source: c.kind, created_at: c.created_at,
+      status: c.status, people: [], projects: c.projects || [], topics: [],
+      detail: [`${c.status}${c.overdue ? ' · overdue' : ''}`, `due ${c.due || '—'}`, `owner ${c.owner}`, `${c.sources[0].source}:${c.sources[0].ref}`],
+    });
+    const sourceThoughts = new Set();
+    for (const s of c.sources) {
+      const id = bySourceId.get(`${s.source}:${s.ref}`);
+      if (id) sourceThoughts.add(id);
+    }
+    for (const r of c.candidate_refs || []) if (thoughtIds.has(r.thought_id)) sourceThoughts.add(r.thought_id);
+    for (const id of sourceThoughts) edge(c.id, id, 'source');
+    const anchors = new Set();
+    for (const p of [c.owner, ...(c.counterparty || [])]) {
+      const id = index.person.get(nameKey(p));
+      if (id) anchors.add(id);
+    }
+    for (const p of c.projects || []) {
+      const id = index.project.get(nameKey(p));
+      if (id) anchors.add(id);
+    }
+    for (const id of anchors) edge(c.id, id, 'owner');
+  }
+
+  const degree = new Map();
+  for (const e of edges) for (const id of [e.source, e.target]) degree.set(id, (degree.get(id) || 0) + 1);
+  for (const n of nodes) { n.degree = degree.get(n.id) || 0; n.community = -1; }
+
+  const byLayer = {};
+  for (const n of nodes) byLayer[n.layer] = (byLayer[n.layer] || 0) + 1;
+  return {
+    layers: LAYERS,
+    nodes,
+    edges,
+    stats: { node_count: nodes.length, edge_count: edges.length, by_layer: byLayer, repos_status: !!repos, files_catalog: !!catalog },
   };
 }

@@ -106,6 +106,7 @@ All routes behind auth middleware. Route files in `server/routes/`:
 | `/capture` | POST | `capture.js` | `captureThought` |
 | `/search` | POST | `search.js` | `searchThoughts` |
 | `/graph` | GET | `graph.js` | `buildGraph` (nodes + metadata/semantic/supersedes edges + Louvain communities) |
+| `/graph/ontology` | GET | `graph.js` | `buildOntology` (Ontológia mode: dossiers, file bundles, commitments + cross-layer edges) |
 | `/recent` | GET | `recent.js` | `getRecent` |
 | `/thoughts/:id` | DELETE | `recent.js` | — |
 | `/thoughts/:id` | PATCH | `recent.js` | — (metadata edits; backs `update_thought`) |
@@ -153,6 +154,8 @@ Commitments (0.53.0): `server/commitments.js`, own Qdrant collection `commitment
 brain_map (0.56.0): `server/brain-map.js`. It assembles the spec's situation package (HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB) from existing readers: vault context, `repos-status.json`, `findFiles`, `quickLookup`, `searchThoughts`, `listCommitments`, the agenda cache. It never fetches new data and makes no LLM call. Scope `brain-read`, because the calendar is read from the agenda cache. Section caps and stale thresholds are constants at the top of the file, the future AUTORESEARCH knobs. A new source joins as a reader there, not as a new search.
 
 MCP call log (0.58.0): `server/mcp-call-log.js` → `state/mcp-calls.jsonl`, written from `applyScopeGate`'s handler wrap (HTTP callers only, `caller` = token name). A new tool is logged automatically; nothing to add per tool. No full result text — clipped args + `{id, title}` refs.
+
+Ontology layers (0.59.0): `server/ontology.js` `layerOf()` is the ONE rule for which layer a point belongs to (Horgony · Történés · Tárgy · Vállalás · Tudás). `brain_map` HÁTTÉR and the Graph's Ontológia mode both use it — change the rule there, never in a caller.
 
 **Collections:** names live only in `server/collections.js`; `BACKED_UP` is the list the nightly backup snapshots — a new collection goes there in the same change. `scripts/restore-from-snapshot.js` requires `--collection <name>`.
 

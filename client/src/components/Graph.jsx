@@ -5,7 +5,7 @@ import SpriteText from 'three-spritetext';
 import * as THREE from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { getGraph } from '../api.js';
+import { getGraph, getGraphOntology } from '../api.js';
 import ThoughtModal from './ThoughtModal.jsx';
 
 // Community color palette — fixed order so cluster N keeps its color across
@@ -26,16 +26,22 @@ const DIM_LINK = '#0a0e1a';
 // Edge provenance colors (every edge says WHY it exists; legend decodes).
 // 'anchor'/'spoke' are layout links: member→group anchor and anchor→brain.
 const LINK_COLOR = {
-  metadata: '#333c50', semantic: '#3b5bdb', supersedes: '#b45309',
+  metadata: '#333c50', semantic: '#3b5bdb', supersedes: '#b45309', ontology: '#1f5f4a',
   anchor: '#161d2e', spoke: '#232c44',
 };
-const LINK_HL = { metadata: '#94a3b8', semantic: '#60a5fa', supersedes: '#fbbf24' };
+const LINK_HL = { metadata: '#94a3b8', semantic: '#60a5fa', supersedes: '#fbbf24', ontology: '#34d399' };
 
 const EDGE_KIND_LABELS = {
   metadata: 'shared tag (deterministic)',
   semantic: 'semantic ≥ threshold (cosine)',
   supersedes: 'supersedes (archive chain)',
+  ontology: 'cross-layer (Ontológia mode)',
 };
+
+// Ontológia mode (0.59.0): one fixed bubble per layer, fixed colours, so a
+// layer keeps its colour whatever the counts. Order and labels come from the
+// server (server/ontology.js LAYERS) with the ontology payload.
+const LAYER_COLOR = { horgony: '#a78bfa', tortenes: '#60a5fa', targy: '#f59e0b', vallalas: '#f87171', tudas: '#34d399' };
 
 const GROUP_MODES = [
   { key: 'clusters', label: 'Clusters' },
@@ -43,6 +49,7 @@ const GROUP_MODES = [
   { key: 'person', label: 'Person' },
   { key: 'type', label: 'Type' },
   { key: 'source', label: 'Source' },
+  { key: 'layer', label: 'Ontológia' },
 ];
 
 // Every thought mentions the owner — grouping by person must exclude self or
@@ -103,9 +110,21 @@ const escapeHtml = (s) => (s || '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt
  *  it between its clusters. `primary` (the rarest membership) drives color.
  *  Thoughts with no anchored membership are "orbit" nodes: no fake cluster,
  *  they ring the whole system. */
-function deriveGroups(nodes, groupBy, communities) {
+function deriveGroups(nodes, groupBy, communities, layers) {
   const memberships = new Map();
   const primary = new Map();
+
+  if (groupBy === 'layer') {
+    for (const n of nodes) {
+      memberships.set(n.id, [n.layer]);
+      primary.set(n.id, n.layer);
+    }
+    const counts = countMemberships(memberships);
+    const groups = layers
+      .filter((l) => counts.has(l.key))
+      .map((l) => ({ key: l.key, label: l.label, color: LAYER_COLOR[l.key], count: counts.get(l.key) }));
+    return { memberships, primary, groups, orbitCount: 0 };
+  }
 
   if (groupBy === 'clusters') {
     const commLabel = new Map(communities.map((c) => [c.id, c.label]));
@@ -187,7 +206,10 @@ export default function Graph() {
   const [mode, setMode] = useState(prefs.mode === '3d' ? '3d' : '2d');
   const [groupBy, setGroupBy] = useState(GROUP_MODES.some((m) => m.key === prefs.groupBy) ? prefs.groupBy : 'clusters');
   const [isolatedGroup, setIsolatedGroup] = useState(null);
-  const [edgeKinds, setEdgeKinds] = useState(prefs.edgeKinds || { metadata: true, semantic: true, supersedes: true });
+  // Spread over the defaults: prefs saved before a new edge kind existed
+  // must not leave that kind unchecked-by-accident (undefined).
+  const [edgeKinds, setEdgeKinds] = useState({ metadata: true, semantic: true, supersedes: true, ontology: true, ...prefs.edgeKinds });
+  const [ontology, setOntology] = useState(null);
   const [semThreshold, setSemThreshold] = useState(prefs.semThreshold ?? 0.75);
   const [edgeOpacity, setEdgeOpacity] = useState(prefs.edgeOpacity ?? 0.6);
   const [sizeMult, setSizeMult] = useState(prefs.sizeMult ?? 1);
@@ -232,6 +254,19 @@ export default function Graph() {
     getGraph().then(setData).catch((err) => setError(err.message));
   }, []);
 
+  // The non-thought layers load the first time Ontológia mode is picked.
+  useEffect(() => {
+    if (groupBy !== 'layer' || ontology) return;
+    getGraphOntology().then(setOntology).catch((err) => setError(err.message));
+  }, [groupBy, ontology]);
+
+  // What the scene shows: thoughts alone, or thoughts + the ontology layers.
+  const view = useMemo(() => {
+    if (!data) return null;
+    if (groupBy !== 'layer' || !ontology) return data;
+    return { ...data, nodes: [...data.nodes, ...ontology.nodes], edges: [...data.edges, ...ontology.edges] };
+  }, [data, groupBy, ontology]);
+
   // Persist view prefs.
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
@@ -242,8 +277,8 @@ export default function Graph() {
 
   const nodeById = useMemo(() => {
     if (!data) return new Map();
-    return new Map(data.nodes.map((n) => [n.id, n]));
-  }, [data]);
+    return new Map(view.nodes.map((n) => [n.id, n]));
+  }, [view]);
 
   // First-thought .. last-thought bounds for the timeline (epoch ms, day step).
   const timeBounds = useMemo(() => {
@@ -272,19 +307,19 @@ export default function Graph() {
 
   const grouping = useMemo(() => {
     if (!data) return { memberships: new Map(), primary: new Map(), groups: [], orbitCount: 0 };
-    const active = data.nodes.filter((n) => !n.archived && inTimeWindow(n));
-    return deriveGroups(active, groupBy, data.communities);
-  }, [data, groupBy, inTimeWindow]);
+    const active = view.nodes.filter((n) => !n.archived && inTimeWindow(n));
+    return deriveGroups(active, groupBy, data.communities, ontology ? ontology.layers : []);
+  }, [data, view, groupBy, ontology, inTimeWindow]);
 
   // Active edges under the current legend toggles + semantic threshold.
   const activeEdges = useMemo(() => {
     if (!data) return [];
-    return data.edges.filter((e) => {
+    return view.edges.filter((e) => {
       if (!edgeKinds[e.kind]) return false;
       if (e.kind === 'semantic' && e.score < semThreshold) return false;
       return true;
     });
-  }, [data, edgeKinds, semThreshold]);
+  }, [data, view, edgeKinds, semThreshold]);
 
   // Neighbor list of the selected node, with edge provenance (side panel).
   const selectedNeighbors = useMemo(() => {
@@ -675,7 +710,7 @@ export default function Graph() {
     setSelectedNode(null);
     nodeObjsRef.current.clear();
 
-    const struct = { data, mode, groupBy, isolatedGroup, activeEdges };
+    const struct = { data: view, mode, groupBy, isolatedGroup, activeEdges };
     const isScrub = Object.keys(struct).every((k) => prevStructRef.current[k] === struct[k]);
     prevStructRef.current = struct;
 
@@ -689,7 +724,7 @@ export default function Graph() {
     const cache = nodeCacheRef.current;
     const orbitTag = ORBIT_LABEL[groupBy];
 
-    const thoughts = data.nodes
+    const thoughts = view.nodes
       .filter((n) => {
         if (n.archived || !inTimeWindow(n)) return false;
         const mems = memberships.get(n.id) || [];
@@ -793,7 +828,7 @@ export default function Graph() {
     applyHighlight();
     const fitTimer = isScrub ? null : setTimeout(() => graph.zoomToFit(800, 60), 700);
     return () => { if (fitTimer) clearTimeout(fitTimer); };
-  }, [data, mode, grouping, groupBy, isolatedGroup, activeEdges, inTimeWindow, applyHighlight]);
+  }, [data, view, mode, grouping, groupBy, isolatedGroup, activeEdges, inTimeWindow, applyHighlight]);
 
   // === Live physics/size sliders — mutate in place, no scene rebuild ===
   useEffect(() => {
@@ -1108,12 +1143,19 @@ export default function Graph() {
             <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">
               {selected.type} · {selected.source} · {selected.degree} links
             </p>
-            <button
-              onClick={() => setModalThoughtId(selected.id)}
-              className="graph-node-info__open w-full px-3 py-1.5 bg-accent text-white text-xs font-medium hover:bg-accent-dark transition-colors mb-2"
-            >
-              Open thought
-            </button>
+            {selected.detail && (
+              <ul className="graph-node-info__detail mb-2 space-y-0.5 text-xs text-slate-400">
+                {selected.detail.map((line) => <li key={line} className="break-all">{line}</li>)}
+              </ul>
+            )}
+            {(!selected.entity || selected.openable) && (
+              <button
+                onClick={() => setModalThoughtId(selected.id)}
+                className="graph-node-info__open w-full px-3 py-1.5 bg-accent text-white text-xs font-medium hover:bg-accent-dark transition-colors mb-2"
+              >
+                {selected.entity ? 'Open dossier' : 'Open thought'}
+              </button>
+            )}
             {selectedNeighbors.length > 0 && (
               <>
                 <p className="graph-controls-panel__label mt-2">Connections</p>
@@ -1128,10 +1170,10 @@ export default function Graph() {
                           ? `shared: ${[...(e.shared?.people || []), ...(e.shared?.projects || []), ...(e.shared?.topics || [])].join(', ')}`
                           : e.kind === 'semantic'
                             ? `cosine ${(e.score * 100).toFixed(0)}%`
-                            : 'supersedes'
+                            : e.kind === 'ontology' ? `cross-layer: ${e.rel}` : 'supersedes'
                       }
                     >
-                      <span className={`inline-block w-1.5 h-1.5 mr-1.5 ${e.kind === 'semantic' ? 'bg-[var(--accent-blue)]' : e.kind === 'supersedes' ? 'bg-amber-500' : 'bg-slate-600'}`} />
+                      <span className={`inline-block w-1.5 h-1.5 mr-1.5 ${e.kind === 'semantic' ? 'bg-[var(--accent-blue)]' : e.kind === 'supersedes' ? 'bg-amber-500' : e.kind === 'ontology' ? 'bg-emerald-400' : 'bg-slate-600'}`} />
                       {n.title}
                       {e.kind === 'semantic' && <span className="text-slate-600"> {(e.score * 100).toFixed(0)}%</span>}
                     </button>

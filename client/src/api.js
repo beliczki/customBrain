@@ -101,6 +101,11 @@ export async function getGraph() {
   return res.json();
 }
 
+export async function getGraphOntology() {
+  const res = await fetch(`${BASE}/graph/ontology`, { headers: authHeaders() });
+  return jsonOrThrow(res, 'graph ontology');
+}
+
 export async function healthCheck() {
   const res = await fetch(`${BASE}/health-check`, { headers: authHeaders() });
   return jsonOrThrow(res, 'health-check');

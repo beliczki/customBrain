@@ -2,6 +2,19 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.59.0 — 2026-10-10
+
+**Graph: a new Ontológia mode shows all five layers as bubbles.** It is a new grouping in the existing anchor machinery (`GROUP_MODES` + `layer`). Five layer anchors sit around the BRAIN, and each node is tied to its own layer: Horgony, Történés, Tárgy, Vállalás, Tudás. Cross-layer edges are a new edge kind, `ontology`, with a `rel` subtype, toggled from the Edges panel. `tag` links a thought to a project, person or topic dossier. `source` links a commitment to its source thought (gmail/fireflies `ref` = `source_id`, plus `candidate_refs`). `owner` links a commitment to a person or project dossier. `repo` links a repo to a project. `files` links a file bundle to a project. The extra nodes load the first time the mode is picked, from the new `GET /graph/ontology` (`buildOntology` in `server/routes/graph.js`), so the default graph payload does not grow, and Louvain still runs on thoughts only. Nodes:
+- Projects and Topics dossiers.
+- People dossiers with at least 3 thoughts. "Me" is left out, since it is on nearly every thought.
+- Repos dossiers, with version and drift from `repos-status.json`.
+- One file bundle per project (1090 single files would outnumber the 626 thoughts).
+- Commitments.
+
+A dossier opens in `ThoughtModal`. A commitment, repo or file bundle shows its details in the side panel.
+
+**One layer rule for everything: `server/ontology.js` `layerOf()`.** Tudás = `source=youtube` or `type ∈ {reference, synthesis, decision}`; a `task` thought stays Történés, because the Vállalás layer is the verified commitments. `brain_map`'s HÁTTÉR now follows the same rule, so it gains `reference` thoughts (they used to land in ELŐZMÉNYEK). Graph thought nodes carry `layer`. Plan: `docs/graph-ontologia-terv-2026-10-10.md`.
+
 ## 0.58.0 — 2026-10-10
 
 **MCP call log + a new Runs tab that replays real agent runs.** Every `tools/call` from an HTTP client appends one line to `state/mcp-calls.jsonl` (new store, the same append-only pattern as `anthropic-usage.jsonl`). A line holds: timestamp, caller (the token's name), tool, args (strings over 300 chars clipped, with the length kept), duration, ok or error, result size, and the result's `{id, title}` pairs (up to 50). It stores no full result text. The hook is `applyScopeGate` in `server/mcp-scopes.js`, which already wraps every tool registration in all three files. It now wraps the handler too, so no call site changed. `createMcpServer` takes `{ scopes, caller }`. Stdio does not log: it is local, and a log there would sit on the Mac. A failed log write goes to the pm2 log, and the agent still gets its result: the log is a side record, not the data path.
