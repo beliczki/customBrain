@@ -18,6 +18,7 @@ import { quickLookup } from './quick-lookup.js';
 import { findFiles } from './files-catalog.js';
 import { reindexDossiers } from './dossier-index.js';
 import { listCommitments, listCommitmentCandidates, saveCommitments } from './commitments.js';
+import { buildBrainMap } from './brain-map.js';
 import { registerAgentTools } from '../agent/register.js';
 import { applyScopeGate } from './mcp-scopes.js';
 
@@ -122,6 +123,22 @@ server.tool(
   },
   async (args) => {
     const result = await findFiles(args);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  'brain_map',
+  'Situation map for a question or anchor — the first call when someone asks "where are we with X?" / "what is going on with Y?". Returns one structured package, NOT a merged hit list: HORGONYOK (recognised projects/people/topics; per project whether a repo and Drive files exist), HELYZET (repo version/last commit/drift, latest files), ELŐZMÉNYEK (timeline: date · type · source · title · thought id), KÖVETKEZŐ (open/waiting commitments + upcoming calendar events tied to the anchors), HÁTTÉR (syntheses, decisions, dossiers, YouTube), HIÁNYOK (gaps across sources: drift, unreadable repo, project without Drive folder, overdue commitment, stale state, empty section), TOVÁBB (the deeper tool call per section, ready to run). One line per item with a ref — no full texts. Anchors in the question are matched on whole words; a bare first name is listed under candidates, not used. Calendar is read from the hourly agenda cache, not live. Zero LLM calls.',
+  {
+    question: z.string().optional().describe('Free-text question; anchors are recognised in it'),
+    project: z.string().optional().describe('Project anchor (alias-resolved)'),
+    person: z.string().optional().describe('Person anchor (alias-resolved; Robi is "Me")'),
+    days_back: z.number().optional().describe('ELŐZMÉNYEK window in days (default 60)'),
+    days_ahead: z.number().optional().describe('Upcoming events window in days (default 7, max what the agenda cache holds)'),
+  },
+  async (args) => {
+    const result = await buildBrainMap(args);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );

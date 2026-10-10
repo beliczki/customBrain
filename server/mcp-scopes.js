@@ -30,6 +30,7 @@ export const TOOL_SCOPES = {
   find_files: 'brain-read', // reads state/files-catalog.json; no provider calls
   list_commitments: 'brain-read',
   list_commitment_candidates: 'brain-read',
+  brain_map: 'brain-read', // agenda cache, not live Calendar; no provider calls
   list_recent: 'brain-read',
   brain_stats: 'brain-read',
   find_overconnected: 'brain-read',
