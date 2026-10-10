@@ -2,6 +2,12 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.72.0 — 2026-10-10
+
+**Fix: the spider page went blank at the end of the replay.** `TypeError: l.topics is not iterable`. The frontier ("ide ment volna még") items appear when the replay ends, and they were bare `{id, title, layer, score, why}`, while the hover matcher reads every item's tags. Fixed at the source: candidates now carry the same line shape as the walked items (`lineOf`: tags, date, type, source, entity, link).
+- **Tag cloud as pills:** coloured by kind with the Search chip colours (project purple, person green, topic indigo) and sized by score weight. Hovering a pill still highlights the items carrying it; a small **⋯** at the end of the pill opens the search / map / spider menu.
+- **Searches go into the browser history:** every search, method switch and tag search pushes `?q=…&m=search|map|spider`. Back and Forward restore that search, and a link with `?q=` opens straight on the Search page and runs it.
+
 ## 0.71.0 — 2026-10-10
 
 **spider page reworked: fixed quality panel, linked hover, tag search, top panels; the search survives a trip to the graph.**

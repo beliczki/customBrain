@@ -261,7 +261,9 @@ export async function spiderWalk(question, emit = () => {}, { recency = true } =
         items: walked.filter((t) => t.layer === l.key).map((t) => ({ ...lineOf(nodes.get(t.ref.id)), step: walked.indexOf(t) + 1, score: t.score, why: t.why, lens: t.lens, round: t.round, agree: t.agree, from: t.from ? t.from.id : null })),
       })),
       lenses: LENSES.map((l) => ({ key: l.key, label: l.label })),
-      candidates: left.map(([id, f]) => ({ id, title: nodes.get(id).title, layer: nodes.get(id).layer, score: f.score, why: f.why })),
+      // Same line shape as the walked items (tags included) — the client's hover
+      // matching reads `topics` on every item; a bare candidate crashed it.
+      candidates: left.map(([id, f]) => ({ ...lineOf(nodes.get(id)), layer: nodes.get(id).layer, score: f.score, why: f.why })),
       stopped: walked.length >= MAX_STEPS ? 'max_steps' : 'min_score',
       params: { MAX_STEPS, MIN_SCORE, DECAY, SEEDS, SEED_VISITS, GATE, lenses: LENSES.map((l) => l.key), recency },
       rounds: Math.max(0, ...trace.filter((t) => t.phase === 'walk').map((t) => t.round)),

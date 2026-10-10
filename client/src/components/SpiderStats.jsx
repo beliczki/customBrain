@@ -178,36 +178,52 @@ function Tree({ items, hover, setHover }) {
   );
 }
 
-// 5. Tag cloud: the reached items' tags (topics, projects, people), score-
-// weighted. A tag opens a menu: run it as a new search with any method.
+// 5. Tag cloud: the reached items' tags as pills, coloured by kind (project /
+// person / topic — the Search chip colours), sized by score weight. Hover
+// highlights the items carrying the tag; the ⋯ at the end of a pill opens the
+// menu that runs it as a new search with any method.
+const TAG_CHIP = {
+  project: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+  person: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+  topic: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300',
+};
+
 function Tags({ items, hover, setHover, onSearch }) {
   const [menu, setMenu] = useState(null);
   const w = {};
-  for (const i of items) for (const t of tagsOf(i)) w[t] = (w[t] || 0) + i.score;
-  const top = Object.entries(w).sort((a, b) => b[1] - a[1]).slice(0, 28);
+  const kind = {};
+  for (const i of items) {
+    for (const [k, list] of [['project', i.projects], ['person', i.people.filter((p) => p !== 'Me')], ['topic', i.topics]]) {
+      for (const t of list) { w[t] = (w[t] || 0) + i.score; kind[t] = kind[t] || k; }
+    }
+  }
+  const top = Object.entries(w).sort((a, b) => b[1] - a[1]).slice(0, 24);
   const max = top.length ? top[0][1] : 1;
   return (
-    <div className="spider-stats__tags relative flex flex-wrap items-baseline content-start gap-x-2 gap-y-0.5 h-[150px] overflow-hidden">
-      {top.map(([tag, v]) => (
-        <button
-          key={tag}
-          type="button"
-          onClick={() => setMenu(menu === tag ? null : tag)}
-          onMouseEnter={() => setHover({ kind: 'tag', tag })}
-          onMouseLeave={() => setHover(null)}
-          className={`spider-stats__tag transition-all duration-300 leading-tight hover:text-txt ${hover && hover.kind === 'tag' && hover.tag === tag ? 'text-txt underline' : 'text-txt-sec'}`}
-          style={{ fontSize: `${10 + 11 * (v / max)}px`, opacity: 0.5 + 0.5 * (v / max) }}
-        >
-          {tag}
-        </button>
-      ))}
+    <div className="spider-stats__tags relative flex flex-wrap items-center content-start gap-1 h-[150px] overflow-hidden">
+      {top.map(([tag, v]) => {
+        const on = hover && hover.kind === 'tag' && hover.tag === tag;
+        return (
+          <span
+            key={tag}
+            onMouseEnter={() => setHover({ kind: 'tag', tag })}
+            onMouseLeave={() => setHover(null)}
+            className={`spider-stats__tag inline-flex items-center gap-1 rounded-full pl-2 pr-1 py-0.5 leading-tight transition-all duration-300 ${TAG_CHIP[kind[tag]]} ${on ? 'ring-1 ring-[var(--accent-blue)]' : ''}`}
+            style={{ fontSize: `${10 + 5 * (v / max)}px`, opacity: 0.6 + 0.4 * (v / max) }}
+          >
+            {tag}
+            <button type="button" onClick={() => setMenu(menu === tag ? null : tag)} title="Keresés erre…"
+              className="spider-stats__tag-more px-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">⋯</button>
+          </span>
+        );
+      })}
       {menu && (
         <div className="spider-stats__tag-menu absolute left-0 bottom-0 z-20 flex items-center gap-1 px-2 py-1.5 bg-surface border border-subtle shadow-lg text-xs">
           <span className="text-txt-ter mr-1">„{menu}” keresése:</span>
-          {[['search', 'search'], ['map', 'map'], ['spider', 'spider']].map(([m, label]) => (
+          {['search', 'map', 'spider'].map((m) => (
             <button key={m} type="button" onClick={() => { setMenu(null); onSearch(menu, m); }}
               className="px-2 py-0.5 border border-subtle text-txt-sec hover:bg-accent hover:text-white uppercase tracking-wider text-[10px]">
-              {label}
+              {m}
             </button>
           ))}
           <button type="button" onClick={() => setMenu(null)} className="ml-1 text-txt-ter hover:text-txt">✕</button>
@@ -266,7 +282,7 @@ export default function SpiderStats({ items, lenses, total, hover, setHover, onS
           <Chart title="Bejárás fája" help="Balra a kiindulópontok, jobbra a belőlük nyílt lépések; a vonal színe a lencse, amelyen át jött. Mély, ágas fa = valódi bejárás; lapos = csak a keresés.">
             <Tree items={items} hover={hover} setHover={setHover} />
           </Chart>
-          <Chart title="Címkefelhő" help="Az elért elemek címkéi (téma, projekt, ember), pontszámmal súlyozva — ebből látszik, miről szól a bejárás, és becsúszott-e idegen téma. Kattintva új keresés indul rá.">
+          <Chart title="Címkefelhő" help="Az elért elemek címkéi pontszámmal súlyozva — lila projekt, zöld ember, indigó téma. Ebből látszik, miről szól a bejárás, és becsúszott-e idegen téma. A ⋯ új keresést indít a címkére.">
             <Tags items={items} hover={hover} setHover={setHover} onSearch={onSearch} />
           </Chart>
         </div>

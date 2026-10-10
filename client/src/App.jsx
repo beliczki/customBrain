@@ -89,7 +89,13 @@ function UnlockForm({ onAuthenticated }) {
 }
 
 export default function App() {
-  const [active, setActive] = useState('Capture');
+  // A ?q= link (a pushed search, 0.72.0) opens on the Search page.
+  const [active, setActive] = useState(() => (new URLSearchParams(window.location.search).has('q') ? 'Search' : 'Capture'));
+  useEffect(() => {
+    const onPop = () => { if (new URLSearchParams(window.location.search).has('q')) setActive('Search'); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   // Traversal replay (0.61.0): Search hands {method, q} to the Graph tab.
   const [traversal, setTraversal] = useState(null);
   // Settings is a dialog over the current page (0.63.1), not a page.

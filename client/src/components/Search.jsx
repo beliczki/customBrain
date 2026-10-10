@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { search, streamTrace } from '../api.js';
 import ThoughtBody from './ThoughtBody.jsx';
 import ThoughtFacts from './ThoughtFacts.jsx';
@@ -57,10 +57,38 @@ export default function Search({ active, onTraverse }) {
     setLoading(false);
   }
 
+  // Browser history (0.72.0): every search and method switch is a history
+  // entry (?q=…&m=search|map|spider), so Back returns to the previous search
+  // and a link opens straight into it.
+  const pushHistory = (m, q) => {
+    const url = `?q=${encodeURIComponent(q)}&m=${METHOD_OF[m]}`;
+    if (window.location.search !== url) window.history.pushState(null, '', url);
+  };
+
+  // Read ?q=&m= on load and on Back/Forward; this restores, it does not push.
+  useEffect(() => {
+    const fromUrl = () => {
+      const p = new URLSearchParams(window.location.search);
+      const q = p.get('q');
+      if (!q) return;
+      const m = MODE_OF[p.get('m')] || 'package';
+      setQuery(q);
+      setSubmittedQuery(q);
+      setMode(m);
+      run(m, q);
+    };
+    fromUrl();
+    window.addEventListener('popstate', fromUrl);
+    return () => window.removeEventListener('popstate', fromUrl);
+    // run only uses state setters; mount-time wiring on purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleSearch(e) {
     e.preventDefault();
     if (!query.trim()) return;
     setSubmittedQuery(query);
+    pushHistory(mode, query);
     run(mode, query);
   }
 
@@ -70,11 +98,13 @@ export default function Search({ active, onTraverse }) {
     setQuery(q);
     setSubmittedQuery(q);
     setMode(m);
+    pushHistory(m, q);
     run(m, q);
   }
 
   function switchMode(m) {
     setMode(m);
+    if (submittedQuery) pushHistory(m, submittedQuery);
     const loadedFor = { package: map.q, spider: spider.q, hits: results.q }[m];
     if (submittedQuery && loadedFor !== submittedQuery) run(m, submittedQuery);
   }
