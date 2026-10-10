@@ -15,7 +15,6 @@ applySettingsToEnv();
 
 import { getDrive, getGmail, getVaultContext } from '../server/drive-context.js';
 import { scrollFilteredRaw } from '../server/qdrant.js';
-import { resolveAliases } from '../server/names.js';
 import { getHeader } from '../agent/tools/gmail.js';
 import { CATALOG_PATH, DOCUMENT_MIMES, fileKind, variantKey } from '../server/files-catalog.js';
 
@@ -39,7 +38,7 @@ async function listAll(drive, q, fields) {
   return out;
 }
 
-async function driveRecords(projectOf) {
+async function driveRecords(projectByFolder) {
   const drive = getDrive();
   const folders = await listAll(drive, "mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'me' in owners", 'id, name, parents');
   const byId = new Map(folders.map((f) => [f.id, f]));
@@ -52,6 +51,19 @@ async function driveRecords(projectOf) {
     const p = f ? [...pathOf(f.parents?.[0]), f.name] : [];
     pathCache.set(id, p);
     return p;
+  };
+
+  // The deepest folder a Projects dossier declares in `drive_folder:` decides.
+  // Walks by id, so renames, typos in folder names (ESRTE SK) and shared
+  // folders outside Data/ (Sahar by Attraction) resolve the same way.
+  const projectOfFolder = (id) => {
+    while (id) {
+      if (projectByFolder.has(id)) return projectByFolder.get(id);
+      const f = byId.get(id);
+      if (!f) return [];
+      id = f.parents ? f.parents[0] : null;
+    }
+    return [];
   };
 
   const mimeClause = DOCUMENT_MIMES.map((m) => `mimeType = '${m}'`).join(' or ');
@@ -72,7 +84,7 @@ async function driveRecords(projectOf) {
       modified: f.modifiedTime,
       path: segments.join('/'),
       link: f.webViewLink,
-      projects: segments[0] === 'Data' && segments[1] ? projectOf(segments[1]) : [],
+      projects: projectOfFolder(f.parents?.[0]),
       direction: null,
       from: null,
       thread_id: null,
@@ -165,13 +177,20 @@ const vault = await getVaultContext();
 // getVaultContext returns empty lists on failure; an empty project list here
 // would silently null every project in the catalog.
 if (!vault.projects.length) throw new Error('Vault context has no projects — refusing to build a catalog without project resolution');
-const projectSet = new Set(vault.projects);
-const projectOf = (folder) => {
-  const [resolved] = resolveAliases([folder], vault.projectAliases, vault.projects);
-  return projectSet.has(resolved) ? [resolved] : [];
-};
+// drive_folder: list items in each Projects dossier's frontmatter; the id is
+// read out of the link so a trailing `# path` comment does not matter.
+const projectByFolder = new Map();
+for (const [project, text] of Object.entries(vault.projectDocs)) {
+  const block = text.match(/^drive_folder:\s*\n((?:[ \t]+-.*\n?)+)/m);
+  if (!block) continue;
+  for (const [, id] of block[1].matchAll(/folders\/([\w-]+)/g)) {
+    // One folder may belong to several projects (Sahar = Attraction Productions).
+    projectByFolder.set(id, [...(projectByFolder.get(id) || []), project]);
+  }
+}
+console.log(`drive_folder: ${projectByFolder.size} folders declared by ${new Set([...projectByFolder.values()].flat()).size} projects`);
 
-const records = [...await driveRecords(projectOf), ...await gmailRecords()];
+const records = [...await driveRecords(projectByFolder), ...await gmailRecords()];
 const tally = (values) => values.reduce((acc, v) => ({ ...acc, [v]: (acc[v] || 0) + 1 }), {});
 const catalog = {
   generated_at: new Date().toISOString(),
