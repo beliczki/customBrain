@@ -2,6 +2,13 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.73.3 — 2026-10-10
+
+**spider on "confai": no more ERSTE/RMT drift, and the cluster lens gets its turn.**
+- **weak_semantic hits are no longer starting points.** Those are hits only the rank fusion lifted. Such a hit now waits in the frontier and is reached only if the walk leads there. On "confai" the 5th start was a calendar note ("Naptár — szeptember 30 átrendezés") tagged ERSTE, RMT Országtuning and Anna Bodiss. Its high start score put those tags into the cloud and sent steps after them. Now the starts are ConfAI, confAi2, confAi2/CLAUDE.md and two ConfAI threads, and the top tags are ConfAI, Barta Attila, Humanody, Akos Csermely, Miklos Kun.
+- **Fair step budget.** When the 36-step budget cannot take every lens in a wave, the lens that has stepped least goes first. In LENSES order the cluster lens came last, so on "confai" it lost the final wave, where it had passed the gate (33%), to the budget. A new diagnostic, "capped", says so in the column.
+- **Measured:** cluster steps — confai 2, humanody 5, ERSTE SZA 3, conai 0 (gated; the typo query's bm25 hits lead elsewhere).
+
 ## 0.73.2 — 2026-10-10
 
 spider quality panel: the title and the four KPIs sit on one line (label and value side by side), then a rule, then the charts.
