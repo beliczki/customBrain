@@ -2,6 +2,10 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.52.1 — 2026-10-10
+
+**Docs only: ontology and situation-package spec, commitment-layer decision brief.** `docs/ontologia-es-helyzetcsomag-spec-2026-10-10.md` defines what a search hands the agent: a structured package (anchors · situation · history · next · background · gaps · where to dig) built on an ontology of anchors (project, person, topic) plus four roles — events, objects, commitments, knowledge — with the source as a property, not a category. `docs/vallalas-reteg-dontes-2026-10-10.md` prepares the commitment-layer decision: thought `action_items` stay as loose candidates (a sample of 15 recent thoughts showed duplicates, no closing, other people's tasks, and lists rewritten on every Gmail refresh), verified commitments with a direct source would live separately. ROADMAP gains the spec, the UI to-dos (search shows the agent's package, agenda tab folds into it, traversal simulator, graph as ontology bubbles). Seven `Repos/` dossiers were written on Drive and reindexed (outside the repo).
+
 ## 0.52.0 — 2026-10-10
 
 **`find_files` ranks by match strength × recency instead of date alone.** A query now scores each hit by how well it matches (exact name or same `variant_group` 1.0, name prefix 0.8, name substring 0.6, path only 0.3) times the same recency curve as `search_brain` (`1 / (1 + days/90)`). Old files rank lower but never reach zero and stay in `total` and the pages — the past is not the most probable target, but it is not gone. Without a query the order is recency alone, as before. Each hit carries `score` and `age_days`. The weights are hand-set starting values; ROADMAP's AUTORESEARCH item is where they get calibrated per brain instance.

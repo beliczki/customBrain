@@ -1,5 +1,21 @@
 # customBrain — Roadmap
 
+## SPEC 2026-10-10 — Ontológia és helyzetcsomag
+
+[Specifikáció](docs/ontologia-es-helyzetcsomag-spec-2026-10-10.md). Mérce: egy keresés válaszából derüljön ki, **mi a helyzet, mi történt előtte, és minek kellene következnie** fontosság és sürgősség szerint. A válasz strukturált csomag (HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB), nem összekevert lista.
+
+Ontológia: horgonyok (projekt, ember, téma) + négy szerep: Történés, Tárgy, Vállalás, Tudás. A forrás csak tulajdonság.
+
+**Sorrend:** (1) ✅ 2026-10-10 repo-elemzés → `Repos/` dossziék: customBrain, brandBrain, nexus, parlamentAI, messagingmatrix6, HINT-map, confAi2 (formátum: Helyzet · Vállalások · Hol ásni tovább; Projects-dosszié még nincs a brandBrainhez és a HINT-maphez) · (2) vállalás-réteg v1 — a legnagyobb rés; döntés-előkészítő: [docs/vallalas-reteg-dontes-2026-10-10.md](docs/vallalas-reteg-dontes-2026-10-10.md) (jelölt → vállalás, D1–D5, előbb kézi próba) · (3) `brain_map` tool a meglévő forrásokkal · (4) új források (agent-history, kód, Teams), ha a térkép mutatja a hiányt · (5) AUTORESEARCH a kész csomagon. Nyitott kérdések a spec 7. pontjában.
+
+### UI-teendők az ontológiához (2026-10-10, Robi)
+- [ ] **Search = az agent csomagja.** A Search tab ugyanazt a strukturált csomagot mutassa (HORGONYOK … TOVÁBB), amit az agent kap az adott kérdésre — nem külön UI-logikát. Valószínűleg több keresési mód lesz (szűk: egy-két tool · teljes: minden forrás); a UI a módot is mutassa. Függ: `brain_map` (3. lépés). A P18 explain/anatómia ehhez alárendelődik: a csomag egy tételéből nyílik.
+- [ ] **Agenda tab megszűnik**, ha a naptár és a vállalások a csomag KÖVETKEZŐ szekciójában vannak. Csak a tab; a `get_agenda` MCP tool és az agenda-cron sorsa külön döntés. Függ: 2–3. lépés.
+- [ ] **Bejárás-szimulátor a Graph elé.** Lassítva megmutatja, hogyan járja be egy agent több egymás utáni kérdéssel a brain-t, amíg összeáll a helyzet / előzmények / következő csomag. Két szint: **(a) visszajátszás** — egy valódi agent-futás naplózott MCP-hívásainak lejátszása, nincs extra LLM-költség, és a valóságot mutatja; **(b) szimuláció** — LLM-hívásokkal generált bejárás egy megadott kérdésre (költséges, a gráfbejárás-spec toolkészletére épül). Javaslat: (a) előbb.
+- [ ] **Graph = teljes ontológia, buborékokban.** Ne csak thoughtok: horgonyok, történések, tárgyak (fájlok, repók), vállalások, tudás — rétegenként külön buborék(csoport), nem összekeverve; az élek a buborékok között mutassák a kapcsolatot. Függ: a rétegek indexelve legyenek (Files catalog ✅, Repos ✅, vállalások ⏳).
+
+---
+
 ## PLANNED 2026-10-10 — AUTORESEARCH: csomag-összeállítás hangolása brain-példányonként
 
 **Cél:** egy adott kérdéshez a legnagyobb valószínűséggel kerüljenek elő a releváns dokumentumok, események, kódrészletek, prezentációk. Nem egy közös indexben, súlyozott keveréssel, hanem **ontológiánként külön toolok** hozzák a saját találataikat, és ezekből áll össze egy **csomag**, amiben az agent turkál (ő rangsorol újra). A kérdés: melyik toolokat hívjuk, mindegyikből mennyit, milyen al-módszerrel (dense / BM25 / dátum / ontológia-bejárás / fájlkatalógus), és hogyan áll össze a csomag egy méret- és költségkereten belül.
