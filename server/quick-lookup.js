@@ -1,16 +1,25 @@
 import { scrollFilteredRaw } from './qdrant.js';
+import { getVaultContext } from './drive-context.js';
+import { resolveAliases, stripAccents } from './names.js';
 
 /**
  * Deterministic metadata lookup — the zero-model rung of the retrieval ladder.
  * Counts, who/when, list-by-person/project/topic questions need no embedding
  * and no LLM: plain payload filtering answers them in one scroll. All filters
- * are case-insensitive substring matches so "pityesz" finds "Pityesz".
+ * are case- and accent-insensitive substring matches. Person/project/topic
+ * queries first go through the same alias resolver capture uses, so "Pityesz"
+ * or "Varfi Tamás" find the canonical name stored in the payload.
  * Read-only; returns projected rows (no full text) to keep responses lean.
  */
 export async function quickLookup({ person, project, topic, type, source, since, until, limit = 50, count_only = false } = {}) {
   // Raw scroll keeps the point id so the caller can chain into get_thought.
   const payloads = await scrollFilteredRaw({ must_not: [{ key: 'kind', match: { value: 'chunk' } }] });
-  const norm = (s) => String(s || '').toLowerCase();
+  const vault = await getVaultContext();
+  const canon = (name, aliases, canonicals) => name && resolveAliases([name], aliases, canonicals)[0];
+  person = canon(person, vault.aliases, vault.people);
+  project = canon(project, vault.projectAliases, vault.projects);
+  topic = canon(topic, vault.topicAliases, vault.topicCanonicals);
+  const norm = (s) => stripAccents(String(s || '')).toLowerCase();
   const arrayHas = (arr, needle) => (arr || []).some((v) => norm(v).includes(norm(needle)));
 
   const matches = payloads.filter((p) => {

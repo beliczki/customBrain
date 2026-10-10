@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { google } from 'googleapis';
 import { getAllWithVectors } from '../qdrant.js';
 import { getVaultContext } from '../drive-context.js';
+import { nameKey } from '../names.js';
 
 // P1d — semantic autolinks. Per-thought cosine-neighbor section replaces the
 // old metadata-based "Related thoughts" dump. Tune these two constants if the
@@ -385,7 +386,10 @@ export async function rebuildVault(onLog) {
     const subfolderId = envFolderId;
 
     const listDrive = getDriveClient();
-    const existingNames = new Set();
+    // Accent-, order- and case-insensitive, the same key capture resolves with
+    // (names.js). Exact-lowercase matching created a fresh stub for every
+    // "Béla Szabó" / "Kun Miklos" variant of an existing dossier or alias.
+    const knownKeys = new Set();
     let pt;
     do {
       const res = await listDrive.files.list({
@@ -394,24 +398,20 @@ export async function rebuildVault(onLog) {
         pageSize: 100,
         pageToken: pt,
       });
-      for (const f of res.data.files) {
-        existingNames.add(f.name);
-        existingNames.add(f.name.replace(/\.md$/, ''));
-      }
+      for (const f of res.data.files) knownKeys.add(nameKey(f.name.replace(/\.md$/, '')));
       pt = res.data.nextPageToken;
     } while (pt);
 
-    // Case-insensitive alias lookup mirroring metadata.js::resolveAliases.
-    const aliasMap = aliases || {};
-    const aliasLower = {};
-    for (const [a, c] of Object.entries(aliasMap)) aliasLower[a.toLowerCase()] = c;
+    for (const [alias, canonical] of Object.entries(aliases || {})) {
+      knownKeys.add(nameKey(alias));
+      knownKeys.add(nameKey(canonical));
+    }
 
     const created = [];
     const existing = [];
     const skipped = [];
     for (const name of names) {
-      const resolved = aliasLower[name.toLowerCase()] || name;
-      if (existingNames.has(resolved) || existingNames.has(`${resolved}.md`)) {
+      if (knownKeys.has(nameKey(name))) {
         existing.push(name);
         continue;
       }

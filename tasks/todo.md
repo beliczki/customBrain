@@ -27,7 +27,7 @@ Két javítás jöhet szóba:
   | ERSTE Market — Vagyonkezelés kampány bannerek | 10 642 | 72 980 |
 
   A régi út tehát a tartalom **50–85%-át** elhagyta ezeken a szálakon. A legújabb üzenet egyedi blokkja mindhárom esetben benne van a végső szövegben. Két esetben a legfrissebb üzenet csak köszönés plusz aláírás volt, ezt a dedup jogosan összevonta. A régi, rövidített szálak a következő frissülésükkor (új levél a szálban) teljes szöveget kapnak. Tömeges újrahúzás nem történt; külön döntés, kell-e.
-- [ ] **(d) Testvérhiba a chunkolásban, 2026-10-09-én találtam.** A `reprocess-v2.js` a Sonnettel `max_tokens: 16384` mellett **újraíratja az eredeti szöveget** `content_chunks`-ként. A `_stop_reason`-t sehol nem nézi az éles út (csak a prototípus-script). A tárolt szöveg teljes marad, de a hosszú gondolatok (Fireflies, és most már a hosszú Gmail) **vége nem kap chunk-vektort**, tehát kereséssel nem található meg. Ez ugyanaz a mechanizmus: a modell a forrást írja újra, plafon alatt.
+- [x] **(d) Testvérhiba a chunkolásban, 2026-10-09-én találtam.** A `reprocess-v2.js` a Sonnettel `max_tokens: 16384` mellett **újraíratja az eredeti szöveget** `content_chunks`-ként. A `_stop_reason`-t sehol nem nézi az éles út (csak a prototípus-script). A tárolt szöveg teljes marad, de a hosszú gondolatok (Fireflies, és most már a hosszú Gmail) **vége nem kap chunk-vektort**, tehát kereséssel nem található meg. Ez ugyanaz a mechanizmus: a modell a forrást írja újra, plafon alatt.
   - **MÉRVE, 2026-10-09, csak olvasva, `thoughts_v2`, lapozva:**
     - 626 szülő, ebből 436 hosszabb 1500 karakternél.
     - **47 hosszú gondolatnak egyáltalán nincs content-chunkja.**
@@ -52,7 +52,7 @@ Két javítás jöhet szóba:
 
 ## 2e. Gmail-tisztítás — ✅ 0.47.3 (2026-10-09)
 - [x] Levelenként csak az új tartalom marad (vágás az első válasz-fejlécnél; a továbbított és inline válaszos levelek egészben maradnak), a linkeket a kód tisztítja, a To/Cc listák törlődnek. 8 éles szálon a szemét kb. 52–61%-ról kb. 2%-ra esett.
-- [ ] Döntés: a meglévő ~109 Gmail-szál újrahúzása az új tisztítóval. Ma a régiek Haiku-átírt, rövidített szöveget hordoznak. Költség: Haiku-osztályozás + embedding + Sonnet reprocess szálanként.
+- [x] **DÖNTÖTT 2026-10-10 (Robi): nincs újrahúzás** — csak szemetelne; az utolsó ~2 hónap levelei elegendők, és előre nézve az új tisztító fut. Eredeti kérdés: a meglévő ~109 Gmail-szál újrahúzása az új tisztítóval. Ma a régiek Haiku-átírt, rövidített szöveget hordoznak. Költség: Haiku-osztályozás + embedding + Sonnet reprocess szálanként.
 
 ## 7. Repo- és agent-session-logok a brainbe (Robi kérése, 2026-10-09) — TERV, nem kezdve
 Cél: mit csinált az agent, miről beszélgettünk, mit mondott, milyen roadmap-task született — Claude Code és Codex sessionökből is —, és mindez a brain-ontológiában legyen (repo → session → task → döntés).
@@ -131,7 +131,7 @@ A brandBrain módszertanát vesszük át (`docs/comparison-question-battery.md`)
 - [x] Első futtatás a szerveren (2026-10-09 20:50 UTC, ~5 perc): **3355 rekord** — Drive 3095 (5943 dokumentum-fájlból, archívum/vault/Colab nélkül), Gmail 260 csatolmány a 181 szálból. Fajta: pdf 1690, spreadsheet 752, presentation 405, document 331, markdown 177. `state/files-catalog.json` 1,7 MB. `findFiles` a szerveren kipróbálva: „humanody” 10 találat (Meet-jegyzetek, Gmail-csatolmányok, Drive md), a `Copy of Cordia_2024 …` 6 változata egy `variant_group`-ban.
   - Útközben két javítás: Gmail-kvóta 6000 egység/perc/felhasználó → szálak egyenként, 1,5 s-os tempóban; a Qdrant szálanként bezárta a keep-alive socketet → a Gmail-thoughtok projektjei egyetlen lapozott scrollal a ciklus előtt.
   - [ ] `find_files` valós MCP-hívás egy új sessionből (a futó session toollistája az indulás előtti).
-- [ ] **2535 rekord (75%) projekt nélkül.** A legtöbb a Drive-gyökér laza fájljai és a `Data/` mappák, amelyek neve nem egyezik Projects-dosszié nevével/aliasával (pl. `ERSTE HU`, `ESRTE SK`, `ERSTE CZ`, `Agaurg`, `Beliczki Műhely`, `Sahar by Attraction`). Kódváltozás nélkül javítható: `aliases:` sorok a Projects-dossziékba (pl. `ERSTE.md` → `ERSTE HU`), aztán újrafuttatás. Robi döntése, melyik mappa melyik projekt.
+- [x] **DÖNTÖTT 2026-10-10 (Robi, másodszor): nem kell minden múltbeli fájlt projekthez kötni.** A modern projekteket a mappastruktúra egyértelműen megadja (Telekom, ERSTE). Egy kivétel van: a `Telekom/AI Mesh/Ország tuning` alatti fájlok az RMT Országtuning projekthez tartoznak. ~~2535 rekord (75%) projekt nélkül.~~ A legtöbb a Drive-gyökér laza fájljai és a `Data/` mappák, amelyek neve nem egyezik Projects-dosszié nevével/aliasával (pl. `ERSTE HU`, `ESRTE SK`, `ERSTE CZ`, `Agaurg`, `Beliczki Műhely`, `Sahar by Attraction`). Kódváltozás nélkül javítható: `aliases:` sorok a Projects-dossziékba (pl. `ERSTE.md` → `ERSTE HU`), aztán újrafuttatás. Robi döntése, melyik mappa melyik projekt.
 - [ ] Döntés a számok után: mely fájlokból kell kivonat; kell-e cron a frissítéshez.
 
 ## 5. Gráfbővítés + bejárásos lekérdezés (spec: `docs/mcp-interview-es-grafbejaras-spec-2026-10-09.md`)
