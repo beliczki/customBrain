@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { embedText } from '../embeddings.js';
+import { getVaultContext } from '../drive-context.js';
+import { matchAnchors, nameKey } from '../names.js';
 import { sparseEncodeQuery } from '../sparse.js';
 import { hybridSearch, getByIds, explainLegs, getChunksWithVectors, searchVector, searchSparse } from '../qdrant.js';
 
@@ -74,6 +76,13 @@ export default router;
 // calibrate with the evaluator. Dossiers are ALSO exempt from time decay: a
 // current dossier is not "old news" just because its file wasn't touched today.
 const DOSSIER_BOOST = 1.5;
+// 0.76.0: the boost goes only to a dossier the query NAMES (matchAnchors —
+// the same recognition map and spider use). An unnamed dossier is context and
+// is weighted like an average-aged thought. Measured on 10 work questions:
+// dossiers took 25% of the top-10; the named ones were relevant, while the
+// siblings that only shared a word ("Bird" → ERSTE Market, Hitelkártya,
+// Vállakozók) were all judged irrelevant. Hand-set; calibrate with the eval.
+const UNNAMED_DOSSIER = 0.5;
 
 /**
  * Recency factor of a thought, the ONE rule search and spider share (0.65.0).
@@ -88,13 +97,15 @@ export function recencyFactor({ effective_date, created_at }, now = Date.now()) 
   return 1 / (1 + days / 90);
 }
 
-function applyTimeDecay(results) {
+async function applyTimeDecay(results, queryTexts) {
   const now = Date.now();
+  const anchors = matchAnchors(queryTexts.join(' '), await getVaultContext());
+  const named = new Set([...anchors.projects, ...anchors.people, ...anchors.topics].map(nameKey));
   return results
     .map((r) => {
       const isDossier = r.kind === 'dossier';
       const decay = isDossier ? 1 : recencyFactor(r, now);
-      const boost = isDossier ? DOSSIER_BOOST : 1;
+      const boost = isDossier ? (named.has(nameKey(r.title)) ? DOSSIER_BOOST : UNNAMED_DOSSIER) : 1;
       return { ...r, cosine_score: r.score, score: r.score * decay * boost };
     })
     .sort((a, b) => b.score - a.score);
@@ -225,7 +236,7 @@ export async function searchThoughts(query, limit = 5) {
       : deriveEvidence(hit, [query], denseRanks.get(String(hit.id)), bm25Ranks.get(String(hit.id)));
   }
   const rolled = await rollupChunkHits(rawHits);
-  const decayed = applyTimeDecay(rolled);
+  const decayed = await applyTimeDecay(rolled, [query]);
   return decayed.slice(0, limit);
 }
 
@@ -281,7 +292,7 @@ export async function searchThoughtsMulti(subQueries, limit = 5) {
     });
 
   const rolled = await rollupChunkHits(rawHits);
-  const decayed = applyTimeDecay(rolled);
+  const decayed = await applyTimeDecay(rolled, queryTexts);
   return decayed.slice(0, limit);
 }
 

@@ -23,9 +23,8 @@ import { buildOntology } from './routes/graph.js';
 import { getCachedGraph } from './graph-cache.js';
 import { phase } from './phase.js';
 import { searchThoughts, recencyFactor } from './routes/search.js';
-import { matchAnchors } from './brain-map.js';
 import { getVaultContext } from './drive-context.js';
-import { nameKey } from './names.js';
+import { nameKey, matchAnchors } from './names.js';
 import { LAYERS } from './ontology.js';
 
 // Hand-set starting values, like brain_map's MAX — the AUTORESEARCH knobs.

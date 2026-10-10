@@ -18,7 +18,7 @@ import { listCommitments } from './commitments.js';
 import { quickLookup } from './quick-lookup.js';
 import { searchThoughts } from './routes/search.js';
 import { getVaultContext } from './drive-context.js';
-import { nameKey, resolveAliases, stripAccents } from './names.js';
+import { nameKey, resolveAliases, stripAccents, matchAnchors } from './names.js';
 import { layerOf } from './ontology.js';
 import { spiderWalk } from './spider.js';
 import { stage } from './phase.js';
@@ -39,41 +39,8 @@ const dateOf = (t) => String(t.effective_date || t.created_at || '').slice(0, 10
 // HÁTTÉR = the Tudás layer (server/ontology.js) plus dossier hits.
 const isBackground = (t) => t.type === 'dossier' || layerOf(t) === 'tudas';
 
-/**
- * Anchors named in a question, matched word by word, order- and
- * accent-insensitive (the nameKey contract). Hungarian inflects names
- * ("Országtuninggal", "Kun Miklóssal"), so a name word of 4+ letters also
- * matches as the START of a question word; shorter ones must match exactly. A one-word PERSON name is never
- * an anchor on its own — bare first names misfire ("Attila" → Barta Attila,
- * "Me" in an English sentence) — it is returned as a candidate instead.
- * An all-caps one-word project/topic ("MET") must match case-sensitively, or
- * every English "met" would anchor it.
- */
-export function matchAnchors(question, vault) {
-  const words = String(question).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  const keys = words.map(norm);
-  const raw = new Set(words);
-  const hit = (t) => keys.some((k) => k === t || (t.length >= 4 && k.startsWith(t)));
-  const found = { projects: new Set(), people: new Set(), topics: new Set(), candidates: new Set() };
-
-  const scan = (bucket, names, aliases) => {
-    const entries = [...names.map((n) => [n, n]), ...Object.entries(aliases || {})];
-    for (const [name, canonical] of entries) {
-      const tokens = nameKey(name).split(' ').filter(Boolean);
-      if (!tokens.length || !tokens.every(hit)) continue;
-      if (tokens.length === 1) {
-        if (bucket === 'people') { found.candidates.add(canonical); continue; }
-        if (/^\p{Lu}{2,}$/u.test(name) && !raw.has(name)) continue;
-      }
-      found[bucket].add(canonical);
-    }
-  };
-  scan('projects', vault.projects, vault.projectAliases);
-  scan('people', vault.people, vault.aliases);
-  scan('topics', vault.topicCanonicals, vault.topicAliases);
-  for (const p of found.people) found.candidates.delete(p);
-  return Object.fromEntries(Object.entries(found).map(([k, v]) => [k, [...v]]));
-}
+// matchAnchors lives in names.js since 0.76.0 (search needs it too); re-exported here.
+export { matchAnchors };
 
 // Most frequent project/person across search hits, if it recurs — an
 // inference, so the caller marks it derived_from: "search_hits".

@@ -48,3 +48,62 @@ export function resolveFirstNames(names, projects, { people, projectPeople }) {
   });
   return [...new Set(out)];
 }
+
+/**
+ * Anchors named in a question, matched word by word, order- and
+ * accent-insensitive (the nameKey contract). Hungarian inflects names
+ * ("Országtuninggal", "Kun Miklóssal"), so a name word of 4+ letters also
+ * matches as the START of a question word; shorter ones must match exactly. A one-word PERSON name is never
+ * an anchor on its own — bare first names misfire ("Attila" → Barta Attila,
+ * "Me" in an English sentence) — it is returned as a candidate instead.
+ * An all-caps one-word project/topic ("MET") must match case-sensitively, or
+ * every English "met" would anchor it.
+ */
+export function matchAnchors(question, vault) {
+  const words = String(question).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const keys = words.map((w) => stripAccents(w).toLowerCase());
+  const raw = new Set(words);
+  const hit = (t) => keys.some((k) => k === t || (t.length >= 4 && k.startsWith(t)));
+  const found = { projects: new Set(), people: new Set(), topics: new Set(), candidates: new Set() };
+
+  // 0.76.0: a project/topic word that belongs to ONE canonical only (and is
+  // 5+ letters) can name it on its own — "Országtuning" is RMT Országtuning,
+  // while "ERSTE", shared by seven ERSTE dossiers, names none of them alone.
+  const owners = new Map(); // token → Set of canonicals
+  for (const [names, aliases] of [[vault.projects, vault.projectAliases], [vault.topicCanonicals, vault.topicAliases]]) {
+    for (const [name, canonical] of [...names.map((n) => [n, n]), ...Object.entries(aliases || {})]) {
+      for (const t of nameKey(name).split(' ').filter(Boolean)) {
+        if (!owners.has(t)) owners.set(t, new Set());
+        owners.get(t).add(canonical);
+      }
+    }
+  }
+  // …and it must look like a name in the question: capitalised there, or 8+
+  // letters (rarely an everyday word). "market research" must not name ERSTE
+  // Market; "Market", "Országtuning" or "országtuning" may.
+  const capitalised = new Set(words.filter((w) => /^\p{Lu}/u.test(w)).map((w) => stripAccents(w).toLowerCase()));
+  const looksNamed = (t) => t.length >= 8 || [...capitalised].some((k) => k === t || k.startsWith(t));
+  const uniqueHit = (tokens) => tokens.some((t) => t.length >= 5 && owners.get(t).size === 1 && hit(t) && looksNamed(t));
+
+  const scan = (bucket, names, aliases) => {
+    const entries = [...names.map((n) => [n, n]), ...Object.entries(aliases || {})];
+    for (const [name, canonical] of entries) {
+      const tokens = nameKey(name).split(' ').filter(Boolean);
+      if (!tokens.length) continue;
+      if (!tokens.every(hit)) {
+        if (bucket !== 'people' && tokens.length > 1 && uniqueHit(tokens)) found[bucket].add(canonical);
+        continue;
+      }
+      if (tokens.length === 1) {
+        if (bucket === 'people') { found.candidates.add(canonical); continue; }
+        if (/^\p{Lu}{2,}$/u.test(name) && !raw.has(name)) continue;
+      }
+      found[bucket].add(canonical);
+    }
+  };
+  scan('projects', vault.projects, vault.projectAliases);
+  scan('people', vault.people, vault.aliases);
+  scan('topics', vault.topicCanonicals, vault.topicAliases);
+  for (const p of found.people) found.candidates.delete(p);
+  return Object.fromEntries(Object.entries(found).map(([k, v]) => [k, [...v]]));
+}
