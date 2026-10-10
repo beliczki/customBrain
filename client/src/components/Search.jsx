@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { search, getMap, getTrace } from '../api.js';
+import { search, getMap, streamTrace } from '../api.js';
 import ThoughtBody from './ThoughtBody.jsx';
 import ThoughtFacts from './ThoughtFacts.jsx';
 import ChunkAnatomyModal from './ChunkAnatomyModal.jsx';
 import BrainMapPackage from './BrainMapPackage.jsx';
-import SpiderResult from './SpiderResult.jsx';
+import SpiderResult, { SpiderProgress } from './SpiderResult.jsx';
 
 // Two methods over one input (0.57.0; named after their MCP tools since 0.60.0): "map" is the package the
 // agent gets; "search" is the raw hybrid hit list with the anatomy view.
@@ -22,6 +22,7 @@ export default function Search({ onTraverse }) {
   const [results, setResults] = useState({ q: null, hits: [] });
   const [map, setMap] = useState({ q: null, data: null });
   const [spider, setSpider] = useState({ q: null, data: null });
+  const [spiderPhases, setSpiderPhases] = useState([]); // live stage list while spider runs
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [anatomyId, setAnatomyId] = useState(null);
@@ -31,7 +32,19 @@ export default function Search({ onTraverse }) {
     setError(null);
     try {
       if (m === 'package') setMap({ q, data: await getMap(q) });
-      else if (m === 'spider') setSpider({ q, data: await getTrace('spider', q) });
+      else if (m === 'spider') {
+        setSpider({ q, data: null });
+        setSpiderPhases([]);
+        // A stage's 'done' line replaces its 'start' line in place.
+        const data = await streamTrace('spider', q, (ev) => setSpiderPhases((prev) => {
+          const at = prev.findIndex((p) => p.name === ev.name);
+          if (at < 0) return [...prev, ev];
+          const next = [...prev];
+          next[at] = ev;
+          return next;
+        }));
+        setSpider({ q, data });
+      }
       else setResults({ q, hits: await search(q) });
     } catch (err) {
       setError(err.message);
@@ -95,7 +108,8 @@ export default function Search({ onTraverse }) {
       )}
       {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">Error: {error}</p>}
       {mode === 'package' && map.data && <BrainMapPackage map={map.data} onShowHits={() => switchMode('hits')} />}
-      {mode === 'spider' && spider.data && <SpiderResult walk={spider.data.result} />}
+      {mode === 'spider' && spiderPhases.length > 0 && <SpiderProgress phases={spiderPhases} />}
+      {mode === 'spider' && spider.data && <SpiderResult key={spider.q} walk={spider.data.result} />}
       {mode === 'hits' && (
       <div>
         {results.hits.map((r) => (

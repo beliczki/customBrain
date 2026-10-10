@@ -156,6 +156,8 @@ map (0.56.0; named `brain_map` until 0.60.0): `server/brain-map.js`. Tool names 
 
 MCP call log (0.58.0): `server/mcp-call-log.js` → `state/mcp-calls.jsonl`, written from `applyScopeGate`'s handler wrap (HTTP callers only, `caller` = token name). A new tool is logged automatically; nothing to add per tool. No full result text — clipped args + `{id, title}` refs.
 
+Graph cache (0.64.0): `server/graph-cache.js` — never call `buildGraph()` on a request path; use `getCachedGraph()`. The build runs in `graph-worker.js` (a main-thread build blocks the server for seconds and leaves stale Qdrant keep-alive sockets behind); a 60 s fingerprint poll rebuilds it after any write, crons included.
+
 spider (0.63.0): `server/spider.js`, best-first walk over buildGraph + buildOntology from search hits + question anchors; knobs (steps, threshold, decay, edge weights) at the top of the file. UI-only for now (Search tab + `/trace`), not an MCP tool until it beats `map`.
 
 Ontology layers (0.59.0): `server/ontology.js` `layerOf()` is the ONE rule for which layer a point belongs to (Horgony · Történés · Tárgy · Vállalás · Tudás). `map` HÁTTÉR and the Graph's Ontológia mode both use it — change the rule there, never in a caller.

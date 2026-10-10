@@ -52,6 +52,34 @@ export async function getTrace(method, q) {
   return jsonOrThrow(res, 'trace');
 }
 
+// NDJSON stream (0.64.0): calls onEvent for every {type:'phase'} line as it
+// arrives and resolves with the final {type:'result'} line.
+export async function streamTrace(method, q, onEvent) {
+  const res = await fetch(`${BASE}/trace?method=${method}&q=${encodeURIComponent(q)}&stream=1`, { headers: authHeaders() });
+  if (!res.ok) return jsonOrThrow(res, 'trace');
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let result = null;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl);
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      const ev = JSON.parse(line);
+      if (ev.type === 'error') throw new Error(ev.error);
+      if (ev.type === 'result') result = ev;
+      else onEvent(ev);
+    }
+  }
+  if (!result) throw new Error('trace stream ended without a result');
+  return result;
+}
+
 export async function agentRuns(days = 7) {
   const res = await fetch(`${BASE}/agent-runs?days=${days}`, { headers: authHeaders() });
   return jsonOrThrow(res, 'agent-runs');

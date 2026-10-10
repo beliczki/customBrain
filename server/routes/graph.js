@@ -8,6 +8,7 @@ import { nameKey } from '../names.js';
 import { listCommitments } from '../commitments.js';
 import { REPOS_STATUS_PATH } from '../repos-status.js';
 import { CATALOG_PATH } from '../files-catalog.js';
+import { getCachedGraph } from '../graph-cache.js';
 
 const router = Router();
 
@@ -26,7 +27,8 @@ const TAG_FANOUT_CAP = 20;
 
 router.get('/graph', async (req, res) => {
   try {
-    res.json(await buildGraph());
+    const { graph, built_at } = await getCachedGraph();
+    res.json({ ...graph, built_at });
   } catch (err) {
     console.error('Graph error:', err.message);
     res.status(500).json({ error: err.message });

@@ -12,7 +12,9 @@
 // No LLM call; one embedding (the search). Not an MCP tool yet: it has to
 // prove itself against `map` in the UI first.
 
-import { buildGraph, buildOntology } from './routes/graph.js';
+import { buildOntology } from './routes/graph.js';
+import { getCachedGraph } from './graph-cache.js';
+import { phase } from './routes/trace.js';
 import { searchThoughts } from './routes/search.js';
 import { matchAnchors } from './brain-map.js';
 import { getVaultContext } from './drive-context.js';
@@ -33,10 +35,16 @@ const EDGE_WEIGHT = {
 };
 const EDGE_LABEL = (e) => (e.kind === 'ontology' ? e.rel : e.kind);
 
-export async function spiderWalk(question) {
-  const [graph, ontology, hits, vault] = await Promise.all([
-    buildGraph(), buildOntology(), searchThoughts(question, SEEDS), getVaultContext(),
+export async function spiderWalk(question, emit = () => {}) {
+  const hhmm = (iso) => new Date(iso).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Budapest' });
+  const [{ graph }, ontology, hits, vault] = await Promise.all([
+    phase(emit, 'graph', 'gráf', getCachedGraph(), (c) => `${c.graph.nodes.length} thought, ${c.graph.edges.length} él · építve ${hhmm(c.built_at)}`),
+    phase(emit, 'ontology', 'rétegek (dossziék, vállalások, fájlok)', buildOntology(), (o) => `${o.nodes.length} csomópont`),
+    phase(emit, 'search', 'keresés (kiindulópontok)', searchThoughts(question, SEEDS), (h) => `${h.length} találat`),
+    phase(emit, 'vault', 'horgonynevek', getVaultContext()),
   ]);
+  emit({ type: 'phase', name: 'walk', label: 'bejárás', status: 'start' });
+  const walkStart = Date.now();
 
   const nodes = new Map();
   for (const n of [...graph.nodes, ...ontology.nodes]) if (!n.archived) nodes.set(n.id, n);
@@ -98,6 +106,7 @@ export async function spiderWalk(question) {
   }
 
   const walked = trace.filter((t) => t.phase === 'walk');
+  emit({ type: 'phase', name: 'walk', label: 'bejárás', status: 'done', ms: Date.now() - walkStart, note: `${walked.length} lépés` });
   return {
     result: {
       question,

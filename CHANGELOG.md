@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.64.0 — 2026-10-10
+
+**The thought graph is cached and rebuilt off the main thread; spider shows what it is doing.**
+- **Cache** (`server/graph-cache.js`): `/graph` and `spider` get the last built graph, so only the first request after a restart waits for a build. A background check runs every 60 s. It compares a cheap fingerprint (`graphFingerprintRows` in `qdrant.js`: ids plus the payload fields buildGraph reads, `updated_at` and `summary_appended_at`, without vectors or text) and rebuilds when it changed. The check polls rather than hooking writes, because crons capture from their own processes. `/graph` now also returns `built_at`.
+- **Worker** (`server/graph-worker.js`): the build runs in a worker thread. It measured 2.3 s fetching vectors plus 3.2 s of O(N²) cosine at 632 thoughts, all on the main thread. That froze every request, the MCP ones included, and the next Qdrant call then hit a keep-alive socket Qdrant had closed meanwhile (`UND_ERR_SOCKET`, other side closed — the 0.63.0 spider failure, also reproduced with a plain `buildGraph` + `buildOntology` in sequence). The 0.63.0 follow-up only avoided one such call; this removes the blocking itself.
+- **`GET /trace?stream=1`**: NDJSON. A `{type:'phase'}` line is sent as each stage starts and ends, with its time and a note, then one `{type:'result'}` line (or `{type:'error'}`). spider reports the graph (with when it was built), the layers, the search, the anchor names and the walk. map reports the package and the name resolution; search reports the search. nginx buffering is turned off for it (`X-Accel-Buffering: no`). Without `stream`, `/trace` answers as before (the graph replay uses that).
+- **Search tab, spider**: the stages are listed live (`SpiderProgress`, … → ✓ with ms). The result then builds up one step at a time (150 ms per step, current row highlighted, a "mind" button shows everything). It is labelled "visszajátszás", because the walk itself has finished by then. Empty layers and the frontier appear when the replay ends.
+
 ## 0.63.2 — 2026-10-10
 
 **Menu details after HINT-map.** The version sits above the footer rule. In the collapsed 60 px strip it is turned on its side (`-rotate-90`, the outer box keeps the space), as in HINT-map's rail. With the menu collapsed, the brain logo moves in front of the page title in the content header.
