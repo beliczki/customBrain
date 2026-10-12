@@ -2,6 +2,14 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.77.0 — 2026-10-12
+
+**Graph: an "arcs" switch in the 2D header draws edges as great-circle arcs.**
+- The flat layout is read as the top view of a sphere. Each node is lifted to z = √(R²−x²−y²), and each edge is the great-circle arc between its two lifted points, projected back down. Long edges near the rim bow outward; short central edges stay almost straight.
+- R tracks the orbit ring every tick: 1.15 × ring radius, or the farthest node if that is larger.
+- It is drawn with force-graph's own `linkCurvature`, per link and per frame (`sphereCurvature` in `Graph.jsx`). The quadratic's midpoint lands exactly on the projected arc's midpoint. Arrows and particles follow the curve.
+- 2D only: 3D already has real depth. The choice is saved in the view prefs (`arcs`).
+
 ## 0.76.0 — 2026-10-10
 
 **Search: only a dossier the query names gets the dossier boost; a unique name word is enough to name one.**

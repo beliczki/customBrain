@@ -77,6 +77,21 @@ function loadPrefs() {
 
 // Thought radius as a function of degree. `spread` is the contrast exponent:
 // 1 = the default sqrt curve, >1 exaggerates hubs vs. loners, <1 flattens.
+// Arcs (2D): the flat layout read as the top view of a sphere of radius R —
+// each node lifted to z = √(R²−x²−y²), each edge drawn as its great-circle
+// arc projected back down. Returns force-graph's curvature (control-point
+// offset / length): the quadratic's midpoint lands on the projected arc's.
+function sphereCurvature(s, t, R) {
+  const lift = (p) => Math.sqrt(Math.max(0, R * R - p.x * p.x - p.y * p.y));
+  const sx = s.x + t.x, sy = s.y + t.y, sz = lift(s) + lift(t);
+  const len = Math.hypot(sx, sy, sz);
+  const dx = t.x - s.x, dy = t.y - s.y;
+  const l2 = dx * dx + dy * dy;
+  if (!len || !l2) return 0;
+  const k = 2 * (R / len - 0.5); // control point = chord mid + k·(sx, sy)
+  return (k * sx * dy - k * sy * dx) / l2;
+}
+
 const thoughtRadius = (degree, spread) =>
   1.8 + 10 * Math.pow(Math.min(1, (degree || 0) / 40), 0.5 * spread);
 
@@ -220,6 +235,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
   const [ontology, setOntology] = useState(null);
   const [semThreshold, setSemThreshold] = useState(prefs.semThreshold ?? 0.75);
   const [edgeOpacity, setEdgeOpacity] = useState(prefs.edgeOpacity ?? 0.6);
+  const [arcs, setArcs] = useState(prefs.arcs === true);
   const [sizeMult, setSizeMult] = useState(prefs.sizeMult ?? 1);
   const [sizeSpread, setSizeSpread] = useState(prefs.sizeSpread ?? 1);
   const [gravityMult, setGravityMult] = useState(prefs.gravityMult ?? 1);
@@ -250,6 +266,8 @@ export default function Graph({ traversal, onCloseTraversal }) {
   const sizeMultRef = useRef(sizeMult);
   const sizeSpreadRef = useRef(sizeSpread);
   const edgeOpacityRef = useRef(edgeOpacity);
+  // Sphere behind the 2D arcs: a bit past the orbit ring, set every tick.
+  const sphereRRef = useRef(0);
   const gravityMultRef = useRef(gravityMult);
   const repelMultRef = useRef(repelMult);
   const groupsRef = useRef([]);
@@ -309,10 +327,10 @@ export default function Graph({ traversal, onCloseTraversal }) {
   // Persist view prefs.
   useEffect(() => {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
-      mode, groupBy: traversal ? savedGroupByRef.current : groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity,
+      mode, groupBy: traversal ? savedGroupByRef.current : groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity, arcs,
       collapsed,
     }));
-  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity, collapsed, traversal]);
+  }, [mode, groupBy, sizeMult, sizeSpread, gravityMult, repelMult, semThreshold, edgeKinds, edgeOpacity, arcs, collapsed, traversal]);
 
   const nodeById = useMemo(() => {
     if (!data) return new Map();
@@ -570,6 +588,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
       }
       ds.sort((a, b) => a - b);
       const R = (ds.length ? ds[Math.floor(ds.length * 0.92)] : 0) + 30;
+      sphereRRef.current = Math.max(R * 1.15, ds.length ? ds[ds.length - 1] : 0);
       // Strong pull: charge repulsion from ~300 core nodes otherwise wins and
       // smears the ring outward into a diffuse cloud.
       const k = 0.3 * alpha;
@@ -758,6 +777,13 @@ export default function Graph({ traversal, onCloseTraversal }) {
       nodeObjsRef.current.clear();
     };
   }, [data, mode, selectNode]);
+
+  // Declared after the scene effect, so a rebuilt 2D graph gets it too.
+  useEffect(() => {
+    const graph = graphRef.current;
+    if (!graph || mode !== '2d') return;
+    graph.linkCurvature(arcs ? (l) => sphereCurvature(l.source, l.target, sphereRRef.current) : 0);
+  }, [arcs, mode, data]);
 
   // === Feed the satellite graph on grouping / filter changes ===
   useEffect(() => {
@@ -1159,7 +1185,19 @@ export default function Graph({ traversal, onCloseTraversal }) {
             {truncate(isolated.label, 18)} ✕
           </button>
         )}
-        <div className="graph-mode-switch search-mode-switch inline-flex ml-auto border border-subtle">
+        {mode === '2d' && (
+          <button
+            type="button"
+            onClick={() => setArcs(!arcs)}
+            className={`graph-arcs-toggle search-mode-switch ml-auto px-3 py-1.5 text-xs font-medium uppercase tracking-wider border border-subtle transition-colors ${
+              arcs ? 'bg-accent text-white' : 'text-txt-ter hover:text-txt'
+            }`}
+            title="Edges as great-circle arcs, as if the 2D layout were the top view of a sphere"
+          >
+            arcs
+          </button>
+        )}
+        <div className={`graph-mode-switch search-mode-switch inline-flex ${mode === '2d' ? 'ml-2' : 'ml-auto'} border border-subtle`}>
           {['2d', '3d'].map((m) => (
             <button
               key={m}
