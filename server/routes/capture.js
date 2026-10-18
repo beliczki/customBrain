@@ -17,7 +17,7 @@ router.post('/capture', async (req, res) => {
 
   try {
     const opts = conflict_threshold != null ? { conflictThreshold: conflict_threshold } : {};
-    const result = await captureThought(text, opts);
+    const result = await captureThought(text, { ...opts, returnPrompt: true });
     res.json(result);
   } catch (err) {
     console.error('Capture error:', err.message);
@@ -36,7 +36,9 @@ export default router;
 // Haiku contradiction-check cost down, and accepts that paraphrases in the
 // 0.92-0.96 range will pass through un-flagged. Old default 0.85 was calibrated
 // for pre-task-type embeddings and would now trigger on every capture.
-export async function captureThought(text, { conflictThreshold = 0.97, source = 'manual', sourceId = null, extraPayload = {} } = {}) {
+// returnPrompt: only the /capture route asks for the Haiku prompt (the UI shows
+// it); MCP, crons and drafts would just carry ~75k chars of vault context back.
+export async function captureThought(text, { conflictThreshold = 0.97, source = 'manual', sourceId = null, extraPayload = {}, returnPrompt = false } = {}) {
   if (sourceId) {
     const existing = await findBySourceId(source, sourceId);
     if (existing) {
@@ -60,7 +62,7 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
   // asynchronously by cron/backfill-chunks.js (enrichWithChunks), which upgrades
   // long single-vector thoughts to multi-vector within minutes.
   t = Date.now();
-  const [vector, metadata] = await Promise.all([
+  const [vector, { metadata, prompt }] = await Promise.all([
     embedText(text, 'RETRIEVAL_DOCUMENT').then((v) => {
       timings.embed = Date.now() - t;
       return v;
@@ -135,7 +137,7 @@ export async function captureThought(text, { conflictThreshold = 0.97, source = 
   timings.upsert = Date.now() - t;
   timings.total = Date.now() - started;
   console.log(`[capture] source=${source} len=${text.length} timings ${JSON.stringify(timings)}`);
-  return { ok: true, id, metadata, ...(supersedes && { supersedes, archived: supersedes }) };
+  return { ok: true, id, metadata, ...(supersedes && { supersedes, archived: supersedes }), ...(returnPrompt && { prompt }) };
 }
 
 /**
@@ -212,7 +214,7 @@ export async function refreshCapture(id, newText, { extraPayload = {} } = {}) {
   if (!existing) throw new Error(`Thought ${id} not found`);
 
   const vaultCtx = await getVaultContext();
-  const [vector, metadata] = await Promise.all([
+  const [vector, { metadata }] = await Promise.all([
     embedText(newText, 'RETRIEVAL_DOCUMENT'),
     extractMetadata(newText, vaultCtx),
   ]);

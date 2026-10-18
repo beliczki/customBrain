@@ -62,7 +62,7 @@ export default function Capture() {
                   {result.metadata.action_items?.length > 0 && (
                     <p>Actions: {result.metadata.action_items.join(', ')}</p>
                   )}
-                  {result.metadata._prompt && (
+                  {result.prompt && (
                     <details
                       open={promptOpen}
                       onToggle={(e) => setPromptOpen(e.target.open)}
@@ -72,7 +72,7 @@ export default function Capture() {
                         Haiku prompt
                       </summary>
                       <pre className="mt-2 text-xs whitespace-pre-wrap text-txt-sec overflow-x-auto">
-                        {result.metadata._prompt}
+                        {result.prompt}
                       </pre>
                     </details>
                   )}

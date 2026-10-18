@@ -2,6 +2,12 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.77.1 — 2026-10-18
+
+**Capture no longer sends the ~75k-char Haiku prompt back to every caller.**
+- `extractMetadata` used to attach the full metadata prompt (vault context included) as `metadata._prompt`, and `captureThought` returned it to everyone: the `capture_thought` MCP tool, `manage_drafts approve`, the crons and the webhook. One MCP capture produced a 75,005-char response.
+- The prompt now travels beside the metadata (`{ metadata, prompt }`), is built once instead of twice, and `captureThought` returns it only with `returnPrompt: true`. Only the `/capture` route asks for it, for the capture UI's "Haiku prompt" panel (`result.prompt`).
+
 ## 0.77.0 — 2026-10-12
 
 **Graph: an "arcs" switch in the 2D header draws edges as great-circle arcs.**

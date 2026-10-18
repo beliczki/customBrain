@@ -43,7 +43,7 @@ async function run() {
     console.log(`Thought: ${t.title}  (id ${t.id})`);
     console.log(`OLD projects (${(t.projects || []).length}): ${(t.projects || []).join(', ')}`);
     try {
-      const fresh = await extractMetadata(t.text || '', vaultCtx);
+      const { metadata: fresh } = await extractMetadata(t.text || '', vaultCtx);
       const newProjects = fresh.projects || [];
       const added = newProjects.filter((p) => !(t.projects || []).includes(p));
       const dropped = (t.projects || []).filter((p) => !newProjects.includes(p));

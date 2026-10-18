@@ -327,6 +327,7 @@ Respond with JSON ONLY, matching this schema exactly:
 export async function extractMetadata(text, vaultContext) {
   const localCtx = loadContext();
   const projectPeople = await getProjectPeople(vaultContext);
+  const prompt = buildPrompt(text, localCtx, vaultContext, projectPeople);
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -341,7 +342,7 @@ export async function extractMetadata(text, vaultContext) {
       messages: [
         {
           role: 'user',
-          content: buildPrompt(text, localCtx, vaultContext, projectPeople),
+          content: prompt,
         },
       ],
     }),
@@ -363,6 +364,7 @@ export async function extractMetadata(text, vaultContext) {
   // so where the project context decides it, and catches what it left.
   metadata.people = resolveFirstNames(metadata.people, metadata.projects, { people: vaultContext.people, projectPeople });
   metadata.topics = resolveAliases(metadata.topics, vaultContext?.topicAliases);
-  metadata._prompt = buildPrompt(text, localCtx, vaultContext, projectPeople);
-  return metadata;
+  // The prompt travels beside the metadata, not inside it: it is ~75k chars
+  // (vault context) and only the capture UI's "Haiku prompt" panel shows it.
+  return { metadata, prompt };
 }
