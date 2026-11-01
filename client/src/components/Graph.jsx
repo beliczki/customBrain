@@ -369,7 +369,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
   }, [data, view, groupBy, ontology, inTimeWindow]);
 
   // Active edges under the current legend toggles + semantic threshold.
-  const activeEdges = useMemo(() => {
+  const legendEdges = useMemo(() => {
     if (!data) return [];
     return view.edges.filter((e) => {
       if (!edgeKinds[e.kind]) return false;
@@ -377,12 +377,19 @@ export default function Graph({ traversal, onCloseTraversal }) {
       return true;
     });
   }, [data, view, edgeKinds, semThreshold]);
+  // Drawn: cross-layer edges only in Ontológia mode, as their legend label says.
+  // Since 0.70.0 the layers load in every grouping, and these 2400+ edges drowned
+  // the others. A selected node's side panel still lists them (legendEdges).
+  const activeEdges = useMemo(
+    () => (groupBy === 'layer' ? legendEdges : legendEdges.filter((e) => e.kind !== 'ontology')),
+    [legendEdges, groupBy],
+  );
 
   // Neighbor list of the selected node, with edge provenance (side panel).
   const selectedNeighbors = useMemo(() => {
     if (!selectedNode || !data) return [];
     const out = [];
-    for (const e of activeEdges) {
+    for (const e of legendEdges) {
       if (e.source !== selectedNode && e.target !== selectedNode) continue;
       const otherId = e.source === selectedNode ? e.target : e.source;
       const other = nodeById.get(otherId);
@@ -391,7 +398,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
     }
     out.sort((a, b) => b.edge.weight - a.edge.weight);
     return out;
-  }, [selectedNode, activeEdges, nodeById, data]);
+  }, [selectedNode, legendEdges, nodeById, data]);
 
   const orphans = useMemo(
     () => (data ? data.nodes.filter((n) => n.degree === 0 && !n.archived) : []),
@@ -1297,11 +1304,14 @@ export default function Graph({ traversal, onCloseTraversal }) {
           <label className="graph-legend__threshold flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400 mt-1">
             cosine ≥ {semThreshold.toFixed(2)}
             <input
-              type="range" min="0.7" max="0.9" step="0.01" value={semThreshold}
+              type="range" min="0.5" max="1" step="0.01" value={semThreshold}
               onChange={(e) => setSemThreshold(parseFloat(e.target.value))}
               className="flex-1 accent-[var(--accent-blue)]"
             />
           </label>
+          <p className="graph-legend__threshold-count text-[10px] text-slate-500 mt-0.5">
+            {view.edges.filter((e) => e.kind === 'semantic' && e.score >= semThreshold).length} semantic edges at this threshold
+          </p>
           </>
           )}
         </div>
@@ -1444,7 +1454,7 @@ export default function Graph({ traversal, onCloseTraversal }) {
 
         {/* Stats */}
         <div className="graph-stats graph-controls-panel__section text-[10px] uppercase tracking-wider text-slate-500 space-y-0.5">
-          <p>{data.stats.node_count} thoughts · {data.stats.edge_count} links</p>
+          <p>{data.stats.node_count} thoughts · {activeEdges.length} links shown</p>
           <p>{data.stats.metadata_edges} tag · {data.stats.semantic_edges} semantic · {data.stats.supersedes_edges} supersedes</p>
           <p>{data.stats.community_count} clusters · {data.stats.orphan_count} orphans</p>
         </div>

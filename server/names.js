@@ -59,6 +59,19 @@ export function resolveFirstNames(names, projects, { people, projectPeople }) {
  * An all-caps one-word project/topic ("MET") must match case-sensitively, or
  * every English "met" would anchor it.
  */
+// Optimal-string-alignment distance: a swapped pair counts as one typo.
+function typoDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length];
+}
+
 export function matchAnchors(question, vault) {
   const words = String(question).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   const keys = words.map((w) => stripAccents(w).toLowerCase());
@@ -104,6 +117,40 @@ export function matchAnchors(question, vault) {
   scan('projects', vault.projects, vault.projectAliases);
   scan('people', vault.people, vault.aliases);
   scan('topics', vault.topicCanonicals, vault.topicAliases);
+
+  // A misspelt name ("ParlamanetAI") matched nothing, so spider had no anchor
+  // and map/search no boost. Second pass for words nothing above recognised:
+  // one typo in a 7-8 letter name part, two from 9 letters, same first letter,
+  // and the nearest parts must all belong to ONE name. The word must look like
+  // a name (capitalised, or 9+ letters), so Hungarian inflections of everyday
+  // words ("számlát" ≠ ERSTE Számlák) stay out. A person goes to candidates:
+  // one name part alone never proves who is meant.
+  const nameParts = new Map(); // token → Set of `${bucket}|${canonical}`
+  for (const [bucket, names, aliases] of [['projects', vault.projects, vault.projectAliases], ['topics', vault.topicCanonicals, vault.topicAliases], ['candidates', vault.people, vault.aliases]]) {
+    for (const [name, canonical] of [...names.map((n) => [n, n]), ...Object.entries(aliases || {})]) {
+      for (const t of nameKey(name).split(' ').filter(Boolean)) {
+        if (!nameParts.has(t)) nameParts.set(t, new Set());
+        nameParts.get(t).add(`${bucket}|${canonical}`);
+      }
+    }
+  }
+  for (const k of keys) {
+    if (k.length < 7 || !(capitalised.has(k) || k.length >= 9)) continue;
+    if ([...nameParts.keys()].some((t) => k === t || (t.length >= 4 && k.startsWith(t)))) continue;
+    let best = Infinity;
+    let nearest = new Set();
+    for (const [t, own] of nameParts) {
+      if (t.length < 7 || t[0] !== k[0]) continue;
+      const dist = typoDistance(k, t);
+      if (dist > (t.length >= 9 ? 2 : 1) || dist > best) continue;
+      if (dist < best) { best = dist; nearest = new Set(); }
+      for (const o of own) nearest.add(o);
+    }
+    if (nearest.size === 1) {
+      const [bucket, canonical] = [...nearest][0].split('|');
+      found[bucket].add(canonical);
+    }
+  }
   for (const p of found.people) found.candidates.delete(p);
   return Object.fromEntries(Object.entries(found).map(([k, v]) => [k, [...v]]));
 }

@@ -18,6 +18,11 @@ const router = Router();
 // export (server/routes/export.js) so the graph and the vault agree on what
 // counts as "related". kNN per node, cosine floor.
 const SEMANTIC_MIN_SCORE = 0.75;
+// The Graph's cosine slider reaches down to here. Edges below SEMANTIC_MIN_SCORE
+// are for looking only (visual_only): clusters, degree, hubs, orphans and the
+// spider walk ignore them, so they behave exactly as before. A node's top-3 at
+// or above 0.75 is unchanged; lower ones only fill free kNN slots.
+const SEMANTIC_VISUAL_FLOOR = 0.5;
 const SEMANTIC_K = 3;
 
 // Metadata tags used by more than this many active thoughts don't generate
@@ -140,7 +145,7 @@ export async function buildGraph(points = null) {
     for (const other of withVec) {
       if (other.id === p.id) continue;
       const score = cosine(p.vector, other.vector);
-      if (score >= SEMANTIC_MIN_SCORE) neighbors.push({ id: other.id, score });
+      if (score >= SEMANTIC_VISUAL_FLOOR) neighbors.push({ id: other.id, score });
     }
     neighbors.sort((a, b) => b.score - a.score);
     for (const n of neighbors.slice(0, SEMANTIC_K)) {
@@ -148,7 +153,7 @@ export async function buildGraph(points = null) {
       if (semPairs.has(pairKey)) continue;
       semPairs.add(pairKey);
       const [source, target] = pairKey.split('|');
-      edges.push({ source, target, kind: 'semantic', weight: n.score, score: n.score });
+      edges.push({ source, target, kind: 'semantic', weight: n.score, score: n.score, ...(n.score < SEMANTIC_MIN_SCORE && { visual_only: true }) });
     }
   }
 
@@ -183,6 +188,7 @@ export async function buildGraph(points = null) {
   const g = new Graph({ type: 'undirected', multi: false });
   for (const n of nodes) g.addNode(n.id);
   for (const e of edges) {
+    if (e.visual_only) continue;
     if (!g.hasEdge(e.source, e.target)) {
       g.addEdge(e.source, e.target, { weight: e.weight });
     } else {
@@ -229,7 +235,7 @@ export async function buildGraph(points = null) {
       orphan_count,
       community_count: communities.length,
     },
-    tunables: { SEMANTIC_MIN_SCORE, SEMANTIC_K, TAG_FANOUT_CAP },
+    tunables: { SEMANTIC_MIN_SCORE, SEMANTIC_VISUAL_FLOOR, SEMANTIC_K, TAG_FANOUT_CAP },
   };
 }
 

@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.78.0 — 2026-11-01
+
+**A misspelt name left spider with an empty page, and the Graph drew 2400+ cross-layer edges in every view.**
+
+- **Typo-tolerant anchors (`matchAnchors`, so search, map and spider alike).** "ParlamanetAI" matched no name, and its 10 search hits (9 of them ParlementAI) were all `weak_semantic`, which spider does not accept as starts since 0.73.3: 0 starts, 0 steps, a blank result. A word nothing else recognised now matches a name part at one typo (7–8 letters) or two (9+), with the same first letter, only if the nearest parts belong to ONE name and the word looks like a name (capitalised or 9+ letters). A person goes to `candidates` only.
+- **Spider no longer stops at zero starts.** With no qualifying start it starts from the best search hits and says so (`start_quality: weak`); with no hits at all it says that instead of showing an empty page. Whenever a real start exists, the 0.73.3 exclusion is unchanged.
+- **Cross-layer edges are drawn only in Ontológia mode,** as their legend label always said. Since 0.70.0 the layers load in every grouping, so these 2413 edges were drawn in Project view too, and the footer count did not include them. A selected node's side panel still lists them. The footer now counts the links actually shown.
+- **The cosine slider now spans 0.50–1.00 with the edge count under it.** It was 0.70–0.90 while the server sent nothing below 0.75 and the median score is 0.89, so it could neither thin nor widen much. The server now also sends semantic edges down to 0.50, marked `visual_only`: clusters, degree, hubs, orphans and the spider walk ignore them, so those behave as before.
+
 ## 0.77.1 — 2026-10-18
 
 **Capture no longer sends the ~75k-char Haiku prompt back to every caller.**

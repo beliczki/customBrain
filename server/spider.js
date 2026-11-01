@@ -91,6 +91,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true, st
   const adj = new Map([...nodes.keys()].map((id) => [id, []]));
   for (const e of [...graph.edges, ...ontology.edges]) {
     if (e.kind === 'metadata') continue; // shared tags are the project/person lenses now
+    if (e.visual_only) continue; // below the 0.75 relatedness floor: for the Graph slider only
     if (!adj.has(e.source) || !adj.has(e.target)) continue;
     const w = EDGE_WEIGHT[e.kind](e);
     adj.get(e.source).push({ to: e.target, w, e });
@@ -236,9 +237,9 @@ export async function spiderWalk(question, emit = () => {}, { recency = true, st
   const sectionNode = new Map();
   for (const n of ontology.nodes) if (n.entity === 'repodoc') for (const sid of n.sections) sectionNode.set(sid, n.id);
   const seen = new Set(anchorIds);
-  hits.map((h) => ({ ...h, node: nodes.has(h.id) ? h.id : sectionNode.get(h.id) }))
-    .filter((h) => h.node && !seen.has(h.node) && seen.add(h.node))
-    .forEach((h) => {
+  const seedHits = hits.map((h) => ({ ...h, node: nodes.has(h.id) ? h.id : sectionNode.get(h.id) }))
+    .filter((h) => h.node && !seen.has(h.node) && seen.add(h.node));
+  seedHits.forEach((h) => {
       // A weak_semantic hit (only the rank fusion lifted it) is no evidence
       // of relevance, so it enters the walk neither as a start nor as an
       // offer. On "confai" a calendar note tagged ERSTE/RMT/Anna Bodiss was
@@ -249,6 +250,12 @@ export async function spiderWalk(question, emit = () => {}, { recency = true, st
       if (starts.length < SEED_VISITS) starts.push([h.node, h.score / top, `keresés: ${h.evidence}`]);
       else offer('ontology', h.node, h.score / top, null, `[ontológia] keresés: ${h.evidence}`);
     });
+  // Nothing qualified, but search did find something: a weak start beats an
+  // empty page. Only here — with any real start the 0.73.3 exclusion above holds.
+  const weakStart = !starts.length && seedHits.length > 0;
+  if (weakStart) {
+    for (const h of seedHits.slice(0, SEED_VISITS)) starts.push([h.node, h.score / top, `keresés: ${h.evidence} (gyenge kiindulás)`]);
+  }
   for (const [id, score, why] of starts) visit(id, 0, 'start', score, null, why);
   focus = new Set(starts.flatMap(([id]) => {
     const n = nodes.get(id);
@@ -346,6 +353,7 @@ export async function spiderWalk(question, emit = () => {}, { recency = true, st
       // matching reads `topics` on every item; a bare candidate crashed it.
       candidates: left.map(([id, f]) => ({ ...lineOf(nodes.get(id)), layer: nodes.get(id).layer, score: f.score, why: f.why })),
       stopped: walked.length >= MAX_STEPS ? 'max_steps' : 'min_score',
+      start_quality: weakStart ? 'weak' : starts.length ? 'ok' : 'none',
       params: { MAX_STEPS, MIN_SCORE, DECAY, SEEDS, SEED_VISITS, GATE, lenses: LENSES.map((l) => l.key), recency },
       rounds: Math.max(0, ...trace.filter((t) => t.phase === 'walk').map((t) => t.round)),
     },

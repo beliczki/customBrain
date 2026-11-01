@@ -119,7 +119,13 @@ export default function SpiderResult({ walk, phases, onSearch, active }) {
               </button>
             )}
           </p>
-          {done && (
+          {walk.start_quality === 'weak' && (
+            <p className="spider-result__start-note mt-1 text-[10px] text-txt-sec">Nem volt biztos kiindulópont: a kérdés nem nevezett meg ismert projektet vagy embert, ezért a legjobb keresési találatokból indult.</p>
+          )}
+          {walk.start_quality === 'none' && (
+            <p className="spider-result__start-note mt-1 text-[10px] text-txt-sec">Nincs kiindulópont: a keresés nem talált semmit erre a kérdésre, ezért a bejárás el sem indult.</p>
+          )}
+          {done && walk.start_quality !== 'none' && (
             <p className="spider-result__layers mt-1 text-[10px] text-txt-ter">
               Mi állt össze: {walk.layers.filter((l) => l.items.length).map((l) => `${l.label} ${l.items.length}`).join(' · ')}
             </p>
