@@ -1,6 +1,6 @@
 # Terv 2026-11-22 — a dokumentumok költöztetése a projekt Drive-mappájába
 
-**Állapot:** az első szelet kész (2026-11-22); a második Robi döntésére vár.
+**Állapot:** mindkét szelet kész (2026-11-22), helyben commitolva. **A push Robi külön go-jára vár;** a brain indexe csak a push utáni napi futáskor változik. A lezárás a „Review” szakaszban van.
 **Kérte:** Robi (2026-11-22): a dokumentumok a `~/GoogleDrive/Data/CustomBrain/` mappába kerüljenek. Ez felülírja a lenti szabályfájl-terv D1 pontját.
 
 ## Ami kész (1. szelet)
@@ -9,9 +9,9 @@
 - [x] A szemantikai modell tervezete ott van (`customBrain - a rendszer szemantikai modellje 2026-11-22 (tervezet).md`); az `AGENTS.md` rá mutat, és kimondja, hogy Robi még nem hagyta jóvá.
 - [x] Négy nem követett dokumentum átkerült, egyező ellenőrzőösszeggel: a tanulmány, a korszerűsítési terv, a vizuális anyagok terve és a „Second Brain” PDF. A ROADMAP két hivatkozása követi.
 
-## Ami döntésre vár (2. szelet): a követett `docs/` (37 fájl)
+## 2. szelet: a követett `docs/` (37 fájl) — kész; Robi a (b) lehetőséget választotta
 
-- **Érint:** a `docs/` mappa (17 felső szintű fájl, 3 archív, 17 rebuild-riport) és a rá mutató hivatkozások: ROADMAP 17, `AGENTS.md` 2, a `review-commitments` skill 2, három `tasks/` fájl, kódkommentek 11 fájlban. A CHANGELOG 11 említése történet, marad.
+- **Érint:** a `docs/` mappa (17 felső szintű fájl, 3 archív, 17 rebuild-riport) és a rá mutató hivatkozások: ROADMAP 17 említés (ebből 10 hivatkozás), `AGENTS.md` 2, a `review-commitments` skill 2, három `tasks/` fájl, kódkommentek 11 fájlban. A CHANGELOG 11 említése történet, marad.
 - **Futásidejű olvasás:** nincs. A kód csak kommentben említi a `docs/`-ot (2026-11-22-én megnézve).
 - **Szomszéd, és ez a lényeg:** a `server/repo-docs.js` a GitHubról indexeli a felső szintű `docs/*.md` fájlokat `repo_doc`-ként, és a repóból eltűnt fájl pontjait törli. Ha a 15 felső szintű `.md` kikerül a repóból, a következő napi futás kitörli őket a brainből. A Drive-on lévő dokumentumnak ma csak katalógussora van, a tartalma nem kereshető. Ugyanez igaz minden repóra, amely a `docs/` mappáját a Drive-ra költözteti.
 - **Ajtó:** kétirányú. A commit visszavonható, a fájlok visszatehetők, és a pontok a következő futáskor újraépülnek.
@@ -21,16 +21,38 @@
 ### Lehetőségek
 
 - **(a) Két lépésben. Ezt javaslom.** Most megy, ami nincs indexelve: a `docs/archive/`, a `docs/rebuild/` riportjai és a két HTML. A 15 indexelt `.md` akkor megy, amikor a brain a projektek Drive-mappájának dokumentumait is forrásként olvassa; a `drive_folder:` hozzárendelés ehhez már megvan. Ez új fejlesztés, külön tervvel.
-- **(b) Minden most.** A 15 terv és spec tartalma addig hiányzik a brainből, amíg a Drive-forrás meg nem épül.
+- **(b) Minden most.** A 15 terv és spec tartalma addig hiányzik a brainből, amíg a Drive-forrás meg nem épül. **Ezt választotta Robi (2026-11-22).**
 - **(c) A tervek a `tasks/` mappába, a többi a Drive-ra.** Nem jó: a `tasks/` fájljaiból az indexelő csak a nyitott tételeket tartja meg.
 
-### További döntések
+### További döntések és ami lett belőlük
 
-- **A két public-private fájl** (`tasks/public-private-split-tanulmany.md` és `…-implementation.md`, nem követettek): tanulmány és megvalósítási terv. Javaslat: mindkettő a Drive-ra.
-- **A `docs/rebuild/` alatti helyi adat** (11 MB, gitignore-olt dosszié-másolatok): javaslat, hogy maradjon helyben. A Drive-on a fájlkatalógus projektfájlként venné fel.
-- **A Projects-dosszié `drive_folder:` sora** még a régi mappára mutat. Javaslat: átírás az új mappa linkjére, hogy a fájlkatalógus a customBrainhez rendelje a dokumentumokat.
-- **A régi, üres mappa** (`Data/Beliczki.hu/CustomBrain`) törlése: csak külön go-ra.
+- **A két public-private fájl** (`tasks/public-private-split-tanulmany.md` és `…-implementation.md`, nem követettek): a javaslat szerint mindkettő a Drive-mappába került.
+- **A `docs/rebuild/` alatti helyi adat** (gitignore-olt dosszié-másolatok): helyben maradt, a `docs/rebuild/` mappában. A Drive-on a fájlkatalógus projektfájlként venné fel.
+- **A Projects-dosszié `drive_folder:` sora: itt tévedtem.** A sor mappa-azonosítóra mutat, és Robi a mappát magát tette át a `Data` alá, tehát a hivatkozás az új helyre mutat. Csak a sor megjegyzése elavult. A dossziéhoz nem nyúltam.
+- **A `Data/Beliczki.hu/CustomBrain` mappa:** nem a régi mappa volt, hanem egy új, amelyet én hoztam létre véletlenül (lásd Review). Robi kérésére megszűnt: a Drive kukájába került.
 - **Egy lógó hivatkozás:** egy másik session nem commitolt blokkja ebben a fájlban a `docs/vizualis-anyagok-terv-2026-10-16.md` útvonalat említi; a fájl már a Drive-mappában van. A blokkhoz nem nyúltam.
+
+## Review (2026-11-22)
+
+**Mi változott.**
+- A Drive-mappában 44 fájl van: 24 a gyökérben, 3 az `archive/`, 17 a `rebuild/` almappában. Minden másolat ellenőrzőösszege egyezett az eredetivel, mielőtt az eredeti kikerült a repóból.
+- A repóból kikerült a 37 követett `docs/` fájl. A ROADMAP tíz hivatkozása fájlnévre változott, és a fájl elején egy sor megmondja, hol vannak a dokumentumok. Az `AGENTS.md` négy sora és a `review-commitments` skill két sora követi.
+- Nem változott: a CHANGELOG, a régi tervek és a kódkommentek `docs/<név>` említései. Az `AGENTS.md` kimondja, hogy ezek a Drive-mappa azonos nevű fájlját jelentik.
+
+**A jóslat és az eredmény.**
+- Futásidejű olvasás: nincs, a kód csak kommentben említi a `docs/`-ot. Az első keresésem hibás mintával futott és üres eredményt adott; a költöztetés előtt megismételtem, és soronként átnéztem.
+- A varrat „előtte” fele megvan: a `search` a `bejaras-modszerek-terv` címére `repo_doc` találatot adott, `bm25_exact` címkével. **Az „utána” fele még hátravan:** a pontok csak a push utáni napi futáskor törlődnek. Akkor kell megnézni a futás riportját és ugyanazt a keresést.
+
+**Amit a terv nem látott előre.**
+- **Egy mappát véletlenül létrehoztam.** A szemantikai tervezetet a `Data/Beliczki.hu/CustomBrain` útvonalra írtam, egy perccel azután, hogy Robi a mappát áttette a `Data` alá. Az írás az üres útvonalon új mappát hozott létre. Ezt néztem „régi mappának”, és ezért állítottam tévesen, hogy a dosszié a régi helyre mutat. A Drive-on át derült ki: a két mappának más az azonosítója és a létrehozási ideje.
+- **A helyi törlés nem működött** (be- és kiviteli hiba), mert a Drive-on a mappában még ott volt a tervezet első másolata. A mappát a Drive-on át tettem a kukába; onnan visszaállítható.
+- **A `scripts/rebuild-documents.mjs` kimenete** alapból a `docs/rebuild/` mappa. Ha újra fut, a riportok megint a repóba kerülnek. Kódváltozás lenne, nem nyúltam hozzá.
+
+**Nyitva maradt.**
+- A push, és utána a varrat „utána” fele.
+- A fájlkatalógus 2026-10-10-i; amíg nem épül újra a szerveren, a `find_files` és a `map` nem látja az új dokumentumokat.
+- A brain nem olvassa a Drive-dokumentumok tartalmát. Ez új fejlesztés; a 15 terv és spec addig nem kereshető a brainben.
+- A dosszié `drive_folder:` sorának elavult megjegyzése.
 
 ---
 

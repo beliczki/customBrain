@@ -3,10 +3,10 @@
 The rules of this repo, for every agent that works in it (Claude Code, Codex, the Chief Architect). `CLAUDE.md` imports this file. The global rules are in `~/.claude/CLAUDE.md`; this file adds what is specific to customBrain.
 
 ## Meaning before code: Drive folder and semantic model
-- **Project Drive folder:** `~/GoogleDrive/Data/CustomBrain/` (Robi, 2026-11-22). New supporting documents go there, not into `docs/`. The tracked `docs/` has not been moved yet; the plan is in `tasks/todo.md`.
+- **Project Drive folder:** `~/GoogleDrive/Data/CustomBrain/` (Robi, 2026-11-22). Supporting documents live there. The repo has no `docs/` folder any more: it moved to the Drive folder on 2026-11-22. Where a code comment, the CHANGELOG or an old plan says `docs/<name>`, it means the file of that name in the Drive folder; `archive/` and `rebuild/` are subfolders there. The brain does not index the content of Drive documents yet (the files catalog holds metadata only), so read them from the folder; `search` will not find them.
 - **Semantic model: a draft exists, and Robi has not approved it yet** (2026-11-22): `customBrain - a rendszer szemantikai modellje 2026-11-22 (tervezet).md` in the Drive folder. It holds the glossary, the components and their limits, the operation contracts, the rules, and the open decisions. Until Robi approves it, its terms and rules are proposals: say in your plan that you rely on a draft. A term used in a second sense, or a new rule, is Robi's decision.
 - Also read:
-  - `docs/ontologia-es-helyzetcsomag-spec-2026-10-10.md`: the five ontology layers and the situation package. A spec written before the build; the rule the code follows is `layerOf()` in `server/ontology.js`.
+  - `ontologia-es-helyzetcsomag-spec-2026-10-10.md` in the Drive folder: the five ontology layers and the situation package. A spec written before the build; the rule the code follows is `layerOf()` in `server/ontology.js`.
   - `ROADMAP.md` for what we want, `CHANGELOG.md` for what shipped.
 
 ## Before starting work
@@ -21,7 +21,7 @@ There is no `.env` on the local Mac filesystem (it lives at repo root on Hetzner
 - **`ROADMAP.md`** — canonical priority list (P1–P9, sequenced with a usage gate at position 0). Stubs cross-reference brain thought IDs for full specs.
 - **Brain with `TODO-<NAME>` marker** — spec-grade handoffs other Claude sessions execute from (e.g. `TODO-STEAL-4-MEMMOLT`, `TODO-DEMO-INFRA-v1`). Searchable from any future session, audit-preserved.
 - **`CHANGELOG.md`** — what shipped, per version.
-- **`docs/archive/`** — finished plan history (pre-0.3.0 era).
+- **`archive/` in the Drive folder** — finished plan history (pre-0.3.0 era).
 - **`tasks/todo.md`** — the plan of the change in hand, as the global loop asks (touches, door, prediction, seam, slices, review). `ROADMAP.md` stays the priority list.
 
 ## Versioning
@@ -159,7 +159,7 @@ Files catalog (0.51.0): `find_files` reads `state/files-catalog.json` (`server/f
 
 Commitments (0.53.0): `server/commitments.js`, own Qdrant collection `commitments` (dense + bm25, same schema as thoughts). Thought `action_items` are loose **candidates**; a commitment has one owner (Robi = `Me`), status (`open|waiting|done|dropped`, plus `expired` derived on read from `event_ref`), `kind` (`penz|jog|ugyfel|belso`), optional `due`, and ≥1 direct source with a verbatim quote. Tools: `list_commitment_candidates` + `list_commitments` (brain-read), `save_commitments` (curate). No server-side LLM — the session agent proposes, Robi approves; workflow in the repo skill `.claude/skills/review-commitments/`. A thought leaves the candidate list once `candidates_reviewed_at` is stamped, and returns when its `updated_at` (e.g. Gmail refresh) is later.
 
-map (0.56.0; named `brain_map` until 0.60.0): `server/brain-map.js`. Tool names drop the redundant "brain" (it is the brain MCP): the retrieval methods are `search`, `map`, and the planned `spider` — see `docs/bejaras-modszerek-terv-2026-10-10.md`. It assembles the spec's situation package (HORGONYOK · HELYZET · ELŐZMÉNYEK · KORÁBBI · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB; KORÁBBI since 0.65.0 = spider's finds older than the window) from existing readers: vault context, `repos-status.json`, `findFiles`, `quickLookup`, `searchThoughts`, `listCommitments`, the agenda cache. It never fetches new data and makes no LLM call. Scope `brain-read`, because the calendar is read from the agenda cache. Section caps and stale thresholds are constants at the top of the file, the future AUTORESEARCH knobs. A new source joins as a reader there, not as a new search.
+map (0.56.0; named `brain_map` until 0.60.0): `server/brain-map.js`. Tool names drop the redundant "brain" (it is the brain MCP): the retrieval methods are `search`, `map`, and the planned `spider` — see `bejaras-modszerek-terv-2026-10-10.md` in the Drive folder. It assembles the spec's situation package (HORGONYOK · HELYZET · ELŐZMÉNYEK · KORÁBBI · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB; KORÁBBI since 0.65.0 = spider's finds older than the window) from existing readers: vault context, `repos-status.json`, `findFiles`, `quickLookup`, `searchThoughts`, `listCommitments`, the agenda cache. It never fetches new data and makes no LLM call. Scope `brain-read`, because the calendar is read from the agenda cache. Section caps and stale thresholds are constants at the top of the file, the future AUTORESEARCH knobs. A new source joins as a reader there, not as a new search.
 
 MCP call log (0.58.0): `server/mcp-call-log.js` → `state/mcp-calls.jsonl`, written from `applyScopeGate`'s handler wrap (HTTP callers only, `caller` = token name). A new tool is logged automatically; nothing to add per tool. No full result text — clipped args + `{id, title}` refs.
 

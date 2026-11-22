@@ -13,12 +13,12 @@ same item repeats across thoughts (the 2026-10-10 pilot found one RSVP in 5
 thoughts), they mix other people's tasks and plain descriptions, carry no
 status, and a Gmail refresh rewrites them. A **commitment** is a separate,
 checked record in the `commitments` collection. Background:
-`docs/vallalas-reteg-dontes-2026-10-10.md`, `docs/commitments-terv-2026-10-10.md`.
+`vallalas-reteg-dontes-2026-10-10.md` and `commitments-terv-2026-10-10.md` in the project Drive folder (`~/GoogleDrive/Data/CustomBrain/`).
 
 The judgment is yours (session inference); the server only lists and stores.
 **Nothing is saved before Robi approves.**
 
-A condensed copy of these rules runs daily as the Cowork scheduled task "Commitment steward" (`docs/cowork-scheduled-tasks.md`, Task 3). **When you change this skill, update that prompt too.**
+A condensed copy of these rules runs daily as the Cowork scheduled task "Commitment steward" (`cowork-scheduled-tasks.md` in the project Drive folder, Task 3). **When you change this skill, update that prompt too.**
 
 ## Tools (customBrain MCP)
 
