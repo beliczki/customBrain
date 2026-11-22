@@ -95,7 +95,7 @@ A specifikáció kitér a párhuzamos subagentes feltárásra is: külön részk
 
 **A következő lépés nem újabb javítás, hanem mérés:** a B–F szakaszok gate mögött vannak, és most már van értelme megnézni, mennyit javult a visszakeresés az alias-javítás után. Ez a tanulmány 11. fejezetének kérdésbankja.
 
-Forrás: [Tanulmány](docs/custombrain-tanulmany-2026-09-12.md) + [Terv](docs/custombrain-korszerusitesi-terv-2026-09-12.md). A tanulmány legsúlyosabb állításait kódból ellenőriztük (2026-09-12 session), mind igaz. A terv teljes A–F íve NEM lett jóváhagyva — az alábbi, szűkített sorrend igen. B–F csak az A tapasztalatai után, külön döntéssel.
+Forrás: a tanulmány (`custombrain-tanulmany-2026-09-12.md`) és a terv (`custombrain-korszerusitesi-terv-2026-09-12.md`), mindkettő a projekt Drive-mappájában. A tanulmány legsúlyosabb állításait kódból ellenőriztük (2026-09-12 session), mind igaz. A terv teljes A–F íve NEM lett jóváhagyva — az alábbi, szűkített sorrend igen. B–F csak az A tapasztalatai után, külön döntéssel.
 
 ### 1. S1 — Backup rossz collectiont célzott — ✅ DONE 2026-09-12 (0.41.2)
 A gyanú beigazolódott, és rosszabb volt a feltételezettnél. Élesben mindkét collection létezett, ezért a cron minden éjjel valódi snapshotot készített a **halott** collectionről és `Done in 8.8s`-t logolt.
@@ -179,7 +179,7 @@ A felhasználó jóváhagyta a tanulmány és indokolt terv elkészítését; a 
 - [x] Magyar tanulmány és mérhető, szakaszos korszerűsítési terv a `docs/` alatt, alternatívákkal és visszaállási feltételekkel.
 - [x] Hivatkozás- és állításellenőrzés; lezáró review és verziójavaslat.
 
-**Dokumentumok:** [Tanulmány](docs/custombrain-tanulmany-2026-09-12.md) · [Korszerűsítési terv](docs/custombrain-korszerusitesi-terv-2026-09-12.md).
+**Dokumentumok:** tanulmány (`custombrain-tanulmany-2026-09-12.md`) · korszerűsítési terv (`custombrain-korszerusitesi-terv-2026-09-12.md`), a projekt Drive-mappájában.
 
 **Review:** 7 izolált, szintetikus adatú ellenőrzés; npm lockfile-audit (szerver: 12 érintett csomag, kliens: 7, kliens dev nélkül: 0); forráshivatkozások ellenőrizve. Elsőbbséget kap a `thoughts_v2` core és `thoughts` backup/restore eltérésének éles ellenőrzése, a nevesített tokenek túl széles MCP-joga és az intake/index helyessége. Nincs éles audit, implementáció vagy deploy. Javaslat: célzott korszerűsítés a meglévő Qdrant + 3072 dimenziós embedding + MCP alapon; dokumentációs bump 0.41.0 → 0.41.1, nem végrehajtva.
 

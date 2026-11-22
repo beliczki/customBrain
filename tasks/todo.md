@@ -1,3 +1,39 @@
+# Terv 2026-11-22 — a dokumentumok költöztetése a projekt Drive-mappájába
+
+**Állapot:** az első szelet kész (2026-11-22); a második Robi döntésére vár.
+**Kérte:** Robi (2026-11-22): a dokumentumok a `~/GoogleDrive/Data/CustomBrain/` mappába kerüljenek. Ez felülírja a lenti szabályfájl-terv D1 pontját.
+
+## Ami kész (1. szelet)
+
+- [x] Az `AGENTS.md` a `~/GoogleDrive/Data/CustomBrain/` mappát nevezi meg a projekt Drive-mappájaként.
+- [x] A szemantikai modell tervezete ott van (`customBrain - a rendszer szemantikai modellje 2026-11-22 (tervezet).md`); az `AGENTS.md` rá mutat, és kimondja, hogy Robi még nem hagyta jóvá.
+- [x] Négy nem követett dokumentum átkerült, egyező ellenőrzőösszeggel: a tanulmány, a korszerűsítési terv, a vizuális anyagok terve és a „Second Brain” PDF. A ROADMAP két hivatkozása követi.
+
+## Ami döntésre vár (2. szelet): a követett `docs/` (37 fájl)
+
+- **Érint:** a `docs/` mappa (17 felső szintű fájl, 3 archív, 17 rebuild-riport) és a rá mutató hivatkozások: ROADMAP 17, `AGENTS.md` 2, a `review-commitments` skill 2, három `tasks/` fájl, kódkommentek 11 fájlban. A CHANGELOG 11 említése történet, marad.
+- **Futásidejű olvasás:** nincs. A kód csak kommentben említi a `docs/`-ot (2026-11-22-én megnézve).
+- **Szomszéd, és ez a lényeg:** a `server/repo-docs.js` a GitHubról indexeli a felső szintű `docs/*.md` fájlokat `repo_doc`-ként, és a repóból eltűnt fájl pontjait törli. Ha a 15 felső szintű `.md` kikerül a repóból, a következő napi futás kitörli őket a brainből. A Drive-on lévő dokumentumnak ma csak katalógussora van, a tartalma nem kereshető. Ugyanez igaz minden repóra, amely a `docs/` mappáját a Drive-ra költözteti.
+- **Ajtó:** kétirányú. A commit visszavonható, a fájlok visszatehetők, és a pontok a következő futáskor újraépülnek.
+- **Jóslat:** a customBrain-repó `repo_doc` pontjainak száma csökken; a `search` és a `map` HELYZET szekciója nem hozza többé ezeket a terveket. A felület és a többi forrás nem változik.
+- **Varrat:** a napi futás riportja (repónként a törölt pontok száma), és egy `search` egy költöztetett terv címére a költöztetés előtt és után.
+
+### Lehetőségek
+
+- **(a) Két lépésben. Ezt javaslom.** Most megy, ami nincs indexelve: a `docs/archive/`, a `docs/rebuild/` riportjai és a két HTML. A 15 indexelt `.md` akkor megy, amikor a brain a projektek Drive-mappájának dokumentumait is forrásként olvassa; a `drive_folder:` hozzárendelés ehhez már megvan. Ez új fejlesztés, külön tervvel.
+- **(b) Minden most.** A 15 terv és spec tartalma addig hiányzik a brainből, amíg a Drive-forrás meg nem épül.
+- **(c) A tervek a `tasks/` mappába, a többi a Drive-ra.** Nem jó: a `tasks/` fájljaiból az indexelő csak a nyitott tételeket tartja meg.
+
+### További döntések
+
+- **A két public-private fájl** (`tasks/public-private-split-tanulmany.md` és `…-implementation.md`, nem követettek): tanulmány és megvalósítási terv. Javaslat: mindkettő a Drive-ra.
+- **A `docs/rebuild/` alatti helyi adat** (11 MB, gitignore-olt dosszié-másolatok): javaslat, hogy maradjon helyben. A Drive-on a fájlkatalógus projektfájlként venné fel.
+- **A Projects-dosszié `drive_folder:` sora** még a régi mappára mutat. Javaslat: átírás az új mappa linkjére, hogy a fájlkatalógus a customBrainhez rendelje a dokumentumokat.
+- **A régi, üres mappa** (`Data/Beliczki.hu/CustomBrain`) törlése: csak külön go-ra.
+- **Egy lógó hivatkozás:** egy másik session nem commitolt blokkja ebben a fájlban a `docs/vizualis-anyagok-terv-2026-10-16.md` útvonalat említi; a fájl már a Drive-mappában van. A blokkhoz nem nyúltam.
+
+---
+
 # Terv 2026-11-22 — szabályfájlok: az AGENTS.md a forrás, ssh-adat ki a publikus repóból, „Deploy” szakasz
 
 **Állapot:** kész, commitolva és pusholva (2026-11-22, `40fc1b5`). Robi a javasolt D1–D8 válaszokkal hagyta jóvá. A lezárás a „Review” szakaszban van, a terv végén.
@@ -65,8 +101,8 @@
 
 ## Robi döntései
 
-- **D1. Drive-mappa.** Javaslat: `~/GoogleDrive/Data/Beliczki.hu/CustomBrain/` (a dosszié ezt mondja). A másik jelölt a `Docs/_2nd Brain ／ énmás ／ AI Context Infrastructure`, amelyet a 2026-10-10-i költöztetési táblázat javasolt.
-- **D2. Szemantikai modell.** Javaslat: most az kerül be, hogy „nincs még (2026-11-22)”, a legközelebbi anyagok megnevezésével. Ha a tervezet elkészül, a sor arra mutat.
+- **D1. Drive-mappa.** **Felülírva 2026-11-22: Robi a `~/GoogleDrive/Data/CustomBrain/` mappát jelölte ki** (lásd a fenti tervet). Az eredeti javaslat: `~/GoogleDrive/Data/Beliczki.hu/CustomBrain/` (a dosszié ezt mondja). A másik jelölt a `Docs/_2nd Brain ／ énmás ／ AI Context Infrastructure`, amelyet a 2026-10-10-i költöztetési táblázat javasolt.
+- **D2. Szemantikai modell.** Javaslat: most az kerül be, hogy „nincs még (2026-11-22)”, a legközelebbi anyagok megnevezésével. Ha a tervezet elkészül, a sor arra mutat. **Teljesült 2026-11-22:** a tervezet elkészült, az `AGENTS.md` rá mutat.
 - **D3. `DEPLOYMENT.md` sorsa.** Javaslat (a): megmarad „egyszeri szerver-beállítás” tartalommal (init, Settings-változók, Fireflies webhook, Gmail-címkék, crontab), szerverútvonal nélkül, a három elavult állítás javítva; a deploy-lépések és az ismert gondok átkerülnek az `AGENTS.md`-be. (b): a fájl megszűnik, minden az `AGENTS.md`-be megy.
 - **D4. Az alkalmazás portja a „Deploy” szakaszban.** A 3000-es port a kódban és a `docker-compose.yml`-ben is benne van, és a port felszabadítása nélküle nem írható le. Javaslat: az alkalmazásport maradhat, az ssh-port nem.
 - **D5. Meddig terjedjen a takarítás.** Javaslat: ebben a körben a három fájl mellett a `README.md` három crontab-sora és a `docs/archive/tasks-handoff-2026-03-16.md` két sora (IP, régi kulcsnév, email). A `CHANGELOG.md`, a `ROADMAP.md` és a `tasks/todo.md` útvonal-említései történeti napló részei, maradnak.

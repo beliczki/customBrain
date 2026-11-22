@@ -3,9 +3,9 @@
 The rules of this repo, for every agent that works in it (Claude Code, Codex, the Chief Architect). `CLAUDE.md` imports this file. The global rules are in `~/.claude/CLAUDE.md`; this file adds what is specific to customBrain.
 
 ## Meaning before code: Drive folder and semantic model
-- **Project Drive folder:** `~/GoogleDrive/Data/Beliczki.hu/CustomBrain/`. The customBrain Projects dossier names it in `drive_folder:`. It is empty as of 2026-11-22. New supporting documents go there, not into `docs/`. The existing `docs/` has not been moved yet.
-- **Semantic model: there is none yet** (2026-11-22). No glossary and no operation contracts exist. State that in your plan, and do not fill the gap with a guess. A term used in a second sense, or a new rule, is Robi's decision.
-- The nearest material:
+- **Project Drive folder:** `~/GoogleDrive/Data/CustomBrain/` (Robi, 2026-11-22). New supporting documents go there, not into `docs/`. The tracked `docs/` has not been moved yet; the plan is in `tasks/todo.md`.
+- **Semantic model: a draft exists, and Robi has not approved it yet** (2026-11-22): `customBrain - a rendszer szemantikai modellje 2026-11-22 (tervezet).md` in the Drive folder. It holds the glossary, the components and their limits, the operation contracts, the rules, and the open decisions. Until Robi approves it, its terms and rules are proposals: say in your plan that you rely on a draft. A term used in a second sense, or a new rule, is Robi's decision.
+- Also read:
   - `docs/ontologia-es-helyzetcsomag-spec-2026-10-10.md`: the five ontology layers and the situation package. A spec written before the build; the rule the code follows is `layerOf()` in `server/ontology.js`.
   - `ROADMAP.md` for what we want, `CHANGELOG.md` for what shipped.
 
