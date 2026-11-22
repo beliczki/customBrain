@@ -1,6 +1,6 @@
 # Terv 2026-11-22 — szabályfájlok: az AGENTS.md a forrás, ssh-adat ki a publikus repóból, „Deploy” szakasz
 
-**Állapot:** kész és commitolva (2026-11-22). Robi a javasolt D1–D8 válaszokkal hagyta jóvá. **A push Robi külön go-jára vár.** A lezárás a „Review” szakaszban van, a terv végén.
+**Állapot:** kész, commitolva és pusholva (2026-11-22, `40fc1b5`). Robi a javasolt D1–D8 válaszokkal hagyta jóvá. A lezárás a „Review” szakaszban van, a terv végén.
 **Kérte:** a Learning session Robi nevében (2026-11-22). A go-t Robi ebben a sessionben adta.
 
 ## Mit találtam (2026-11-22, csak olvasva)
@@ -70,7 +70,7 @@
 - **D3. `DEPLOYMENT.md` sorsa.** Javaslat (a): megmarad „egyszeri szerver-beállítás” tartalommal (init, Settings-változók, Fireflies webhook, Gmail-címkék, crontab), szerverútvonal nélkül, a három elavult állítás javítva; a deploy-lépések és az ismert gondok átkerülnek az `AGENTS.md`-be. (b): a fájl megszűnik, minden az `AGENTS.md`-be megy.
 - **D4. Az alkalmazás portja a „Deploy” szakaszban.** A 3000-es port a kódban és a `docker-compose.yml`-ben is benne van, és a port felszabadítása nélküle nem írható le. Javaslat: az alkalmazásport maradhat, az ssh-port nem.
 - **D5. Meddig terjedjen a takarítás.** Javaslat: ebben a körben a három fájl mellett a `README.md` három crontab-sora és a `docs/archive/tasks-handoff-2026-03-16.md` két sora (IP, régi kulcsnév, email). A `CHANGELOG.md`, a `ROADMAP.md` és a `tasks/todo.md` útvonal-említései történeti napló részei, maradnak.
-- **D6. Git-előzmény.** A régi szöveg megmarad benne. Az átírás force-push egy publikus repón, egyirányú ajtó. Javaslat: nem írjuk át. **Újra megerősítendő:** az eredeti indoklás egyik állítása hibás volt (lásd Review).
+- **D6. Git-előzmény.** A régi szöveg megmarad benne. Az átírás force-push egy publikus repón, egyirányú ajtó. Javaslat: nem írjuk át. **Lezárva 2026-11-22: nem írjuk át (Robi).** Az eredeti indoklás egyik állítása hibás volt; Robi a szerveren futott ellenőrzés után döntött újra (lásd Review).
 - **D7. Ellentmondó sor.** A `CLAUDE.md` szerint a `tasks/todo.md` „not used for customBrain”, a gyakorlat és a globális szabály szerint viszont ez a tervfájl. Javaslat: az új `AGENTS.md` azt írja, hogy a terv a `tasks/todo.md`-be kerül, a prioritáslista a ROADMAP.
 - **D8. Verzió.** Javaslat: verzióemelés nélkül, `docs:` commitként (előzmény: `db191f2`, 2026-09-29). Másik lehetőség: `0.78.0` → `0.78.1` (patch), de akkor a GitHubon lévő verzió a következő deployig eltér a futótól.
 
@@ -96,7 +96,7 @@ Hat ilyet találtam (kulcs, Node-verzió, cron, Qdrant-image, maradványok az al
 - A `CLAUDE.md` első sora `@AGENTS.md`. Azt, hogy egy új Claude Code session valóban betölti az importot, ebben a sessionben nem tudtam megnézni; a parlamentAI, a bizi és az MM6 ugyanezt a formát használja.
 
 **Amit a terv nem látott előre.**
-- **A D6 indoklása hibás volt.** Azt írtam, hogy a git-előzményben nincs titok. Ezt nem ellenőriztem, mielőtt leírtam, és nem volt igaz. A részletek a fenti jegyzetfájlban vannak, nem ebben a publikus fájlban. A D6-ot Robinak újra meg kell erősítenie.
+- **A D6 indoklása hibás volt.** Azt írtam, hogy a git-előzményben nincs titok. Ezt nem ellenőriztem, mielőtt leírtam, és nem volt igaz. A részletek a fenti jegyzetfájlban vannak, nem ebben a publikus fájlban. Egy csak olvasó ellenőrzés futott a szerveren Robi go-jával; utána Robi újra megerősítette, hogy az előzményt nem írjuk át.
 - **A terv első változata maga is tiltott adatot tartalmazott.** A box-szintű tényeket kulcsnevekkel együtt ebbe a fájlba írtam, pedig ez is a publikus repó része. A commit előtti gépi ellenőrzés fogta meg; a szakasz kikerült a jegyzetfájlba.
 - **Hivatkozások.** A `README.md` két sora és az `INSTALL.md` egy sora a `DEPLOYMENT.md`-be küldte az olvasót az újraindítási sorért, amely átkerült az `AGENTS.md`-be. Ezeket átírtam; az `INSTALL.md` emiatt került a commitba.
 - **Email.** Az archív fájl 100. és 106. sorában maradt Robi email-címe. Nem nyúltam hozzá, mert a commitok szerzői címe ugyanez, tehát a cím a repóból egyébként is látszik.
@@ -109,7 +109,6 @@ Hat ilyet találtam (kulcs, Node-verzió, cron, Qdrant-image, maradványok az al
 **Nyitva maradt.**
 - A `DEPLOYMENT.md` „Setup notes” részében két sor elavult, de a terv nem érintette: a refresh token helye (ma a Settings, nem a `.env`) és az `.env.example` hiányossága (a `.env`-ben ma csak a `UI_SECRET` van).
 - A „Nem része ennek a tervnek” lista mind a négy pontja.
-- A push.
 
 ---
 
