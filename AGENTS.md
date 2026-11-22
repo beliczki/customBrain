@@ -1,0 +1,258 @@
+# AGENTS.md — customBrain
+
+The rules of this repo, for every agent that works in it (Claude Code, Codex, the Chief Architect). `CLAUDE.md` imports this file. The global rules are in `~/.claude/CLAUDE.md`; this file adds what is specific to customBrain.
+
+## Meaning before code: Drive folder and semantic model
+- **Project Drive folder:** `~/GoogleDrive/Data/Beliczki.hu/CustomBrain/`. The customBrain Projects dossier names it in `drive_folder:`. It is empty as of 2026-11-22. New supporting documents go there, not into `docs/`. The existing `docs/` has not been moved yet.
+- **Semantic model: there is none yet** (2026-11-22). No glossary and no operation contracts exist. State that in your plan, and do not fill the gap with a guess. A term used in a second sense, or a new rule, is Robi's decision.
+- The nearest material:
+  - `docs/ontologia-es-helyzetcsomag-spec-2026-10-10.md`: the five ontology layers and the situation package. A spec written before the build; the rule the code follows is `layerOf()` in `server/ontology.js`.
+  - `ROADMAP.md` for what we want, `CHANGELOG.md` for what shipped.
+
+## Before starting work
+- Read `ROADMAP.md` for current priorities and what's built
+- Update `ROADMAP.md` as you complete steps or hit blockers
+- **Deploying?** Read the "Deploy" section at the end of this file and `~/.agents/infra-map.md` first.
+
+## No local environment — deploy-tested only
+There is no `.env` on the local Mac filesystem (it lives at repo root on Hetzner since 0.23.0; previously at `server/`). Local `npm start`, local crons, and the Vite dev server will all fail without them. All testing happens directly on Hetzner (`brain.beliczki.hu`). Static checks (syntax, pure-function unit tests, regex validation) are fine locally; anything that hits Qdrant, Google APIs, Fireflies, or Anthropic needs the server. Propose SSH-based verification instead of "run it locally first".
+
+## Where plans live
+- **`ROADMAP.md`** — canonical priority list (P1–P9, sequenced with a usage gate at position 0). Stubs cross-reference brain thought IDs for full specs.
+- **Brain with `TODO-<NAME>` marker** — spec-grade handoffs other Claude sessions execute from (e.g. `TODO-STEAL-4-MEMMOLT`, `TODO-DEMO-INFRA-v1`). Searchable from any future session, audit-preserved.
+- **`CHANGELOG.md`** — what shipped, per version.
+- **`docs/archive/`** — finished plan history (pre-0.3.0 era).
+- **`tasks/todo.md`** — the plan of the change in hand, as the global loop asks (touches, door, prediction, seam, slices, review). `ROADMAP.md` stays the priority list.
+
+## Versioning
+Semver (`major.minor.patch`). **One version for all of customBrain, and it lives in the root `package.json` — bump only that.** `server/package.json` and `client/package.json` carry no `version` field on purpose (since 0.39.0); they used to, and the client's baked-in copy silently drifted from the running server whenever we shipped without rebuilding the SPA. The UI badge now reads the version off the `/stats` response, so it always reflects what is actually running.
+
+The one unavoidable duplicate is `extension/manifest.json` — Chrome requires a version there. Bump it alongside the root when the extension changes.
+
+Log every bump in `CHANGELOG.md`. `0.x.y` = pre-1.0, breaking changes allowed on minor bumps.
+
+**After finishing any shipped work — a completed plan, a patch, a new cron/route/MCP tool, a dependency upgrade — remind the user to bump the version before wrapping up.** Don't bump silently. Surface a suggestion in the form:
+
+> Suggested bump: `0.18.0` → `0.13.1` (patch). Reason: <one sentence>.
+
+Heuristic for the suggestion (at `0.x.y`):
+- **patch** (`0.18.0` → `0.13.1`): bug fix, doc-only change, internal refactor with no behaviour change, env var rename with backwards-compatible fallback.
+- **minor** (`0.18.0` → `0.18.0`): new feature or capture path, new MCP tool, new HTTP route, new Qdrant payload field, payload migration, or any user-visible behaviour change. Breaking changes are allowed on minor bumps while pre-1.0.
+- **major** (`0.x.y` → `1.0.0`): reserved for graduating to "stable daily use" — user decides, never auto-suggest.
+
+If the finished work is ambiguous (touches multiple categories), propose the higher bump and explain both options in one line — let the user decide.
+
+## Commands
+
+### Server (from repo root)
+```bash
+docker compose up -d              # start Qdrant
+npm run init                      # one-time: create Qdrant collection
+npm start                         # start Express server (runs from server/)
+```
+
+### Client (from client/)
+```bash
+npm run dev                       # Vite dev server with HMR
+npm run build                     # production build → client/dist/
+```
+
+### MCP stdio (local Claude Desktop)
+```bash
+node server/mcp-stdio.js            # connects Claude Desktop without Express
+```
+
+### Environment setup
+Copy `.env.example` to `.env` at REPO ROOT (since 0.23.0; previously at `server/`). Only `UI_SECRET` lives in `.env` now (renamed from `CAPTURE_SECRET` in 0.24.0) — it's the UI bootstrap master secret. All other config (API keys, Google Drive OAuth2, Fireflies, Gmail labels, Qdrant URL, port) flows through `state/settings.json` and is managed via the Settings UI tab. Run `server/get-drive-token.js` to generate the OAuth2 refresh token, then paste the printed values into Settings → Google Drive section.
+
+### Dependency management
+Root `package.json` and `server/package.json` have separate dependency trees (no workspaces). Client has its own `package.json` too. Agent code imports from server's `node_modules` via relative paths.
+
+### Tests / lint
+No `test` or `lint` scripts defined in any package.json. Verification is manual.
+
+## Architecture
+
+- **Plain JavaScript** — Node.js ESM, no TypeScript, no build step for server
+- **Qdrant** (Docker) — 3072-dim Cosine HNSW, collection: `thoughts`
+- **Gemini** `gemini-embedding-001` for embeddings
+- **Claude Haiku** for metadata extraction (people, topics, projects, type, title, action_items)
+- **One Express server** — HTTP routes + MCP over Streamable HTTP + static React UI
+- **Google Drive** export for Obsidian sync
+
+### Google auth
+**One identity for everything since 0.39.0: OAuth2, no service account.** All of
+`server/google-auth.js`, `agent/google-auth.js`, `server/drive-context.js` and
+`server/routes/export.js` use `GOOGLE_DRIVE_CLIENT_ID/SECRET/REFRESH_TOKEN`.
+
+- **GCP project**: `grafia-2026` (migrated from the standalone `custombrain` project on 2026-08-02). Client `customBrain-client`, redirect URI `http://localhost:3001/callback`, consent screen External + In production.
+- **Scopes**: `drive` (full), `gmail.modify`, `calendar.readonly`, `youtube.readonly`.
+- **Re-auth**: `node server/get-drive-token.js`. ⚠️ **Not** `scripts/get-drive-token.js` — that one only requests `drive.file` and would produce a token that silently can't read the vault.
+- **Why full `drive`**: vault reads need to see hand-made dossiers, which `drive.file` cannot (it only sees app-created files — this, not file ownership, was the real cause of the old "OAuth2 misses Me.md" problem). `drive.readonly` would cover reads but not the export's writes, and Google rejects `drive.file` together with `youtube.readonly` in one consent request.
+- **No fallback by design**: `getDrive()` / `getDriveClient()` throw when the refresh token is missing. The previous service-account fallback masked a dead identity for weeks — see CHANGELOG 0.39.0.
+
+### Files & Repos dossiers (0.41.0)
+- Two more dossier folders beside People/Projects/Topics: `Files/` (one .md per delivered/received document — what it is, where it lives on Drive, which task it belongs to) and `Repos/` (one .md per repository — purpose, stack, deploy, state).
+- Hand/session-authored. Index-only: embedded + searchable via `search` through the hourly dossier reindex (or `reindex_dossiers` on demand); they do NOT feed the capture-time Haiku prompt.
+- `Files/` frontmatter convention: `drive_link`, `project`, `direction: received|delivered`, `from`, `date`. `Repos/`: `repo`, `deploy`, plus `aliases:` as everywhere.
+- Habit: when substantial work in a repo wraps up, update that repo's dossier.
+
+### People aliases
+- People `.md` files on Drive can contain `alias: <name>` lines (e.g., `Me.md` has `alias: Beliczki Róbert` and `alias: Robi`)
+- `drive-context.js` reads these at capture time, builds an alias→canonical map
+- `metadata.js` injects aliases into the Haiku prompt AND does deterministic post-processing to normalize the `people` array
+- Aliases are the single source of truth on Drive — no local config needed
+
+## HTTP API
+
+All routes behind auth middleware. Route files in `server/routes/`:
+
+| Endpoint | Method | File | Core function |
+|----------|--------|------|---------------|
+| `/capture` | POST | `capture.js` | `captureThought` |
+| `/search` | POST | `search.js` | `searchThoughts` |
+| `/graph` | GET | `graph.js` | `buildGraph` (nodes + metadata/semantic/supersedes edges + Louvain communities) |
+| `/graph/ontology` | GET | `graph.js` | `buildOntology` (Ontológia mode: dossiers, file bundles, commitments + cross-layer edges) |
+| `/recent` | GET | `recent.js` | `getRecent` |
+| `/thoughts/:id` | DELETE | `recent.js` | — |
+| `/thoughts/:id` | PATCH | `recent.js` | — (metadata edits; backs `update_thought`) |
+| `/stats` | GET | `stats.js` | `getStats` |
+| `/export` | POST | `export.js` | `exportThoughts` |
+| `/map` | GET | `map.js` | `buildBrainMap` (Search tab `map` method; same package as the `map` MCP tool) |
+| `/agent-runs` | GET | `agent-runs.js` | `readAgentRuns` (MCP log tab; MCP call log grouped into runs) |
+| `/trace` | GET | `trace.js` | `buildTrace` (traversal replay: a Search method's steps → Graph; `method=search\|map\|spider`; also spider's only route) |
+| `/mcp/http` | ALL | `mcp.js` | `handleMcpHttp` |
+| `/fireflies-webhook` | POST | `fireflies-webhook.js` | — (HMAC secret, **not** Bearer; mounted above the Bearer middleware in `server/index.js`) |
+
+## Retrieval routing (for any session answering questions from the brain)
+
+Cheapest tool first — climb only when the rung below can't answer:
+
+1. **`quick_lookup`** — metadata questions (counts, who/when, list by person/project/topic/type/source/date range). Zero model calls, exact answers. Never use search for "how many…" / "list my…" questions.
+2. **`map` / `spider`** — status, next steps, "what connects to X". Measured 2026-10-10 on 10 work questions (search vs map vs spider, Haiku-judged): map has the widest coverage (KÖVETKEZŐ = commitments is its best section), spider reaches what search never does (commitments, person threads; `steps` default 24), search has the best precision. The off-subject lines of map/spider are often adjacent connections — worth a look, not noise to drop.
+3. **`search`** (before 0.60.0: `search_brain`) — exact-content questions. Simple `query` for hybrid dense+BM25; typed `queries=[{type:'lex'|'vec',q}]` when you want to compose exact-words + meaning legs yourself. Read the `evidence` tag on every hit (`exact_title | bm25_exact | high_dense | weak_semantic`) to weigh results categorically.
+4. **`get_thought` with `from_line`/`max_lines`** — page through long thoughts (Fireflies transcripts, refreshed Gmail threads) instead of loading full text.
+5. Vault-side (Obsidian/Drive sessions): check `index.md` first — one line per thought, regenerated on every rebuild — then open files second.
+
+**Write-back (compounding memory):** when a search-and-synthesize session produces a genuinely useful answer, capture it with a leading `Synthesis: <question>` line → `type=synthesis`. Next session hits the pre-digested answer instead of re-deriving from raw thoughts. Don't file trivia — only answers that took real work to assemble.
+
+**Contradiction probe:** `node scripts/contradiction-probe.js [--max-pairs N]` — read-only Haiku judge over semantically-close pairs (cosine 0.70–0.92, below the capture-time dedup band). Six-verdict enum incl. `temporal_supersession`; content-hash cache in `tasks/contradiction-cache.json`; snapshots to `tasks/contradiction-probe-<date>.json`; Wilson-CI gate decides whether deeper lint tooling is ever worth building. Never mutates.
+
+## One backend, two interfaces
+
+Route files export an Express router (default) and a named function for core logic. MCP tools in `server/mcp.js` call these functions directly — no HTTP hop. React UI calls routes via fetch.
+
+## Key patterns
+
+- **Capture pipeline**: text → parallel [embedding + metadata extraction] → Qdrant upsert. Context-aware: `server/drive-context.js` reads People/Projects from Drive (via SA) including `alias:` lines from People .md files. Post-processing resolves aliases to canonical names. Near-duplicate detection (cosine > 0.85): archives old thought (`status: archived`), links new thought via `supersedes`. Semantic contradiction detection is limited — embeddings measure topic similarity, not logical opposition.
+- **Obsidian export**: full vault rebuild (not incremental). Deletes all .md, rewrites from Qdrant. Since 0.6.0, exported `.md` files also get a semantic `## Related thoughts` section (top-N cosine neighbors, not tag-overlap) — tunables `RELATED_MIN_SCORE=0.75`, `RELATED_MAX=3` in `server/routes/export.js`.
+- **Delete**: `DELETE /thoughts/:id` lives in `server/routes/recent.js`.
+- **Auth (since 0.22.0 + 0.24.0)**: non-MCP routes require `Authorization: Bearer <UI_SECRET>` env master (also `?token=` query). `/mcp/http` requires a named token from `state/mcp-tokens.json` — master UI_SECRET does NOT authorize MCP (strict separation). Static files (React SPA) are open — token gate is client-side. MCP stdio has no auth (local only).
+- **SPA routing**: `server/index.js` serves `client/dist/` as static, with a wildcard `GET *` that sends `index.html` for any path not matching an API route. API routes are hardcoded in the wildcard guard (including `/fireflies-webhook`) — new routes need to be added there too.
+- **MCP**: Streamable HTTP only (`/mcp/http`). Each connection gets its own McpServer.
+
+## MCP tools
+
+Core: `server/mcp.js` — `capture_thought`, `search`, `list_recent`, `brain_stats`, `rebuild_obsidian_vault`.
+
+Files catalog (0.51.0): `find_files` reads `state/files-catalog.json` (`server/files-catalog.js`) — document-type files on My Drive + real attachments of `brain/captured` Gmail threads, metadata only. A Drive file's project is the deepest folder some Projects dossier declares in its `drive_folder:` frontmatter list (folder links; matched by id, so renames and shared folders work) — Projects dossiers without it get no Drive files. Built by hand on the server with `node scripts/build-files-catalog.js` (read-only against Drive/Gmail/Qdrant; writes the file only if every source was read completely). No cron yet.
+
+Commitments (0.53.0): `server/commitments.js`, own Qdrant collection `commitments` (dense + bm25, same schema as thoughts). Thought `action_items` are loose **candidates**; a commitment has one owner (Robi = `Me`), status (`open|waiting|done|dropped`, plus `expired` derived on read from `event_ref`), `kind` (`penz|jog|ugyfel|belso`), optional `due`, and ≥1 direct source with a verbatim quote. Tools: `list_commitment_candidates` + `list_commitments` (brain-read), `save_commitments` (curate). No server-side LLM — the session agent proposes, Robi approves; workflow in the repo skill `.claude/skills/review-commitments/`. A thought leaves the candidate list once `candidates_reviewed_at` is stamped, and returns when its `updated_at` (e.g. Gmail refresh) is later.
+
+map (0.56.0; named `brain_map` until 0.60.0): `server/brain-map.js`. Tool names drop the redundant "brain" (it is the brain MCP): the retrieval methods are `search`, `map`, and the planned `spider` — see `docs/bejaras-modszerek-terv-2026-10-10.md`. It assembles the spec's situation package (HORGONYOK · HELYZET · ELŐZMÉNYEK · KORÁBBI · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB; KORÁBBI since 0.65.0 = spider's finds older than the window) from existing readers: vault context, `repos-status.json`, `findFiles`, `quickLookup`, `searchThoughts`, `listCommitments`, the agenda cache. It never fetches new data and makes no LLM call. Scope `brain-read`, because the calendar is read from the agenda cache. Section caps and stale thresholds are constants at the top of the file, the future AUTORESEARCH knobs. A new source joins as a reader there, not as a new search.
+
+MCP call log (0.58.0): `server/mcp-call-log.js` → `state/mcp-calls.jsonl`, written from `applyScopeGate`'s handler wrap (HTTP callers only, `caller` = token name). A new tool is logged automatically; nothing to add per tool. No full result text — clipped args + `{id, title}` refs.
+
+Graph cache (0.64.0): `server/graph-cache.js` — never call `buildGraph()` on a request path; use `getCachedGraph()`. The build runs in `graph-worker.js` (a main-thread build blocks the server for seconds and leaves stale Qdrant keep-alive sockets behind); a 60 s fingerprint poll rebuilds it after any write, crons included.
+
+spider (0.63.0; an MCP tool since 0.75.0, `steps` default 24, 6–60; recency since 0.65.0 via search's `recencyFactor`, the one recency rule; six lenses in parallel waves since 0.68.0): `server/spider.js`, walk over buildGraph + buildOntology from search hits + question anchors — ontology/project/person/source/type/cluster lenses, cross-lens agreement combines scores; knobs (steps, threshold, decay, edge weights) at the top of the file. Also in the Search tab and `/trace` (`&steps=`).
+
+Ontology layers (0.59.0): `server/ontology.js` `layerOf()` is the ONE rule for which layer a point belongs to (Horgony · Történés · Tárgy · Vállalás · Tudás). `map` HÁTTÉR and the Graph's Ontológia mode both use it — change the rule there, never in a caller.
+
+**Collections:** names live only in `server/collections.js`; `BACKED_UP` is the list the nightly backup snapshots — a new collection goes there in the same change. `scripts/restore-from-snapshot.js` requires `--collection <name>`.
+
+Brain-hygiene trio (also in `server/mcp.js`) — `find_overconnected` → `suggest_metadata_fix` → `update_thought`. Intended workflow: find thoughts linked via over-broad metadata (sorted by hub_score), ask Haiku for tighter metadata, then apply after user review. `update_thought` only touches metadata (people/projects/topics/title/action_items); text/source/timestamps are immutable.
+
+Agent: `agent/register.js` — `get_fireflies_transcripts`, `get_youtube_likes`, `get_gmail_threads`, `get_calendar_events`, `get_event_context`, `get_task_context`, `manage_drafts`. Each tool implemented in its own file under `agent/tools/` (e.g., `calendar.js`, `gmail.js`, `context.js`).
+
+**Stdio: `server/mcp-stdio.js` duplicates tool registrations — any MCP tool change must be made in BOTH `mcp.js` and `mcp-stdio.js`.**
+
+Draft workflow: `manage_drafts` stores in-memory (`agent/drafts/store.js`). `approve` calls `captureThought`.
+
+## Chrome extension
+
+`extension/` — Manifest v3 "Save to Brain" web clipper. Calls `/capture` and `/search` via HTTP.
+
+## Cron & scripts
+
+- `cron/export.js` — hourly Obsidian vault export
+- `cron/repos-status.js` — daily 04:30. GitHub (read-only `GITHUB_TOKEN`) → `state/repos-status.json`: version, last commit, CLAUDE/AGENTS/ROADMAP freshness, `drift` vs the Repos dossier. Never writes the dossiers. Since 0.70.0 it then runs `server/repo-docs.js`: each readable repo's README/ROADMAP/CLAUDE/AGENTS + `tasks/*.md` + `docs/*.md` (≤100 KB, no archives) → `kind: 'repo_doc'` points per section (tasks: open items only), sha-gated. `repo_doc` is not a thought: `NOT_CHUNK` excludes it; search, map (HELYZET) and spider use it.
+- `cron/youtube-intake.js` — polls YouTube liked playlist, auto-captures new items (source='youtube', source_id=videoId). Runs every 30 min on Hetzner.
+- `cron/gmail-intake.js` — history-API driven (0.7.0+). Watermark at `state/gmail-watermark.json`. Per-tick: `users.history.list({ startHistoryId })` → affected threads → classify (brain-labeled → refresh-or-capture, outbound-to-known-person → auto-label + capture, else ignore). Bootstraps on missing/too-old watermark. Runs every 10 min.
+- `scripts/init-collection.js` — idempotent Qdrant setup (`npm run init`). Creates collection if missing, ensures payload indexes (`created_at`, `source`, `source_id`).
+- `scripts/get-drive-token.js` — OAuth2 refresh token flow (also duplicated at `server/get-drive-token.js`)
+
+## Auto-intake paths
+
+Three sources auto-capture with zero approval gate. All share the `source` + `source_id` payload convention for idempotent dedup (via `findBySourceId` in `server/qdrant.js`).
+
+| Source | Trigger | source_id | Entry point |
+|--------|---------|-----------|-------------|
+| `fireflies` | Webhook (`POST /fireflies-webhook?secret=...`) | Fireflies `meetingId` | `server/routes/fireflies-webhook.js` |
+| `youtube` | Cron (30 min) | YouTube `videoId` | `cron/youtube-intake.js` |
+| `gmail` | Cron (10 min) | Gmail `threadId` | `cron/gmail-intake.js` |
+
+All three call `captureThought(text, { source, sourceId })`, which early-returns `{ duplicate: true }` if the `(source, source_id)` pair already exists in Qdrant — skipping embedding + Haiku to save cost.
+
+### Payload conventions
+- `source`: `fireflies` | `youtube` | `gmail` | `manual` (default; UI + Chrome extension + MCP tool)
+- `source_id`: provider-specific ID or `null` for manual captures. Never reused across sources.
+- Gmail-only: `thread_id` (= source_id), `last_internal_date` (ms; latest message's Gmail internalDate). Used by the history-API cron to decide whether a thread has new content. `refresh_count` + `updated_at` track in-place refreshes via `refreshCapture()`. `auto_labeled_via: outbound:<canonical>` marks threads labeled by the outbound-capture path.
+
+### Gmail body cleaner
+`agent/tools/gmail-clean.js` — two-stage preprocessor run before capture. Stage 1: deterministic regex strips known boilerplate (confidentiality footers, unsubscribe, signatures) in English + Hungarian. Stage 2: Haiku content extractor only if body > 1500 chars remain. Returns `__NO_CONTENT__` for pure-boilerplate messages; the cron adds a `brain/empty` label for audit instead of capturing.
+
+## Client
+
+Vite + React 19 + Tailwind 3. Components in `client/src/components/`. Navigation is state in `App.jsx` (no URL routes), rendered by `AppShell.jsx` (0.62.0): left menu + footer (theme, Settings, logout), titled content, and a right toolbar a page fills with `<ShellToolbar>` — use that instead of floating a panel over the page.
+
+## Deploy
+
+Production is `brain.beliczki.hu`. Which box that is, how to reach it, and where the repo sits on it are in `~/.agents/infra-map.md`: "Box B", the `brain.beliczki.hu` row. Read it before any deploy or ssh. This repo is public, so no IP, ssh user, ssh port, key name or server path goes into it.
+
+pm2 runs the server behind nginx on port 3000. Docker runs only Qdrant. The `Dockerfile` is not what production runs: it leaves out `agent/` and `client/`. What is done once on a new server (auto-intake setup, crontab) is in `DEPLOYMENT.md`.
+
+### Rules
+- Every ssh command needs Robi's approval, one action at a time. Production reads and writes are never blanket-authorized.
+- Start with the least invasive read, and confirm the state before you change anything.
+- Touch only the `custombrain` pm2 process. Never `pm2 stop all` or `pm2 restart all`: other projects' apps run under the same pm2.
+
+### Steps
+Run the server-side steps in the repo folder on the box.
+
+1. **Client, only if `client/` changed:** `npm run build` in `client/` on the Mac, then copy `client/dist/` to the box. Before the copy, keep the build that is live there as `client/dist.bak-<version>`. Do not build on the box.
+2. `pm2 stop custombrain`
+3. `fuser -k 3000/tcp`. `pm2 stop` alone does not reliably free the port.
+4. `git pull --ff-only`
+5. If a `package.json` changed, `npm install` in that folder. The root and `server/` have separate dependency trees.
+6. `pm2 start custombrain`, then `pm2 save`.
+
+### After the deploy
+pm2 showing "online" is not proof that the new code serves.
+
+- The process that owns port 3000 is the pid pm2 tracks: compare `ss -ltnp | grep :3000` with `pm2 status custombrain`. A different pid is a zombie from an earlier start. Kill it by pid, then start `custombrain` again.
+- `/stats` returns the version that is in the root `package.json`.
+- Fetch one response that changed in this release. If it still shows the old text, old code is serving.
+- In the pm2 log, look for activity after the restart time. The "server running" line may be from an earlier start.
+
+### Rollback
+- **Client:** put the `client/dist.bak-<version>` copy back as `client/dist/`.
+- **Server:** check out the previous release commit, then run steps 2, 3 and 6. There are no git tags; take the commit from `git log`, where each release commit starts with its version.
+- **Data:** a rollback does not undo what a migration or a script wrote. The nightly Qdrant snapshot (`cron/qdrant-backup.js`) is the fallback; `scripts/restore-from-snapshot.js --collection <name>` restores from it.
+
+### Known problems
+- **Memory:** the box has 4 GB, and a client build there can run out of memory. That is why the client is built on the Mac.
+- **Zombie on port 3000:** if pm2 respawns while the old process still holds the port, the old code keeps serving (2026-04-05, 2026-04-18). Hence the stop, free the port, start order, and the pid check afterwards.
+- **pm2 cwd** is `server/`. Env loading has not depended on it since 0.23.0, because `server/index.js` resolves `.env` relative to itself. Other cwd-relative IO still may.
+- **zod must stay v3.** zod v4 breaks `@modelcontextprotocol/sdk` with `_zod` property errors. Keep `zod@3.x` in `server/package.json`.
+- **`express.json()` and MCP:** `/mcp/http` is excluded from `express.json()`, because `StreamableHTTPServerTransport` needs the raw body.

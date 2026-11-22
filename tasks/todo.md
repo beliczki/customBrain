@@ -1,3 +1,118 @@
+# Terv 2026-11-22 — szabályfájlok: az AGENTS.md a forrás, ssh-adat ki a publikus repóból, „Deploy” szakasz
+
+**Állapot:** kész és commitolva (2026-11-22). Robi a javasolt D1–D8 válaszokkal hagyta jóvá. **A push Robi külön go-jára vár.** A lezárás a „Review” szakaszban van, a terv végén.
+**Kérte:** a Learning session Robi nevében (2026-11-22). A go-t Robi ebben a sessionben adta.
+
+## Mit találtam (2026-11-22, csak olvasva)
+
+- **A repó publikus** (`gh repo view`: `PUBLIC`).
+- **`CLAUDE.md` 213–222. sor, „Production / SSH access”:** benne az ssh-parancs (host, user, kulcsfájl neve) és a szerverútvonal. Titok ebben a szakaszban nincs.
+- **`DEPLOYMENT.md`:** követett fájl (utolsó commit `db191f2`, 2026-09-29). Ssh-parancs, IP és kulcsnév nincs benne. A szerverútvonal 5 helyen szerepel (crontab-sorok, `.env` helye, pm2 cwd). Három állítása elavult:
+  - „one Docker Compose stack”: élesben pm2 futtatja a szervert, Dockerben csak a Qdrant megy (ma megnézve);
+  - a crontab 3 sort mutat, a szerveren 7 fut;
+  - „Stop all services before `npm run build`”: ellentmond a „soha `pm2 stop all`” szabálynak, és a Repos-dosszié (2026-10-10) szerint a kliens már a Macen buildel.
+- **Ugyanilyen adat más követett fájlban:**
+  - `docs/archive/tasks-handoff-2026-03-16.md` 120. és 128. sor: a box IP-je, egy régi kulcsfájl neve, az ssh-user és Robi email-címe. Ez az egyetlen hely, ahol az IP szerepel (a `docs/rebuild/…/batch-05.md` egy idézett levélben említi még egyszer).
+  - `README.md` 335–337. sor: crontab a szerverútvonallal.
+  - Szerverútvonal még: `CHANGELOG.md` (5), `ROADMAP.md` (1), `tasks/todo.md` (9), és két kódkomment (`cron/qdrant-backup.js`, `scripts/backfill-chunks.js`).
+- **A nem követett `AGENTS.md`** a `CLAUDE.md` 0.24.0-s (`b35a540`, 2026-05-18) változatának gépi „Codex”-másolata; egyetlen sorban tér el tőle. Egyedi tartalma nincs, felülírható.
+- **A deploy-tudás ma három helyen van, egyik sem teljes:** `DEPLOYMENT.md` (részben elavult), a Claude-memória `feedback_hetzner_restart` jegyzete (a teljes újraindítási sor és az utóellenőrzés), a Repos-dosszié egy mondata (helyi kliens-build, rsync, `dist.bak-<verzió>` mentés). A kliens-deploy pontos parancsa és a szerverkód visszaállítása sehol nincs leírva. Git tag nincs.
+- **Projekt Drive-mappa:** `~/GoogleDrive/Data/Beliczki.hu/CustomBrain/`, a Projects-dosszié `drive_folder:` mezője szerint (2026-10-10). Ma üres. **Szemantikai modell nincs.**
+
+## A terv
+
+- **Érint:** a repó szabályfájljai (`AGENTS.md`, `CLAUDE.md`) és a `DEPLOYMENT.md`. Alkalmazáskód nem változik. A projektnek nincs Drive-dokumentuma, amely ezt a területet leírná; a szabály a globális `~/.claude/CLAUDE.md`-ből jön („Read before you touch → Deploy or ssh”, 2026-11-22) és a `~/.agents/infra-map.md` fejlécéből („No IP, user, port or key name goes into a repo file”).
+- **Szomszédok:**
+  - `server/repos-status.js`: a `CLAUDE.md`, az `AGENTS.md` és a `ROADMAP.md` frissességét külön méri, és 20 commit után driftet jelez. Az egysoros `CLAUDE.md` ritkán fog változni, ezért tartósan driftet jelez majd, minden így átalakított repónál (parlamentAI, bizi, MM6 is). Ez kódjavítás, külön szelet.
+  - `server/repo-docs.js`: a gyökér `AGENTS.md`-t `repo_doc`-ként indexeli a GitHubról, tehát az új „Deploy” szakasz kereshető lesz a brainben.
+  - Codex az `AGENTS.md`-t olvassa; ma egy fél éves, hibás másolatot lát.
+- **Ajtó:** kétirányú a fájlokra nézve (`git revert`). Két dolog nem vonható vissza: ami a publikus repóba felkerül, az nyilvános marad, ezért a push előtt gépi ellenőrzés fut az új szövegen; a git-előzményben pedig a régi ssh-sor megmarad.
+- **Jóslat:**
+  - Változik: az `AGENTS.md` lesz az egyetlen forrás; a `CLAUDE.md` egy import és legfeljebb pár Claude-only sor; a három fájlban nem marad IP, ssh-user, kulcsnév és szerverútvonal.
+  - Marad: a mai `CLAUDE.md` minden szabálya és szakasza (a „Production / SSH access” kivételével, amelyet a „Deploy” vált), az alkalmazás viselkedése, az éles gép.
+  - Ismeretlen: a kliens-deploy pontos parancsa és a visszaállítás lépései. Ezeket a gyakorlatból írom le, Robi ellenőrzi.
+- **Varrat (ahol az ellenőrzés fut):** a három fájl szövege a commit előtt.
+  - A tiltott adatok (kulcsnév, ssh-user, IP, szerverútvonal) keresése `git grep`-pel az `AGENTS.md`, a `CLAUDE.md` és a `DEPLOYMENT.md` fájlban → 0 találat.
+  - A régi `CLAUDE.md` és az új `AGENTS.md` `##`/`###` címsorainak diffje: csak a „Production / SSH access” tűnik el, és a „Jelentés a kód előtt” meg a „Deploy” jön be.
+  - A `CLAUDE.md` első sora `@AGENTS.md`.
+
+### Szeletek
+
+- [x] **0. Robi döntései** (lent, D1–D8). Enélkül nem indul.
+- [x] **1. Új `AGENTS.md`** a mai `CLAUDE.md` tartalmából:
+  - fejléc: a repó szabályai minden agentnek (nem „guidance to Claude Code”);
+  - új első szakasz, „Jelentés a kód előtt”: a Drive-mappa (D1) és a szemantikai modell állapota (D2);
+  - a „Production / SSH access” helyett **„Deploy”** szakasz:
+    - melyik sor az infra-mapben („Box B”, `brain.beliczki.hu`), IP, user, kulcsnév és szerverútvonal nélkül;
+    - lépések: helyi kliens-build → másolás a szerverre az előző `dist` mentésével → `pm2 stop custombrain` → port felszabadítása → `git pull` → `pm2 start custombrain` → `pm2 save`;
+    - szabályok: soha `pm2 stop/restart all`; minden ssh-parancshoz Robi jóváhagyása kell; először a legkevésbé invazív olvasás;
+    - ismert gondok: a kliens-build a 4 GB-os gépen kifut a memóriából, ezért helyben buildelünk; pm2 cwd; zod v3; `express.json()` és a Streamable HTTP; zombi folyamat a porton;
+    - visszaállítás: kliens a `dist.bak-<verzió>` mentésből, szerverkód az előző commitra állva, ugyanazzal az újraindítással;
+    - deploy utáni próba: a portot a pm2 által követett pid birtokolja; a `/stats` verziója egyezik a gyökér `package.json`-nal; egy olyan válasz lekérése, amely ebben a kiadásban változott.
+  - a „**Deploying?** Read `DEPLOYMENT.md` first” sor a „Deploy” szakaszra mutat.
+- [x] **2. `CLAUDE.md` → `@AGENTS.md`**, alatta legfeljebb a Claude-only sor (a `~/.claude/plans/` vázlatok csak egy sessionre szólnak).
+- [x] **3. `DEPLOYMENT.md`** a D3 szerint.
+- [x] **4. Ellenőrzés** a varratnál leírt három próbával, majd a diff átnézése a terv ellen.
+- [x] **5. Commit**, csak ezekkel a fájlokkal. A `tasks/todo.md`-ben más session 10-19-i, nem commitolt blokkja is ott van; abból csak a saját részemet veszem fel. **Push külön, kifejezett go-ra.**
+- [x] **6. Review szakasz** ide, a `tasks/todo.md`-be.
+
+### Nem része ennek a tervnek (külön döntés)
+
+- `server/repos-status.js`: ne jelezzen driftet arra a `CLAUDE.md`-re, amely csak importál. Kódváltozás, deployjal jár.
+- A `docs/` kiköltöztetése a Drive-ra (ROADMAP-feljegyzés, 2026-10-10).
+- A `CLAUDE.md` cron-listájából hiányzó három cron (`qdrant-backup`, `agenda-sync`, `backfill-chunks`).
+- A Claude-memória `feedback_hetzner_restart` jegyzete az ssh-paranccsal: nem repófájl; a „Deploy” szakasz elkészülte után arra mutasson.
+
+## Robi döntései
+
+- **D1. Drive-mappa.** Javaslat: `~/GoogleDrive/Data/Beliczki.hu/CustomBrain/` (a dosszié ezt mondja). A másik jelölt a `Docs/_2nd Brain ／ énmás ／ AI Context Infrastructure`, amelyet a 2026-10-10-i költöztetési táblázat javasolt.
+- **D2. Szemantikai modell.** Javaslat: most az kerül be, hogy „nincs még (2026-11-22)”, a legközelebbi anyagok megnevezésével. Ha a tervezet elkészül, a sor arra mutat.
+- **D3. `DEPLOYMENT.md` sorsa.** Javaslat (a): megmarad „egyszeri szerver-beállítás” tartalommal (init, Settings-változók, Fireflies webhook, Gmail-címkék, crontab), szerverútvonal nélkül, a három elavult állítás javítva; a deploy-lépések és az ismert gondok átkerülnek az `AGENTS.md`-be. (b): a fájl megszűnik, minden az `AGENTS.md`-be megy.
+- **D4. Az alkalmazás portja a „Deploy” szakaszban.** A 3000-es port a kódban és a `docker-compose.yml`-ben is benne van, és a port felszabadítása nélküle nem írható le. Javaslat: az alkalmazásport maradhat, az ssh-port nem.
+- **D5. Meddig terjedjen a takarítás.** Javaslat: ebben a körben a három fájl mellett a `README.md` három crontab-sora és a `docs/archive/tasks-handoff-2026-03-16.md` két sora (IP, régi kulcsnév, email). A `CHANGELOG.md`, a `ROADMAP.md` és a `tasks/todo.md` útvonal-említései történeti napló részei, maradnak.
+- **D6. Git-előzmény.** A régi szöveg megmarad benne. Az átírás force-push egy publikus repón, egyirányú ajtó. Javaslat: nem írjuk át. **Újra megerősítendő:** az eredeti indoklás egyik állítása hibás volt (lásd Review).
+- **D7. Ellentmondó sor.** A `CLAUDE.md` szerint a `tasks/todo.md` „not used for customBrain”, a gyakorlat és a globális szabály szerint viszont ez a tervfájl. Javaslat: az új `AGENTS.md` azt írja, hogy a terv a `tasks/todo.md`-be kerül, a prioritáslista a ROADMAP.
+- **D8. Verzió.** Javaslat: verzióemelés nélkül, `docs:` commitként (előzmény: `db191f2`, 2026-09-29). Másik lehetőség: `0.78.0` → `0.78.1` (patch), de akkor a GitHubon lévő verzió a következő deployig eltér a futótól.
+
+**Planning review:** nem kérek rá Codex- és Chief Architect-véleményt, mert csak dokumentum változik. Ha kéred, megy.
+
+## Box-szintű tények, amelyek nincsenek az infra-mapben, vagy eltérnek tőle
+
+Hat ilyet találtam (kulcs, Node-verzió, cron, Qdrant-image, maradványok az alkalmazás mappájában, pm2-újraindulás). Nem ide írtam le őket, mert a repó publikus: a sessionök közös jegyzetmappájában vannak, a `custombrain-infra-map-elteresek-2026-11-22.md` fájlban. Az infra-map gazdájának szólnak.
+
+## Review (2026-11-22)
+
+**Mi változott.** Hat fájl, alkalmazáskód nélkül:
+- `AGENTS.md` (új a gitben): a korábbi `CLAUDE.md` tartalma, új „Meaning before code” szakasszal és a „Production / SSH access” helyén „Deploy” szakasszal.
+- `CLAUDE.md`: `@AGENTS.md` és egy Claude-only sor.
+- `DEPLOYMENT.md`: egyszeri szerver-beállítás, szerverútvonal nélkül, a crontab mind a hét sorával.
+- `README.md`: a három crontab-sor útvonala `<repo>` lett; a két deploy-hivatkozás az `AGENTS.md` „Deploy” szakaszára mutat.
+- `INSTALL.md`: egy hivatkozás ugyanoda.
+- `docs/archive/tasks-handoff-2026-03-16.md`: a két sorból kikerült az IP, a régi kulcsnév és az email.
+
+**A jóslat és az eredmény.**
+- A tiltott adatok keresése a három fájlban 0 találatot adott.
+- A címsorok diffje azt mutatta, amit vártam: a „Production / SSH access” eltűnt, a „Meaning before code” és a „Deploy” (öt alcímmel) bejött. A régi `CLAUDE.md`-ből 13 sor esett ki, mind szándékosan.
+- A `CLAUDE.md` első sora `@AGENTS.md`. Azt, hogy egy új Claude Code session valóban betölti az importot, ebben a sessionben nem tudtam megnézni; a parlamentAI, a bizi és az MM6 ugyanezt a formát használja.
+
+**Amit a terv nem látott előre.**
+- **A D6 indoklása hibás volt.** Azt írtam, hogy a git-előzményben nincs titok. Ezt nem ellenőriztem, mielőtt leírtam, és nem volt igaz. A részletek a fenti jegyzetfájlban vannak, nem ebben a publikus fájlban. A D6-ot Robinak újra meg kell erősítenie.
+- **A terv első változata maga is tiltott adatot tartalmazott.** A box-szintű tényeket kulcsnevekkel együtt ebbe a fájlba írtam, pedig ez is a publikus repó része. A commit előtti gépi ellenőrzés fogta meg; a szakasz kikerült a jegyzetfájlba.
+- **Hivatkozások.** A `README.md` két sora és az `INSTALL.md` egy sora a `DEPLOYMENT.md`-be küldte az olvasót az újraindítási sorért, amely átkerült az `AGENTS.md`-be. Ezeket átírtam; az `INSTALL.md` emiatt került a commitba.
+- **Email.** Az archív fájl 100. és 106. sorában maradt Robi email-címe. Nem nyúltam hozzá, mert a commitok szerzői címe ugyanez, tehát a cím a repóból egyébként is látszik.
+
+**Amit Robinak ellenőriznie kell a „Deploy” szakaszban.** Három rész a gyakorlatból és következtetésből készült, nem leírt forrásból:
+- az 1. lépés (helyi kliens-build, másolás, `dist.bak-<verzió>` mentés): a Repos-dosszié egy mondata és a szerveren látott mappák alapján;
+- az 5. lépés (`npm install`, ha egy `package.json` változott): a két külön függőségi fából következik;
+- a „Rollback” teljes szövege.
+
+**Nyitva maradt.**
+- A `DEPLOYMENT.md` „Setup notes” részében két sor elavult, de a terv nem érintette: a refresh token helye (ma a Settings, nem a `.env`) és az `.env.example` hiányossága (a `.env`-ben ma csak a `UI_SECRET` van).
+- A „Nem része ennek a tervnek” lista mind a négy pontja.
+- A push.
+
+---
+
 # Terv 2026-10-09 — döntések lezárása, csonkolásmentesség, 11. fejezet mérése, Files-ontológia, gráfbejárás
 
 Sorrend szándékos: a mérés (3) a gráfbővítés **előtt** fut, különben nincs baseline, amihez a bejárásos lekérdezést hasonlítani lehet.

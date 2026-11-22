@@ -60,7 +60,7 @@ cd server && npm install && cd ..
 npm start
 ```
 
-Production deploy: see `DEPLOYMENT.md` for the mandatory pm2 + `fuser -k 3000/tcp` sequence.
+Production deploy: see the "Deploy" section of `AGENTS.md` for the mandatory pm2 + `fuser -k 3000/tcp` sequence.
 
 ---
 
@@ -332,9 +332,9 @@ Install unpacked: `chrome://extensions` → Developer mode → Load unpacked →
 ## Scheduled crons (Hetzner crontab)
 
 ```
-*/30 * * * * cd /root/customBrain && /usr/bin/node cron/youtube-intake.js
-*/10 * * * * cd /root/customBrain && /usr/bin/node cron/gmail-intake.js
-0 * * * *    cd /root/customBrain && /usr/bin/node cron/export.js
+*/30 * * * * cd <repo> && /usr/bin/node cron/youtube-intake.js
+*/10 * * * * cd <repo> && /usr/bin/node cron/gmail-intake.js
+0 * * * *    cd <repo> && /usr/bin/node cron/export.js
 ```
 
 Plus on-demand:
@@ -370,7 +370,8 @@ Semver (`major.minor.patch`), currently `0.5.3`. Version synced across `package.
 - [CLAUDE.md](./CLAUDE.md) — architecture, conventions, and rules for AI assistants working on this codebase
 - [CHANGELOG.md](./CHANGELOG.md) — per-version history from 0.1 to current
 - [ROADMAP.md](./ROADMAP.md) — what's planned (P-numbered priorities) and what's shipped
-- [DEPLOYMENT.md](./DEPLOYMENT.md) — Hetzner deploy ritual, including the mandatory pm2 + `fuser -k 3000/tcp` sequence
+- [AGENTS.md](./AGENTS.md), "Deploy" section — deploy steps, including the mandatory pm2 + `fuser -k 3000/tcp` sequence
+- [DEPLOYMENT.md](./DEPLOYMENT.md) — one-time server setup (auto-intake, crontab)
 - [.env.example](./.env.example) — required environment variables
 
 ---

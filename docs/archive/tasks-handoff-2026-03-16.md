@@ -117,7 +117,7 @@
 ## What's NOT Done / Next Steps
 
 ### Hetzner deployment — 90% DONE (2026-03-16)
-- [x] Hetzner CX22 provisioned: `46.224.60.159`, domain: `brain.beliczki.hu`
+- [x] Hetzner CX22 provisioned, domain: `brain.beliczki.hu`
 - [x] Docker + Qdrant running, collection initialized
 - [x] Repo cloned, server deps installed, client built
 - [x] Production .env with real CAPTURE_SECRET: `****` (rotated 2026-04-05, old token revoked)
@@ -125,7 +125,7 @@
 - [x] Server running via nohup (http://brain.beliczki.hu works)
 - [ ] **HTTPS certbot** — DNS propagation pending, run tomorrow morning (2026-03-17):
   ```bash
-  ssh -i ~/.ssh/hetzner_customBrain root@46.224.60.159 'certbot --nginx -d brain.beliczki.hu --non-interactive --agree-tos -m beliczki.robert@gmail.com'
+  ssh <box: see ~/.agents/infra-map.md> 'certbot --nginx -d brain.beliczki.hu --non-interactive --agree-tos -m <email>'
   ```
 - [ ] **Crontab setup** — `cron/export.js` exists but no system crontab configured
 - [ ] **Firewall** — lock down Qdrant 6333 to internal only

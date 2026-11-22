@@ -130,7 +130,7 @@ Each step has:
 - **OOM during npm install on 2GB Hetzner** → add swap *(exact command TBD)*
 - **zod must stay v3** → v4 breaks `@modelcontextprotocol/sdk` via `zod-to-json-schema`
 - **Service account vs OAuth2 visibility for Drive reads** → SA sees all shared files; OAuth2 may miss them. See `CLAUDE.md` "Google auth" section
-- **PM2 cwd matters** → must start from the right working directory, see `DEPLOYMENT.md`
+- **PM2 cwd matters** → must start from the right working directory, see "Known problems" in the "Deploy" section of `AGENTS.md`
 
 ---
 
