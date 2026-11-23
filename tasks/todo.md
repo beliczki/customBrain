@@ -1,6 +1,6 @@
 # Döntések 2026-11-23 — a szemantikai modell 12 kérdése, és a belőlük lett hét munka
 
-**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A többi munkának még nincs terve.
+**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka terve lent van, jóváhagyásra vár. A 3–7. munkának még nincs terve.
 **Hol vannak a döntések:** a projekt Drive-mappájában, `customBrain - a rendszer szemantikai modellje 2026-11-23 (tervezet).md`, 11. fejezet. A modell egészét Robi még nem hagyta jóvá.
 
 ## A döntések röviden
@@ -34,10 +34,212 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 - [ ] **6. Ellentmondás-kör.** A befogadás ma kérdés nélkül archivál (`server/routes/capture.js`); a kör ezt váltja.
 - [ ] **7. Átnevezés: thought → entry.** A terv mondja ki az ajtókat: az eszköznevek minden csatlakozó agentet érintenek; a collection és a payload-mezők átnevezése adatmigráció, egyirányú.
 
+## 2. munka terve — három magától futó ellenőrzés
+
+**Állapot:** terv, Robi jóváhagyására vár (2026-11-23). Kód még nincs.
+**Kérte:** Robi (2026-11-23, 9. döntés).
+
+**Érint.** A szemantikai modell 2026-11-23-i tervezetének 8. fejezete, a 14., a 9. és a 10. szabály. A modell tervezet; erről a három szabályról Robi döntött.
+- **14. szabály, publikus repó:** minden követett fájl. Szomszéd: a box tényei, amelyek a repón kívül élnek (`~/.agents/infra-map.md`).
+- **9. szabály, collection-lista:** `server/collections.js`. Akik importálják: `server/qdrant.js`, `server/commitments.js`, `cron/qdrant-backup.js`, `scripts/init-collection.js`, `scripts/restore-from-snapshot.js`, `scripts/rechunk-content.js`, `scripts/migrate-people-names.js`.
+- **10. szabály, két MCP-regisztráció:** `server/mcp.js`, `server/mcp-stdio.js`, `agent/register.js`, és a `TOOL_SCOPES` a `server/mcp-scopes.js`-ben.
+
+**Amit a kódban találtam (2026-11-23, megfigyelve).**
+- A két regisztráció 21–21 eszközt tartalmaz, azonos névvel és sorrendben. **Két eszköz leírása már eltér a két fájlban:** `find_overconnected` és `rebuild_obsidian_vault`. A blokk többi sora egyezik.
+- **A `scripts/backfill-chunks.js` a cronból fut 10 percenként, és a collection nevét beírva tartalmazza** (`'thoughts_v2'`), nem importálja. Ugyanez a minta okozta a szeptemberi mentési hibát. További öt script ír be `'thoughts_v2'`-t (`secret-exposure-audit`, `reprocess-v2-prototype`, `backfill-task-types`, `calibrate-conflict-threshold`, `p8-probe`), öt régi script a már nem élő `'thoughts'`-t, a `migrate-to-hybrid-collection` mindkettőt alapértékként.
+- A követett fájlokban ma 20 sor illik az általános mintákra (IPv4-cím, ssh-parancs kulcsfájllal, root-felhasználó, root-mappa, ssh-mappa): `tasks/todo.md` 10, `CHANGELOG.md` 6, `ROADMAP.md` 2, és két kódkomment. Az értékeket nem írtam ki.
+- A repóban nincs tesztfuttató, nincs `test` script, és nincs beállított git hook. A helyi Node v24.13.1.
+
+**Ajtó:** kétirányú. Tesztfájlok, egy hook és egy `package.json`-script; a futó szervert nem érinti, deploy nem kell. A 3. szelet (b) része cronból futó scriptet módosít: a szerverre a következő rendes deploy `git pull`-jával jut ki, külön szerverművelet nélkül, mert a név értéke nem változik.
+
+**Jóslat.**
+- A `npm test` helyben, hálózat és `.env` nélkül lefut.
+- A 10. szabály próbája elsőre piros lesz a két eltérő leíráson, az egyeztetés után zöld.
+- A 9. szabály próbája elsőre piros lesz a `backfill-chunks.js`-en és öt társán; a 3. szelet után zöld.
+- A hook megállít egy próba-commitot, amelynek hozzáadott sorában IP-cím vagy ssh-parancs van, és átengedi a mai `f41552b` commit tartalmát.
+- Változatlan marad: a szerver viselkedése, az MCP-eszközök neve és sémája.
+- Nem tudom: a hook hány hamis riasztást ad a mindennapi commitokra. Ez az első hetekben derül ki.
+
+**Varrat.** `npm test` a repó gyökerében (a Node beépített tesztfuttatója, új függőség nélkül). A hooknál a `scripts/check-public-repo.js` parancssora: a bemenet egy diff, a kimenet a találatok és a kilépési kód.
+
+**Szeletek** (mindegyik önállóan ellenőrizhető).
+- [ ] **1. Tesztfuttató és a collection-lista próbája.** `tests/collections.test.mjs`: (a) a `collections.js` minden exportált neve szerepel a `BACKED_UP` listán vagy egy új, kimondott `NOT_BACKED_UP` listán; (b) a `server/`, `cron/`, `agent/` és `scripts/` fájljai közül csak a `collections.js` írhatja be élő collection nevét, kivéve a régi, egyszeri scriptek felsorolt listáját. Gyökér `package.json`: `"test": "node --test tests/"`.
+- [ ] **2. A két MCP-regisztráció próbája.** `tests/mcp-registrations.test.mjs`, a forrásfájlok szövegén: azonos eszköznevek és azonos leírás a két fájlban; minden regisztrált eszköznek van `TOOL_SCOPES` sora, és nincs sor eszköz nélkül. A két eltérő leírást a `mcp.js` bővebb szövegére egyeztetem.
+- [ ] **3. A beírt collection-nevek.** (a) Az egyszeri, régi scriptek a kivétellistára kerülnek. (b) A `backfill-chunks.js` és a még használt scriptek a `THOUGHTS` nevet importálják, egyenként.
+- [ ] **4. Commit előtti ellenőrzés.** `scripts/check-public-repo.js` és `.githooks/pre-commit`; ebben a klónban egyszer `git config core.hooksPath .githooks`. Csak a hozzáadott sorokat nézi, általános mintákkal. A minták nem tartalmazhatnak valódi értéket, mert a repó publikus. `tests/check-public-repo.test.mjs` kitalált példákkal.
+- [ ] **5. Lezárás:** az `AGENTS.md` „Tests / lint” sora, CHANGELOG, javasolt verzió 0.78.1 (patch).
+
+**Mechanizmus-javítás a kis javítás mellé.**
+- **10. szabály.** Mechanizmus: ugyanaz a 21 regisztráció kétszer van begépelve. Élő testvérhiba: a két eltérő leírás. A próba csak jelzi az eltérést; megszüntetni egy közös `registerCoreTools(server, z)` tudja, ahogy az `agent/register.js` már csinálja az agent-eszközökkel. Ez a futó MCP-kiszolgálást érinti, deploy kell hozzá. **Javaslat: a 7. munka (átnevezés) első szelete legyen,** mert az úgyis minden regisztrációhoz hozzányúl. Addig a 2. szelet próbája őrzi.
+- **9. szabály.** Mechanizmus: a collection nevét beírják, nem importálják. Élő testvérhiba: a cronból futó `backfill-chunks.js`. A 3. szelet (b) része a javítás, az 1. szelet (b) próbája őrzi. **A 7. munka collection-átnevezése előtt ennek kint kell lennie a szerveren,** különben a cron hiba nélkül a régi collectiont olvasná tovább.
+
+**Nyitott kérdések Robinak, a javaslatommal.**
+1. **Hol éljen a commit előtti ellenőrzés?** Javaslat: most itt, a repóban. A globális változat minden publikus repót védene (az MM6 is publikus), de az a globális szabályok terepe, nem ezé a sessioné.
+2. **Kell-e helyi, nem követett tiltólista a valódi értékekkel** (a box címe, a kulcsfájlok neve)? Javaslat: igen. Az általános minták egy egyedi nevű kulcsfájlt nem fognak meg. A lista a `.git` mappában élne, a repóba nem kerülne.
+3. **A 3. szelet (b) része** menjen-e ezzel a munkával? Javaslat: igen, és a szerverre a következő rendes deploy viszi ki.
+
+**Átnézés:** a szabály szerint nem kell (nincs új réteg, séma-, auth- vagy függőségváltozás).
+
+## AGENTS.md-méretkapu — terv
+
+**Állapot:** Robi az (a) lehetőséget választotta (2026-11-23: „Kapu most”). Az 1. szelet kész, commitolva és pusholva (2026-11-23, Robi go-jával). A vágás (2. szelet) a következő.
+**Kérte:** a Learning session (2026-11-23), Robi nevében; szerinte Robi azt mondta: „Igen, szólj nekik”. A go-t Robi ebben a sessionben adta.
+
+**Miért.** A Learning session és a bizi-repó hookja szerint a Codex a projekt `AGENTS.md`-jét 32 768 bájtig olvassa, a többit csendben levágja. A határt magam nem ellenőriztem; a helyi Codex-beállításban nincs felülírva.
+
+**Mérés (2026-11-23).**
+- Az `AGENTS.md` ma 27 471 bájt. A mai doksijavítások előtt 26 662 volt, tehát a bizi 26 000-es küszöbét már tegnap is meghaladta.
+- A levágásig 5 297 bájt van hátra. **A levágás a fájl végét érné, és ott a „Deploy” szakasz áll** (3 376 bájt): az ssh-jóváhagyás és a „soha `pm2 stop all`” szabálya.
+- A legnagyobb szakaszok: „MCP tools” 4 968, „Deploy” 3 376, „Architecture” 2 928, „Retrieval routing” 2 242, „Key patterns” 2 048 bájt.
+- Ebben a klónban nincs hook: sem `core.hooksPath`, sem `.githooks`, sem husky. A beállítás tehát semmit nem kapcsol ki.
+- Minta: a bizi `.githooks/pre-commit` fájlja (csak olvastam). Csak akkor fut, ha az `AGENTS.md` benne van a commitban, és a stage-elt változatot méri. A bizi `AGENTS.md`-je 25 979 bájt, és az elején egy „Méret” sor mondja ki a szabályt.
+
+**Érint:** az `AGENTS.md` (a szabályforrás) és a commit folyamata ebben a klónban. Szomszéd: a 2. munka 4. szelete ugyanebbe a `.githooks/pre-commit` fájlba teszi a publikus repó ellenőrzését.
+
+**Ajtó:** kétirányú. Egy hookfájl és egy helyi git-beállítás; a futó szervert nem érinti.
+
+**Robi döntése előbb: vágás vagy magasabb küszöb.**
+- **(a) Kapu most 28 000 bájttal, utána vágás, a végén 26 000. Ezt javasoltam, és ezt választotta Robi (2026-11-23).** A kapu tíz sor, és azonnal megállítja a csendes növekedést; a mai mérethez 529 bájt mozgástér marad. A vágás gondosabb munka, saját szeletben megy, és amikor kész, a küszöb lemegy a bizi 26 000-ére.
+- **(b) Előbb vágás 26 000 alá, utána kapu 26 000-rel,** ahogy a biziben. A kapu addig nincs, amíg a vágás el nem készül.
+- **(c) Tartósan magasabb küszöb (például 30 000), vágás nélkül.** Nem javaslom: 2 768 bájtra maradna a levágástól, és a következő munkák (2–7.) mind írnak a fájlba.
+
+**Szeletek.**
+- [x] **1. A kapu.** `.githooks/pre-commit` a bizi mintájára, 28 000 bájtos küszöbbel; ebben a klónban a `core.hooksPath` a `.githooks` mappára mutat. Az `AGENTS.md` elején egy „Size” sor mondja ki a szabályt; ezzel a fájl 27 784 bájt, a küszöbig 216 bájt maradt.
+  - **Próba (2026-11-23, eldobható klónban, a közös munkafán kívül), négy eset, mind a jóslat szerint:** a mai fájl commitja átmegy; 28 384 bájtnál a commit megáll; `AGENTS.md` nélküli commit átmegy akkor is, ha a munkafában a fájl túl nagy; a pathspec-commit ugyanúgy megáll.
+  - **Következmény:** a 216 bájt gyakorlatilag azt jelenti, hogy az `AGENTS.md`-be a vágásig nem fér új szabály. A 2. szeletnek ezért a 2. munka lezárása előtt kell megtörténnie.
+- [ ] **2. A vágás.** Tételes javaslat diffként, Robi jóváhagyására: minden kivett mondat mellett ott áll, hol él tovább a tény (a kódban, a CHANGELOG-ban vagy a szemantikai modellben). Szabály nem vész el. Jelöltek: az „MCP tools” szakasz verziótörténete és leltár jellegű sorai; a ma hosszabbra írt „Meaning before code” és „Capture pipeline” sorok tömörítése.
+- [ ] **3. A küszöb 26 000-re,** amikor a vágás kint van.
+- [ ] **4. Második háló a 2. munkában:** ugyanez a mérés az `npm test`-ben is, mert a hook klónonként kapcsolódik be, a teszt mindenhol fut. A biziben ezt az `npm run lint` végzi.
+
+**Jóslat.** Az 1. szelet után egy `AGENTS.md`-t növelő commit 28 000 bájt fölött megáll; minden más commit változatlanul megy. A 2. szelet után a fájl 26 000 bájt alatt van, és ugyanazokat a szabályokat tartalmazza. Nem tudom: mennyi vágható ki úgy, hogy szabály ne vesszen el; ezt a tételes javaslat mutatja meg.
+
+**Hosszabb távon:** a leltár jellegű szakaszok (eszközök, útvonalak, cronok) a generált kódleltárba valók (11. döntés, a modell elfogadása után). Akkor az `AGENTS.md`-ben csak a szabály és a buktató marad.
+
 ## Amit közben találtam, és nem javítottam
 
 - `server/routes/capture.js` 80. sor: a komment még 0,85-ös alapértéket ír; a kód 0,97.
 - A `capture_thought` MCP-eszköz `conflict_threshold` paraméterének leírása is 0,85-öt mond. Kódváltozás lenne, két regisztrációban; a 2. vagy a 6. munkával érdemes javítani.
+
+---
+
+# Terv 2026-11-23 — Node 24 a customBrain alatt (a customBrain oldala)
+
+**Állapot:** a felmérés kész, az igények átadva az MM6 státusz-sessionnek. A repó-oldali lépések Robi jóváhagyására várnak. Semmi nincs telepítve, pm2-höz és crontabhoz nem nyúltam, deploy nem volt.
+**Kérte:** a Head of Dev session (2026-11-23, két üzenetben), a Head of Security aznapi, csak olvasó szondája alapján. Ezek másik session jelzései, nem Robi go-ja. A boxon futtatott két olvasó parancsot Robi hagyta jóvá ebben a sessionben.
+**Hatókör:** a Head of Dev második üzenete szerint Robi úgy döntött, hogy a Node cseréjét az app-sessionök hajtják végre, és a Box B-n a messagingmatrix6 státusz-session kapta a feladatot, egy közös lépésben az öt appra. Ezt a döntést nem én olvastam, a Head of Dev közölte. A terv ezért a customBrain oldalára szűkül: mit igényel az app, mit kell a csere után ellenőrizni rajta, és mi változzon a repóban. **A Box B tervezett újraindítása előtt innen nem megy deploy és pm2-lépés.**
+**Miért:** a customBraint futtató gép (Box B) rendszer-Node-ja 20.20.2. A 20-as ág támogatása 2026-04-30-án lejárt, a 24-esé 2028-04-30-ig tart (a SecAudit 2026-09-06-i terve szerint, amely a nodejs.org-ra hivatkozik). A szonda szerint a többi gép appjai 24.22.3-on futnak.
+
+## Források
+
+- `~/.agents/standards/dependencies.md`, elolvasva. Három szabálya vág ide: tiszta munkafa nélkül nincs frissítés; a runtime-ot egymás mellé kell telepíteni; a kockázatot hordozó appot kell előbb átvinni, saját próbával.
+- A szonda jegyzete (2026-11-23 09:48 UTC), a repón kívül.
+- A SecAudit `node24-migration.md` fájlja (2026-09-06): egy másik gépen ugyanez a váltás végigment. Két tanulsága ide is szól, de ezen a gépen nincs kipróbálva: a meglévő telepítés újraépítés nélkül futott Node 24-en; és a pm2 `interpreter` beállítása cluster módban hatástalan, csak fork módban él.
+- `~/.agents/infra-map.md`, a „Box B” rész. A gép tényei oda valók, ebbe a fájlba nem írom le őket.
+- A szemantikai modell 2026-11-23-i tervezete: az alkotórészek közül a „Felületek”, a „Befogadás” cronjai és a „Tükör és mentés” fut ezen a Node-on. Műveleti szerződés és szabály nem változik.
+
+## Érint
+
+A futtatókörnyezet, nem a kód: a pm2 `custombrain` folyamata, a hét cron-sor és a `graph-worker` szál. Szomszédok ugyanazon a Node-on és ugyanazon a pm2-démonon: az MM6 két appja és a régi MM két szervere. A Qdrant konténerben fut, a váltás nem érinti.
+
+## Amit megnéztem a Macen (2026-11-23, Node v24.13.1)
+
+| Mit | Eredmény |
+|---|---|
+| A saját kód szintaxisa | 109 fájl (`server/`, `agent/`, `cron/`, `scripts/`), 0 hiba |
+| A Node 20 és 24 között megszűnt vagy megváltozott API-k a saját kódban (import assertion, `url.parse`, `util.is*`, `new Buffer`, rekurzív `fs.rmdir`, régi `crypto`, kísérleti kapcsolók) | nincs találat; a kód kilenc beépített modult használ |
+| `engines` mező, `.nvmrc` | egyik `package.json`-ban sincs; `.nvmrc` nincs |
+| Csomagok betöltése Node 24-en | express, cors, dotenv, zod, az MCP SDK (szerver, HTTP- és stdio-transport), a Qdrant-kliens, googleapis, snowball-stemmers betölt; egy MCP-eszköz regisztrációja zod-sémával lefut; a `collections.js` és az `ontology.js` betölt és válaszol |
+| `graphology`, `graphology-communities-louvain` | **nem tudtam kipróbálni:** a Macen nincsenek telepítve. A csere utáni ellenőrzés 8. pontja fedi le |
+| Kliens | a `vite build` Node 24-en lefut (Vite 6.4.1); a kimenet a scratchpadbe ment. A kliens eddig is a Macen épült, tehát már ma Node 24-en készül |
+| A beépített `fetch` | a saját kód 20 helyen, 11 fájlban hívja; a Node 24.13.1 beépített undicija 7.18.2 |
+
+## Amit megnéztem a boxon (2026-11-23, két csak olvasó parancs, Robi jóváhagyásával)
+
+| Mit | Eredmény |
+|---|---|
+| Node | 20.20.2, egyetlen példány. Nincs egymás mellé telepített másik Node, és verziókezelő sincs |
+| pm2 | 6.0.13. Mind a hat folyamat (a `custombrain`, az MM6 két appja, a régi MM két szervere és a pm2-logrotate) **fork módban, egy példányban** fut, interpreter-beállítás nélkül. A `custombrain` és a pm2-démon tényleges binárisa a rendszer-Node |
+| Cron | mind a hét customBrain-sor teljes útvonallal a rendszer-Node-ot hívja |
+| Kint lévő kód | `bfd6303` (0.78.0). Módosított követett fájl nincs; 37 nem követett bejegyzés van (az első tíz régi kliens-build másolata és egy régi staging-mappa) |
+| Telepített csomagok | express 4.22.1, zod 3.25.76, MCP SDK 1.27.1, Qdrant-kliens 1.17.0, googleapis 144.0.0, graphology 0.26.0, graphology-communities-louvain 2.0.2, snowball-stemmers 0.6.0, cors 2.8.6, dotenv 16.6.1 (szerver) és 17.4.0 (gyökér) |
+| Natív modul | **nincs:** a két `node_modules`-ban egyetlen `.node` fájl sincs. A box két lockfile-jában (gyökér: 52 csomag, 2026-04-18-i; szerver: 162 csomag, 2026-07-11-i) nincs telepítő scriptes, platformfüggő vagy felső Node-korlátos csomag |
+| Hálózat | a Node 20.20.2 beépített undicija 6.24.1. A Qdrant-kliens saját undici-másolata szintén 6.24.1, és az a csere után is marad |
+| Memória | 3819 MB, ebből a méréskor 2342 MB volt elérhető |
+
+## Három lelet
+
+1. **Egyetlen lockfile sincs a gitben.** A `.gitignore` 6. sora minden `package-lock.json`-t kizár. A box lockfile-jai hónaposak, a Macé 2026-05-17-i, és a `graphology`-t nem ismeri. Egy `npm install` a boxon ezért mást telepíthet, mint ami ma fut.
+2. **A `Dockerfile` a kód olvasása szerint nem tud elindulni** (nem futtattam). Csak a `server/` és a `scripts/` mappát másolja be, a `server/mcp.js` viszont az `agent/register.js`-t importálja. A `docker-compose.yml` `server` szolgáltatása erre épül (`build: .`). A README 43. és az `AGENTS.md` 50. sora sima `docker compose up -d`-t ír, ami ezt a szolgáltatást is elindítaná. Élesben a szervert a pm2 futtatja; a compose-ból csak a Qdrant megy.
+3. **A `custombrain` fork módban fut,** ezért egyedül is átállítható lenne egy egymás mellé telepített Node-ra. A cronok és a pm2 ma ugyanazt a rendszer-Node-ot használják, és a pm2-démon közös a másik négy appal.
+
+## Mit igényel a customBrain a Node 24-hez
+
+- **Újraépítés és `npm install` nem kell.** A szerver tiszta JavaScript, natív modul nincs. A kliens a Macen épül, már ma is Node 24-en.
+- **A csere közben senki ne futtasson `npm install`-t a repó mappájában** (lásd az 1. leletet).
+- **Újraindítás kell,** a Deploy szakasz sorrendjében: a `custombrain` leállítása, a 3000-es port felszabadítása, indítás. Ha a pm2-démon egésze indul újra, utána ugyanúgy ellenőrizni kell, hogy a portot a pm2 által követett folyamat tartja.
+- **A cron-sorokhoz nem kell nyúlni, ha a rendszer-Node helyben cserélődik:** a következő futás már az új Node-on megy. Ha a Node 24 a régi mellé kerül, a hét sort át kell írni, a végén pedig vissza.
+- **Kanárinak is alkalmas:** fork módban fut, ezért `interpreter` beállítással egyedül is átvihető, ha a közös terv ezt kéri. Ezt felajánlottam az MM6 sessionnek; a döntés az övék és Robié.
+- **Ami alatta változik:** a beépített `fetch` undicija 6-osról 7-esre lép. Ezzel hívja a kód a Gemini-embeddinget, az Anthropic-metadatát, a Firefliest és a többi külső szolgáltatást. A Qdrant felé menő hívásokat ez nem érinti.
+
+## Mit kell a csere után ellenőrizni a customBrainen
+
+A boxon, a közös lépés részeként (az MM6 session):
+1. a `custombrain` tényleges binárisa a `/proc/<pid>/exe` alapján az új Node, és a pm2 ugyanazt a pid-et követi, amelyik a 3000-es portot tartja;
+2. a pm2 hibanaplójában az indulás után nincs új hiba; a figyelmeztetéseket fel kell jegyezni;
+3. tíz percen belül lefut a `gmail-intake` és a `backfill-chunks`, a naplójuk hibátlan;
+4. egy órán belül az `export` és az `agenda-sync`; másnap reggel a `qdrant-backup` és a `repos-status`;
+5. a végén `pm2 save`, hogy az új állapot legyen elmentve.
+
+Innen, a brain MCP-n át (ez a session, szerverbelépés nélkül):
+6. `brain_stats`: a szerver és a Qdrant válaszol;
+7. egy `search`: lefut az embedding-hívás és a hibrid keresés;
+8. egy `map` és egy `spider`: felépül a gráf (worker szál és Louvain), a csomag szekciói megjönnek;
+9. az első befogadás a csere után (levél vagy session-riport) címmel és metadatával érkezik meg.
+
+**Megfigyelés 48 óra:** hibanapló, újraindulás-számláló, a cronok naplói, a reggeli mentés.
+
+## Jóslat
+
+- A szerver Node 24 alatt újraépítés és `npm install` nélkül elindul.
+- A cron-sorok maguktól átállnak, ha a rendszer-Node helyben cserélődik.
+- Változatlan marad: az MCP-eszközök, a HTTP-válaszok, a verzió (0.78.0), a tár tartalma.
+- Változhat: a beépített `fetch` hibáinak szövege és időzítése a külső hívásoknál; a naplóban új figyelmeztetések.
+- Nem tudom: hogyan viselkedik Node 24-en a `graphology` két csomagja; és hogy a `graph-worker` szál utáni első Qdrant-hívás ugyanúgy megy-e.
+
+## Szeletek (ami ebből ezé a sessioné)
+
+- [x] **0. Csak olvasó felmérés a boxon** (2026-11-23, Robi jóváhagyásával, két parancs).
+- [x] **1. Átadás az MM6 státusz-sessionnek** (2026-11-23): igények, mérések, ellenőrzőlista. A gép szintű részletek a közös jegyzetmappában vannak: `custombrain-node24-igenyek-2026-11-23.md`. **Az MM6 session visszaigazolta (2026-11-23):** az igények bekerültek a közös tervébe. Eszerint a customBrain a helyben cserélt rendszer-Node-dal megy át, a cron-sorokhoz nem nyúlnak, a kanári opcionális (Robi dönt), a customBrain mappájában nem fut `npm install`, a pm2 frissítése után jön a pid-ellenőrzés és az ellenőrzőlista, és a csere után szólnak. Egyik lépés sem indult el: mind Robi go-jára vár, a Box B újraindítása után.
+- [ ] **2. A csere után az MCP-oldali ellenőrzés** (6–9. pont), és az eredmény rögzítése ide.
+- [ ] **3. Lezárás a repóban, Robi go-jával:** `"engines": { "node": ">=24" }` a három `package.json`-ba; a `DEPLOYMENT.md` crontab-mintája, ha a sorok változtak; az `AGENTS.md` Deploy szakaszába a Node-ellenőrzés; CHANGELOG; javasolt verzió: patch. A `Dockerfile` és a lockfile a lenti döntések szerint.
+
+## A `Dockerfile` sorsa
+
+- **(a) Törlés, a compose `server` szolgáltatásával együtt. Ezt javaslom.** Élesben nem fut, a kód szerint el sem indul, és egy biztonsági szonda joggal jelzi benne a lejárt Node 20-at. A `docker-compose.yml`-ben a Qdrant marad, és a README sora ettől lesz igaz. Kétirányú ajtó.
+- **(b) Csak a verzió átírása `node:24-alpine`-ra.** A szonda jelzése eltűnik, de a fájl továbbra sem indul el, és azt sugallja, hogy van konténeres telepítés.
+- **(c) Megjavítani:** `agent/`, kliens, gyökér-függőségek, Node 24. Új telepítési út, amit senki nem kért, és amit karban kell tartani.
+- Mellékszál: a compose a Qdrantot `:latest` címkével húzza, verzió nélkül. Nem ennek a tervnek a része, de ugyanaz a fajta kockázat.
+
+## Mechanizmus a kis javítás mellé
+
+- **Mechanizmus:** a repó sehol nem mondja ki, milyen Node kell neki, és semmi nem ellenőrzi.
+- **Testvérhiba:** ugyanígy maradt észrevétlen a `Dockerfile` Node 20-a és az, hogy a fájl nem indul el.
+- **Hova kerül:** az `engines` mező (3. szelet) és egy próba a 2. munka tesztfuttatójában: az `engines` megvan, és ha van `Dockerfile`, a Node-főverziója egyezik vele.
+- **Külön döntés, új mező:** a `/stats` adja vissza a futó Node verzióját is. Akkor a felület és bármelyik agent látja, min fut a brain.
+
+## Lockfile
+
+Javaslom, hogy a `server/` és a `client/` lockfile-ja kerüljön a gitbe, és a gyökéré is. A boxon futó állapotból kell kiindulni, nem a Mac májusi fájljából. Külön szelet, a Node-váltás előtt vagy után, de nem közben.
+
+## Ami Robi döntése
+
+1. A `Dockerfile` sorsa: (a), (b) vagy (c).
+2. Lockfile a gitbe: igen vagy nem.
+3. A Node-verzió a `/stats` válaszában: igen vagy nem.
+
+A gépszintű kérdések (ki és mikor cserél, mi lesz a régi MM két szerverével) a közös tervhez tartoznak, az MM6 sessionben.
+
+**Átnézés:** a gépszintű csere átnézése a közös tervé. A repó-oldali lépések (az `engines` mező, a `Dockerfile` törlése, dokumentumok) kicsik és kétirányúak, külön átnézést nem kérnek.
 
 ---
 

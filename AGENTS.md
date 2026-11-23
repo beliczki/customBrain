@@ -2,6 +2,8 @@
 
 The rules of this repo, for every agent that works in it (Claude Code, Codex, the Chief Architect). `CLAUDE.md` imports this file. The global rules are in `~/.claude/CLAUDE.md`; this file adds what is specific to customBrain.
 
+**Size:** Codex reads this file only up to 32 768 bytes and silently drops the rest; the Deploy section is last. Keep it under 28 000 B. `.githooks/pre-commit` checks it (enable once per clone: `git config core.hooksPath .githooks`). Only facts, pitfalls and rules that cannot be read from the code belong here.
+
 ## Meaning before code: Drive folder and semantic model
 - **Project Drive folder:** `~/GoogleDrive/Data/CustomBrain/` (Robi, 2026-11-22). Supporting documents live there. The repo has no `docs/` folder any more: it moved to the Drive folder on 2026-11-22. Where a code comment, the CHANGELOG or an old plan says `docs/<name>`, it means the file of that name in the Drive folder; `archive/` and `rebuild/` are subfolders there. The brain does not index the content of Drive documents yet (the files catalog holds metadata only), so read them from the folder; `search` will not find them.
 - **Semantic model: a draft exists, and Robi has not approved it as a whole yet** (2026-11-23): `customBrain - a rendszer szemantikai modellje 2026-11-23 (tervezet).md` in the Drive folder. It replaces the 2026-11-22 draft and carries Robi's twelve decisions of 2026-11-23 (section 11). It holds the glossary, the components and their limits, the operation contracts, the rules, the order of the next work, and what is still open. Whatever in it is not one of those decisions is a proposal: say in your plan that you rely on a draft. A term used in a second sense, or a new rule, is Robi's decision.
