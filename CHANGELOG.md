@@ -2,6 +2,17 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.78.4 — 2026-11-23
+
+**Question probes for the recall measurement: the same entries, asked the way a person would ask. No behaviour change.**
+
+- **Why:** a verbatim probe rewards exact-word matching (118 of the 124 found came through the keyword leg). Before a new recency formula is chosen, the measurement needs queries that do not share the entry's words.
+- **`scripts/recall-probe.js --import-questions < answers.json`** (on the server): reads `[{ probe_id, source_id, question }]`, written by an agent that read the entries, pairs each question with its verbatim probe and saves the set to `state/recall-probes-questions.json`. Nothing is saved if a question quotes its entry: the whole title (two words or more), or four words in a row from the title or the text. An existing set is replaced only with `--force`.
+- **`--questions`** runs the question set instead of the verbatim one, with the same `--limit` and `--no-decay` switches. The table header says `(questions)` and the run file records the kind of the set.
+- **`server/recall-probes.js`:** `buildQuestionSet`, `longestSharedRun` and `quotesTitle` as pure functions, with 5 new tests. A question probe inherits the right answers, the groups and the held-out flag of the verbatim probe, so the two kinds can be compared entry by entry.
+- **Known bias:** the first 59 questions were written by a model: 12–19 words, mostly in two parts. More anchor words make the search easier, so the number will be an upper estimate.
+- The questions hold private text and stay out of git. Not yet run against the live store: the import and the two runs (with and without the recency factor) follow the deploy.
+
 ## 0.78.3 — 2026-11-23
 
 **The first recall measurement, and a switch to measure search without age. The default ranking is unchanged.**

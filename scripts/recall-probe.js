@@ -11,11 +11,17 @@
 // Usage (on the server, in the repo folder):
 //   node scripts/recall-probe.js --build [--size 150] [--seed N] [--force]
 //       sample the store once and freeze the probe set
-//   node scripts/recall-probe.js [--limit 10] [--no-decay]
+//   node scripts/recall-probe.js [--limit 10] [--no-decay] [--questions]
 //       run the frozen set and print the table
+//       --questions  run the question probes instead of the verbatim ones
 //       --no-decay   search without the recency factor (a diagnosis, not what
 //                    agents get): shows what age does to the ranking
 //       --limit 60   also reports Hit@60, i.e. how deep the entry sits
+//   node scripts/recall-probe.js --import-questions [--force] < answers.json
+//       question probes: the entries of some verbatim probes, asked the way a
+//       person would ask. answers.json is [{ probe_id, source_id, question }],
+//       written by an agent that read the entries. Refuses a question that
+//       quotes the entry (its title, or four words in a row).
 //
 // PRIVATE DATA: the probe set holds verbatim text of mails and meetings, and
 // the run files name the entries. Both stay under state/ (gitignored). Only the
@@ -25,13 +31,15 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { applySettingsToEnv } from '../server/config.js';
-import { buildProbeSet, runProbes, summarize, formatSummary } from '../server/recall-probes.js';
+import { buildProbeSet, buildQuestionSet, longestSharedRun, quotesTitle, runProbes, summarize, formatSummary } from '../server/recall-probes.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 dotenv.config({ path: join(REPO_ROOT, '.env'), quiet: true });
 applySettingsToEnv();
 
 const SET_PATH = join(REPO_ROOT, 'state', 'recall-probes.json');
+const QUESTIONS_PATH = join(REPO_ROOT, 'state', 'recall-probes-questions.json');
+const MAX_SHARED_RUN = 3; // four words in a row is a quote, not a paraphrase
 const RUNS_DIR = join(REPO_ROOT, 'state', 'recall-probe-runs');
 const FIELDS = ['text', 'source', 'status', 'created_at', 'effective_date', 'has_v2_summary', 'has_auto_summary'];
 
@@ -65,7 +73,45 @@ if (!existsSync(SET_PATH)) {
   console.error('No probe set yet. Build one first: node scripts/recall-probe.js --build');
   process.exit(1);
 }
-const set = JSON.parse(readFileSync(SET_PATH, 'utf8'));
+
+if (has('--import-questions')) {
+  if (existsSync(QUESTIONS_PATH) && !has('--force')) {
+    console.error('A question set already exists (state/recall-probes-questions.json); pass --force to replace it.');
+    process.exit(1);
+  }
+  const verbatim = JSON.parse(readFileSync(SET_PATH, 'utf8'));
+  const questionSet = buildQuestionSet(verbatim, JSON.parse(readFileSync(0, 'utf8')), { now: Date.now() });
+  // The check needs the entries themselves, and they are only here.
+  const { payloadFieldRows } = await import('../server/qdrant.js');
+  const texts = new Map((await payloadFieldRows(['title', 'text'])).map(([id, [title, text]]) => [String(id), { title: title || '', text: text || '' }]));
+  const quoting = [];
+  for (const probe of questionSet.probes) {
+    const entry = texts.get(probe.source_id);
+    if (!entry) { quoting.push(`${probe.id}: the entry ${probe.source_id} is no longer in the store`); continue; }
+    const run = longestSharedRun(probe.query, `${entry.title}\n${entry.text}`);
+    if (quotesTitle(probe.query, entry.title)) quoting.push(`${probe.id}: contains the title`);
+    else if (run > MAX_SHARED_RUN) quoting.push(`${probe.id}: ${run} words in a row from the entry`);
+  }
+  console.log(`Questions read: ${questionSet.probes.length}; skipped by the writer: ${questionSet.skipped.length}.`);
+  if (quoting.length) {
+    console.log(`Not saved: ${quoting.length} question(s) quote the entry. Rewrite them and import again.`);
+    for (const line of quoting) console.log(`  ${line}`);
+    process.exit(1);
+  }
+  writeFileSync(QUESTIONS_PATH, JSON.stringify(questionSet, null, 2));
+  const groups = {};
+  for (const probe of questionSet.probes) groups[probe.source] = (groups[probe.source] || 0) + 1;
+  console.log(`Held out: ${questionSet.probes.filter((probe) => probe.held_out).length}. By source: ${Object.keys(groups).sort().map((key) => `${key} ${groups[key]}`).join(', ')}.`);
+  console.log('Saved to state/recall-probes-questions.json. It holds private text: never commit it.');
+  process.exit(0);
+}
+
+const useQuestions = has('--questions');
+if (useQuestions && !existsSync(QUESTIONS_PATH)) {
+  console.error('No question set yet. Import one first: node scripts/recall-probe.js --import-questions < answers.json');
+  process.exit(1);
+}
+const set = JSON.parse(readFileSync(useQuestions ? QUESTIONS_PATH : SET_PATH, 'utf8'));
 const limit = Number(valueOf('--limit', '10'));
 const recency = !has('--no-decay');
 const { searchThoughts } = await import('../server/routes/search.js');
@@ -87,7 +133,7 @@ const runAt = new Date(started).toISOString();
 const seconds = Math.round((Date.now() - started) / 1000);
 const file = `${runAt.replace(/[:.]/g, '-')}.json`;
 mkdirSync(RUNS_DIR, { recursive: true });
-writeFileSync(join(RUNS_DIR, file), JSON.stringify({ run_at: runAt, seconds, limit, recency, set: { seed: set.seed, created_at: set.created_at, size: set.size }, summary, results }, null, 2));
+writeFileSync(join(RUNS_DIR, file), JSON.stringify({ run_at: runAt, seconds, limit, recency, set: { kind: set.kind || 'verbatim', seed: set.seed, created_at: set.created_at, size: set.size }, summary, results }, null, 2));
 console.log(`\n${seconds} s. Run saved to state/recall-probe-runs/${file}`);
 // The Qdrant client keeps sockets open; without an exit the process lingers.
 process.exit(0);

@@ -155,3 +155,67 @@ test('wilson interval', () => {
   assert.ok(Math.abs(ci.lower - 0.596) < 0.002 && Math.abs(ci.upper - 0.982) < 0.002, JSON.stringify(ci));
   assert.equal(wilson(0, 0), null);
 });
+
+// --- question probes: the same entries, asked the way a person would ask ---
+
+test('longestSharedRun counts the longest run of consecutive words a question shares with a text', async () => {
+  const { longestSharedRun } = await import('../server/recall-probes.js');
+  const text = 'Anna azt kérte, hogy a nyári kampány határidejét toljuk el két héttel, mert a kreatív még nincs kész.';
+  assert.equal(longestSharedRun('Mit kért Anna a nyári kampány határidejét illetően?', text), 4);
+  assert.equal(longestSharedRun('Mennyivel csúszik Anna szerint a vakációs akció leadása?', text), 1);
+  assert.equal(longestSharedRun('A NYÁRI KAMPÁNY, határidejét?', text), 4, 'case and punctuation do not hide a copy');
+  assert.equal(longestSharedRun('', text), 0);
+});
+
+test('buildQuestionSet pairs each question with its verbatim probe and inherits the right answers', async () => {
+  const { buildQuestionSet } = await import('../server/recall-probes.js');
+  const verbatim = buildProbeSet(corpus(), { seed: 4, size: 30, now: NOW });
+  const [a, b, c] = verbatim.probes;
+  const answers = [
+    { probe_id: a.id, source_id: a.source_id, question: 'Mit döntöttünk az első ügyben?' },
+    { probe_id: b.id, source_id: b.source_id, question: null, skip_reason: 'only a link' },
+    { probe_id: c.id, source_id: c.source_id, question: '  Mi lett a harmadikkal?  ' },
+  ];
+  const set = buildQuestionSet(verbatim, answers, { now: NOW });
+  assert.equal(set.kind, 'question');
+  assert.deepEqual(set.probes.map((p) => p.id), [`q${a.id.slice(1)}`, `q${c.id.slice(1)}`]);
+  assert.deepEqual(set.skipped, [{ probe_id: b.id, reason: 'only a link' }]);
+  const first = set.probes[0];
+  assert.deepEqual(
+    [first.source_id, first.expected_ids, first.source, first.length, first.entry_date, first.held_out, first.position, first.paired_with],
+    [a.source_id, a.expected_ids, a.source, a.length, a.entry_date, a.held_out, 'question', a.id],
+  );
+  assert.equal(set.probes[1].query, 'Mi lett a harmadikkal?');
+});
+
+test('buildQuestionSet refuses a mixed-up or repeated answer', async () => {
+  const { buildQuestionSet } = await import('../server/recall-probes.js');
+  const verbatim = buildProbeSet(corpus(), { seed: 4, size: 30, now: NOW });
+  const [a, b] = verbatim.probes;
+  assert.throws(() => buildQuestionSet(verbatim, [{ probe_id: 'p999', source_id: a.source_id, question: 'x y z' }], { now: NOW }), /p999/);
+  assert.throws(() => buildQuestionSet(verbatim, [{ probe_id: a.id, source_id: b.source_id, question: 'x y z' }], { now: NOW }), /belongs to/);
+  const twice = [{ probe_id: a.id, source_id: a.source_id, question: 'x y z' }, { probe_id: a.id, source_id: a.source_id, question: 'x y z' }];
+  assert.throws(() => buildQuestionSet(verbatim, twice, { now: NOW }), /twice/);
+});
+
+test('question probes run and summarize like the others', async () => {
+  const { buildQuestionSet } = await import('../server/recall-probes.js');
+  const verbatim = buildProbeSet(corpus(), { seed: 4, size: 30, now: NOW });
+  const answers = verbatim.probes.slice(0, 6).map((p, i) => ({ probe_id: p.id, source_id: p.source_id, question: `kérdés ${i}` }));
+  const set = buildQuestionSet(verbatim, answers, { now: NOW });
+  const results = await runProbes(set.probes, async (query) => {
+    const probe = set.probes.find((p) => p.query === query);
+    return query === 'kérdés 5' ? [] : [{ id: probe.source_id, evidence: 'high_dense' }];
+  }, { limit: 10 });
+  const summary = summarize(set.probes, results, { now: NOW });
+  assert.equal(summary.all.hit_at[10].hits, 5);
+  assert.deepEqual(Object.keys(summary.by.position), ['question']);
+  assert.match(formatSummary(summary, { limit: 10, set }), /^Recall probe \(questions\): 6 probes/);
+});
+
+test('quotesTitle: a question that contains the whole title', async () => {
+  const { quotesTitle } = await import('../server/recall-probes.js');
+  assert.equal(quotesTitle('Mi áll a customBrain — Session-riport bejegyzésben?', 'customBrain — Session-riport'), true);
+  assert.equal(quotesTitle('Mit írtam a customBrain legutóbbi riportjában?', 'customBrain — Session-riport'), false);
+  assert.equal(quotesTitle('Mi a helyzet a Birddel?', 'Bird'), false, 'a one-word title is a name, not a quote');
+});

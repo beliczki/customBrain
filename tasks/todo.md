@@ -1,6 +1,6 @@
 # Döntések 2026-11-23 — a szemantikai modell 12 kérdése, és a belőlük lett hét munka
 
-**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka kész; a 3. munka a kiinduló mérésig kész (a kérdésszerű szondák külön go). A szerveren a 0.78.2 fut (2026-11-23). Az időcsillapítás javítása a mérés alapján előrejött; a terv 1. szeletének kódja kész (0.78.3). A 4–7. munkának még nincs terve.
+**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka kész; a 3. munka a kiinduló mérésig kész (a kérdésszerű szondák külön go). A szerveren a 0.78.2 fut (2026-11-23). Az időcsillapítás javítása a mérés alapján előrejött; az 1. szelet kész (0.78.3 a szerveren), a diagnózis igazolta, hogy az ok a csillapítás. A 4–7. munkának még nincs terve.
 **Hol vannak a döntések:** a projekt Drive-mappájában, `customBrain - a rendszer szemantikai modellje 2026-11-23 (tervezet).md`, 11. fejezet. A modell egészét Robi még nem hagyta jóvá.
 
 ## A döntések röviden
@@ -157,7 +157,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 
 ### Kiinduló mérés (2026-11-23, 0.78.2, a szerveren)
 
-**A deploy.** Robi go-jával, ssh-parancsonként jóváhagyva: az állapot olvasása, a `custombrain` leállítása, a port felszabadítása (már szabad volt), `git pull --ff-only` (0.78.0 → 0.78.2), indítás. `npm install` nem futott. A `pm2 save` Robi döntésére kimaradt: a régi MM két szervere éppen le volt állítva, és a mentés az ő állapotukat is rögzítette volna. Utána: a 3000-es portot a pm2 által követett folyamat tartja; a `/stats` 0.78.2-t ad; a hibanapló üres; a gráf újraépült. A deploy utáni első cron-körben (16:40 UTC) a módosított `backfill-chunks.js` hiba nélkül lefutott („nothing pending”), és a `gmail-intake` előző köre is hibátlan volt.
+**A deploy.** Robi go-jával, ssh-parancsonként jóváhagyva: az állapot olvasása, a `custombrain` leállítása, a port felszabadítása (már szabad volt), `git pull --ff-only` (0.78.0 → 0.78.2), indítás. `npm install` nem futott. A `pm2 save` Robi döntésére kimaradt: a régi MM két szervere éppen le volt állítva, és a mentés az ő állapotukat is rögzítette volna. Az MM6 session közlése szerint ők 16:30 és 16:31 (UTC) között kétszer mentettek a saját appjaik miatt, így a mentett lista a `custombrain`-t futóként, a régi MM két szerverét leállítva tartalmazza. Ezt nem ellenőriztem. Utána: a 3000-es portot a pm2 által követett folyamat tartja; a `/stats` 0.78.2-t ad; a hibanapló üres; a gráf újraépült. A deploy után, a 16:40-es (UTC) cron-körben a módosított `backfill-chunks.js` hiba nélkül lefutott („nothing pending”), és a `gmail-intake` is hibátlan volt. Az MM6 session később azt írta, hogy a pm2 naplója szerint az indítás 16:29:44-kor volt; eszerint már a 16:30-as kör is az új scripttel futott, szintén hiba nélkül. Ezt a naplót én nem olvastam.
 
 **A készlet.** 150 szonda 1144 bejegyzésből, 50 félretett; egy szondának van több helyes találata.
 
@@ -200,7 +200,7 @@ A megtalált 124 szondából 118-at a kulcsszavas láb hozott (`bm25_exact`), 5 
 
 ## Időcsillapítás — terv (az 5. munkából előrehozva)
 
-**Állapot:** az 1. szelet kódja megírva és helyben kipróbálva (2026-11-23), Robi jóváhagyásával („Igen, mehet”). Commitolva és pusholva 0.78.3-ként (Robi: „Igen, 0.78.3”). A deploy és a diagnózis-futás ssh-parancsonként, Robi jóváhagyásával megy.
+**Állapot:** az 1. szelet kódja megírva és helyben kipróbálva (2026-11-23), Robi jóváhagyásával („Igen, mehet”). Commitolva és pusholva 0.78.3-ként (Robi: „Igen, 0.78.3”), kint van a szerveren, és a diagnózis megvan (2026-11-23): **az ok az időcsillapítás.** A 2. szelet külön go.
 **Robi válaszai a három kérdésre (2026-11-23): a javaslat szerint.** A csillapítás célja: a kor csak a közel egyforma erősségű találatok között döntsön; ami jobban egyezik, az legyen elöl, akármilyen régi. A képlet választása előtt kérdésszerű szondák kellenek. Az 1. szelet átnézés nélkül megy; az átnézés az új alapérték előtt jön.
 **Kérte:** Robi (2026-11-23: „Igen, terv rá”), a kiinduló mérés alapján. Az 5. munkában a szál-entitás marad.
 
@@ -254,15 +254,48 @@ Egyetlen irodalmi alapértékről nem tudok; a bevett gyakorlat áttekintése, f
 **Varrat.** Helyben az `npm test` a tiszta pontozófüggvényen. A szerveren a felidézés-próba a hangolható részen, a végén a félretett részen.
 
 **Szeletek.**
-- [ ] **1. Diagnózis.** A végső pontozás tiszta függvénybe kerül, próbákkal; a `searchThoughts` és a típusos keresés kap egy `recency` kapcsolót (az alapérték változatlan, ahogy a `spider`nél már van); a próbascript `--no-decay` kapcsolót. Deploy, viselkedésváltozás nélkül (patch). Egy futás csillapítás nélkül, 60-as listával: eldönti a három hipotézist.
+- [x] **1. Diagnózis.** A végső pontozás tiszta függvénybe kerül, próbákkal; a `searchThoughts` és a típusos keresés kap egy `recency` kapcsolót (az alapérték változatlan, ahogy a `spider`nél már van); a próbascript `--no-decay` kapcsolót. Deploy, viselkedésváltozás nélkül (patch). Egy futás csillapítás nélkül, 60-as listával: eldönti a három hipotézist.
   - **A kód kész (2026-11-23), a szerveren még nem futott.** Új `server/rescore.js` (a szabály és a dosszié-súlyok, változatlan számokkal) és `tests/rescore.test.mjs` (10 próba, először pirosan). A `server/routes/search.js` ezt hívja; a két keresőfüggvény harmadik, elhagyható paramétere a `recency`. A hívókat egyenként megnéztem: tíz hívó van, egyik sem ad át harmadik paramétert, tehát mindegyik a régi viselkedést kapja.
   - **A cél próbaként rögzítve, `todo` jelöléssel:** „egy régi, mindkét lábon első találat megelőzi a friss, egy lábon huszadik találatot”. Ma megbukik, de a futást nem töri el; az alapérték megváltoztatásakor rendes próbává válik.
   - **Helyi szimuláció a valódi pontozófüggvénnyel:** a script `--no-decay` és `--limit 60` kapcsolója működik. A játékmodellben a korral a régi bejegyzések lesüllyednek, kor nélkül elsők. Ez azt mutatja, hogy a mechanizmus elég a tünethez; azt nem, hogy az éles rendszerben is ez az ok.
   - **A deploy utáni első ellenőrzés:** az alapértelmezett futásnak a kiinduló mérés számait kell visszaadnia (33,3 / 46,0 / 82,7%). Ha eltér, az átszervezés megváltoztatta a viselkedést, és vissza kell állni.
+  - **Kész (2026-11-23): az eredmény lent, a „Diagnózis” részben.**
 - [ ] **2. Kérdésszerű szondák** (külön go). Egy session nagyjából 60 bejegyzéshez ír kérdést úgy, ahogy Robi kérdezné, a cím idézése nélkül: korcsoportonként 20-at. A készlet a szerveren marad.
+  - **Robi go-ja megvan (2026-11-23).** A 60 bejegyzés a meglévő 150-es készletből van, korcsoportonként 20, rögzített maggal sorsolva (egy csak olvasó parancs a boxon). Így ugyanarra a bejegyzésre van szó szerinti és kérdésszerű szonda is, és a félretett rész öröklődik: 41 hangolható, 19 félretett.
+  - **A kérdéseket három alügynök írja** (korcsoportonként egy), azonos előírás szerint: magyarul, ahogy Robi kérdezne; a cím és a szöveg négy egymást követő szavának idézése nélkül; dátum és mai naphoz kötött szó nélkül. A bejegyzéseket csak olvassák.
+  - **A kód kész, a szerveren még nincs kint:** `--import-questions` a beolvasáshoz (elutasítja azt a kérdést, amely a címet vagy a szöveg négy szavát egymás után idézi) és `--questions` a futtatáshoz; a párosítás és az idézés-ellenőrzés tiszta függvény, próbákkal. Helyi szimulációban a beolvasás és mindkét futás működik.
+  - **A kérdések megvannak (2026-11-23):** 59 kérdés és egy kihagyott bejegyzés (egy meeting-átirat, amelyben csak köszönések vannak). Mind a 60 válasz a kisorsolt bejegyzésekhez tartozik, ismétlés nincs. A kérdések 12–19 szavasak (a medián 16), dátum és mai naphoz kötött szó nincs bennük; két kérdésben egy bent maradt angol kötőszót kijavítottam. A fájl a scratchpadben van, a repóba nem kerül.
+  - **Ismert torzítás:** a kérdések hosszabbak és többnyire kétrészesek („…, és …?”), ahogy egy modell ír, nem ahogy Robi gépel. A több horgonyszó a keresést könnyíti, tehát a szám inkább felső becslés.
+  - **A költség több lett a becsültnél:** a három alügynök együtt nagyjából 454 ezer tokent használt (132, 153 és 168 ezer); előre 150 ezret mondtam.
+  - **Commitolva és pusholva 0.78.4-ként** (Robi, 2026-11-23: „igen, 0.78.4-ként commitold és pushold").
+  - **Hátravan:** deploy; beolvasás a szerveren (ott fut az idézés-ellenőrzés); futás csillapítással és nélküle.
 - [ ] **3. Képletek mérése.** A jelöltek a kapcsoló mögött futnak, az éles alapérték nem változik. Mindegyik a hangolható részen, mindkét szondafajtával; a legjobb a félretett részen is. A bevett gyakorlat áttekintése forrásokkal.
 - [ ] **4. Az új alapérték** (átnézés után, külön go): minor verzió, mert a keresés viselkedése változik; a CHANGELOG-ba az előtte–utána számok; a modell 7.3 szerződésének szövege.
 - [ ] **5. Utána:** a `spider` és a `map` KORÁBBI megkerülő megoldása az új szabállyal; kell-e még. Külön döntés.
+
+### Diagnózis (2026-11-23, 0.78.3, a szerveren)
+
+**A deploy.** Ugyanúgy, mint a 0.78.2-nél: ssh-parancsonként jóváhagyva, `pm2 save` és `npm install` nélkül (0.78.2 → 0.78.3). A `/stats` 0.78.3-at ad, a hibanapló üres.
+
+**Az alapérték nem változott.** Az alapértelmezett futás a kiinduló mérés számait adta, és a 150 szondából egynél sem tért el a hely.
+
+**A három futás** (ugyanaz a 150 szonda; a számok Találat@1 / @3 / @10, százalékban):
+
+| Futás | mind | 0–30 napos | 31–90 napos | 91–365 napos |
+|---|---|---|---|---|
+| alapérték, csillapítással | 33,3 / 46,0 / 82,7 | 67,9 / 84,9 / 100 | 41,4 / 69,0 / 93,1 | 2,9 / 5,9 / 64,7 |
+| csillapítás nélkül, 10-es lista | 74,0 / 90,0 / 98,7 | 73,6 / 90,6 / 100 | 75,9 / 86,2 / 100 | 73,5 / 91,2 / 97,1 |
+
+Csillapítás nélkül, 60-as listával mind a 150 szonda megvan (Találat@60: 100%). A 10-es listánál kimaradt két szonda a 12. és a 17. helyen áll, mindkettőt a kulcsszavas láb találta meg.
+
+**A hipotézisek.**
+1. A szorzó felülírja a találat helyét: **igazolva.** Csillapítás nélkül a kor nem számít: mindhárom korcsoport nagyjából 74%-ban első, és 97–100%-ban az első tízben van.
+2. A régi bejegyzés be sem kerül a jelöltek közé: **megcáfolva.** Kettő kivételével mind az első tízben van, és az a kettő is a 60-on belül.
+3. A régi bejegyzések rosszabbul vannak indexelve: **megcáfolva.** Csillapítás nélkül ugyanúgy megvannak, mint a frissek.
+
+**A jóslat és az eredmény.** „Csillapítás nélkül a 91–365 napos sor Találat@10-e 95% fölé, a Találat@1 60% fölé megy”: igen, 97,1% és 73,5%.
+
+**Mit jelent.** A 98,7% a felső korlát, amelyet egy képlet a szó szerinti szondákon elérhet. A frisseknél a csillapítás nem segít mérhetően (első hely: 67,9% csillapítással, 73,6% nélküle). A szó szerinti kérdésekre a csillapítás tehát csak veszteség; hogy a kérdésszerű szondáknál és a „mi a legfrissebb” jellegű kérdéseknél mit ad, azt ez a mérés nem mutatja.
 
 **Nyitott kérdések Robinak, a javaslatommal.**
 1. **Mi a csillapítás célja?** Javaslat: a kor csak a közel egyforma erősségű találatok között döntsön; ami jobban egyezik, az legyen elöl, akármilyen régi. Ez a 3. elvből következik, de kimondani neked kell, mert a 7.3 szerződés szövege lesz.

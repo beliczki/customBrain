@@ -180,6 +180,69 @@ export function buildProbeSet(entries, { seed, size, heldOutShare = 1 / 3, now }
   return { version: 1, seed, created_at: new Date(now).toISOString(), size: probes.length, probes };
 }
 
+const plainWords = (text) => (text || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+
+/**
+ * The longest run of consecutive words a question shares with a text (case and
+ * punctuation ignored). A question probe is meant to be a paraphrase: a long
+ * shared run means it quotes the entry and measures exact-word matching again.
+ */
+export function longestSharedRun(question, text) {
+  const q = plainWords(question);
+  const haystack = ` ${plainWords(text).join(' ')} `;
+  for (let length = q.length; length > 0; length -= 1) {
+    for (let start = 0; start + length <= q.length; start += 1) {
+      if (haystack.includes(` ${q.slice(start, start + length).join(' ')} `)) return length;
+    }
+  }
+  return 0;
+}
+
+/** True when the question contains the whole title (two words or more). */
+export function quotesTitle(question, title) {
+  const words = plainWords(title);
+  return words.length >= 2 && longestSharedRun(title, question) === words.length;
+}
+
+/**
+ * Question probes: the entries of some verbatim probes, asked the way a person
+ * would ask. `answers`: [{ probe_id, source_id, question, skip_reason }], written
+ * by an agent that read the entries. Each question probe inherits the right
+ * answers, the groups and the held-out flag of the verbatim probe it is paired
+ * with, so the two kinds can be compared entry by entry.
+ */
+export function buildQuestionSet(verbatimSet, answers, { now }) {
+  const byId = new Map(verbatimSet.probes.map((probe) => [probe.id, probe]));
+  const seen = new Set();
+  const probes = [];
+  const skipped = [];
+  for (const answer of answers) {
+    const probe = byId.get(answer.probe_id);
+    if (!probe) throw new Error(`${answer.probe_id} is not in the verbatim set`);
+    if (probe.source_id !== answer.source_id) throw new Error(`${answer.probe_id} belongs to ${probe.source_id}, the answer names ${answer.source_id}`);
+    if (seen.has(answer.probe_id)) throw new Error(`${answer.probe_id} is answered twice`);
+    seen.add(answer.probe_id);
+    const question = (answer.question || '').trim();
+    if (!question) {
+      skipped.push({ probe_id: answer.probe_id, reason: answer.skip_reason || 'no question' });
+      continue;
+    }
+    probes.push({
+      id: `q${probe.id.slice(1)}`,
+      source_id: probe.source_id,
+      expected_ids: probe.expected_ids,
+      query: question,
+      source: probe.source,
+      length: probe.length,
+      position: 'question',
+      entry_date: probe.entry_date,
+      held_out: probe.held_out,
+      paired_with: probe.id,
+    });
+  }
+  return { version: 1, kind: 'question', seed: verbatimSet.seed, created_at: new Date(now).toISOString(), size: probes.length, probes, skipped };
+}
+
 /**
  * Run every probe through `search(query, limit)` (the real searchThoughts on
  * the server, a fake in the tests). One at a time: the point is the answer the
@@ -264,7 +327,7 @@ export function formatSummary(summary, { limit, set, note = '' }) {
     return `${label.padEnd(16)}${String(s.n).padStart(5)}${cells}   ${ci ? `[${(ci.lower * 100).toFixed(1)}, ${(ci.upper * 100).toFixed(1)}]` : ''}`;
   };
   const out = [
-    `Recall probe: ${summary.all.n} probes, top ${limit}; set seed ${set.seed}, built ${set.created_at.slice(0, 10)}${note ? `; ${note}` : ''}`,
+    `Recall probe${set.kind === 'question' ? ' (questions)' : ''}: ${summary.all.n} probes, top ${limit}; set seed ${set.seed}, built ${set.created_at.slice(0, 10)}${note ? `; ${note}` : ''}`,
     `${''.padEnd(16)}${'n'.padStart(5)}${summary.ks.map((k) => `@${k}`.padStart(7)).join('')}   95% CI of @${last}`,
     line('all', summary.all),
   ];
