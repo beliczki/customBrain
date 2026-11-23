@@ -256,7 +256,7 @@ export function summarize(probes, results, { now, ks = [1, 3, 10] }) {
 const percent = (x) => (x === null ? '   –  ' : `${(x * 100).toFixed(1)}%`);
 
 /** The summary as a table for the terminal. It prints no entry text. */
-export function formatSummary(summary, { limit, set }) {
+export function formatSummary(summary, { limit, set, note = '' }) {
   const last = summary.ks[summary.ks.length - 1];
   const line = (label, s) => {
     const ci = s.hit_at[last].ci;
@@ -264,7 +264,7 @@ export function formatSummary(summary, { limit, set }) {
     return `${label.padEnd(16)}${String(s.n).padStart(5)}${cells}   ${ci ? `[${(ci.lower * 100).toFixed(1)}, ${(ci.upper * 100).toFixed(1)}]` : ''}`;
   };
   const out = [
-    `Recall probe: ${summary.all.n} probes, top ${limit}; set seed ${set.seed}, built ${set.created_at.slice(0, 10)}`,
+    `Recall probe: ${summary.all.n} probes, top ${limit}; set seed ${set.seed}, built ${set.created_at.slice(0, 10)}${note ? `; ${note}` : ''}`,
     `${''.padEnd(16)}${'n'.padStart(5)}${summary.ks.map((k) => `@${k}`.padStart(7)).join('')}   95% CI of @${last}`,
     line('all', summary.all),
   ];

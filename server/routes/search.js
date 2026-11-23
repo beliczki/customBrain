@@ -4,6 +4,7 @@ import { getVaultContext } from '../drive-context.js';
 import { matchAnchors, nameKey } from '../names.js';
 import { sparseEncodeQuery } from '../sparse.js';
 import { hybridSearch, getByIds, explainLegs, getChunksWithVectors, searchVector, searchSparse } from '../qdrant.js';
+import { rescore, recencyFactor } from '../rescore.js';
 
 const router = Router();
 
@@ -71,44 +72,17 @@ router.get('/search/explain', async (req, res) => {
 
 export default router;
 
-// Canonical dossiers (People/Projects/Topics) are curated truth — they should
-// outrank a stale raw thought on overlapping content. Modest multiplier;
-// calibrate with the evaluator. Dossiers are ALSO exempt from time decay: a
-// current dossier is not "old news" just because its file wasn't touched today.
-const DOSSIER_BOOST = 1.5;
-// 0.76.0: the boost goes only to a dossier the query NAMES (matchAnchors —
-// the same recognition map and spider use). An unnamed dossier is context and
-// is weighted like an average-aged thought. Measured on 10 work questions:
-// dossiers took 25% of the top-10; the named ones were relevant, while the
-// siblings that only shared a word ("Bird" → ERSTE Market, Hitelkártya,
-// Vállakozók) were all judged irrelevant. Hand-set; calibrate with the eval.
-const UNNAMED_DOSSIER = 0.5;
+// The recency rule and the dossier weights live in server/rescore.js (pure,
+// tested). spider imports recencyFactor from here, so it is passed on.
+export { recencyFactor };
 
-/**
- * Recency factor of a thought, the ONE rule search and spider share (0.65.0).
- * Prefer effective_date (content date) over created_at (capture date): old
- * Gmail/Fireflies content captured today should NOT get a recency boost as
- * if it were a fresh thought. 90-day scale — gentler than the initial 30-day;
- * a 30-day decay over-penalised content older than a month even when the
- * match was much stronger.
- */
-export function recencyFactor({ effective_date, created_at }, now = Date.now()) {
-  const days = (now - new Date(effective_date || created_at).getTime()) / 86400000;
-  return 1 / (1 + days / 90);
-}
-
-async function applyTimeDecay(results, queryTexts) {
-  const now = Date.now();
+// The last step of both search paths: which dossiers the query names is decided
+// here (it needs the vault context), the arithmetic in rescore().
+// `recency: false` leaves age out; the default is unchanged.
+async function applyTimeDecay(results, queryTexts, { recency = true } = {}) {
   const anchors = matchAnchors(queryTexts.join(' '), await getVaultContext());
   const named = new Set([...anchors.projects, ...anchors.people, ...anchors.topics].map(nameKey));
-  return results
-    .map((r) => {
-      const isDossier = r.kind === 'dossier';
-      const decay = isDossier ? 1 : recencyFactor(r, now);
-      const boost = isDossier ? (named.has(nameKey(r.title)) ? DOSSIER_BOOST : UNNAMED_DOSSIER) : 1;
-      return { ...r, cosine_score: r.score, score: r.score * decay * boost };
-    })
-    .sort((a, b) => b.score - a.score);
+  return rescore(results, { now: Date.now(), isNamed: (r) => named.has(nameKey(r.title)), recency });
 }
 
 /**
@@ -219,7 +193,7 @@ function rankMapOf(points) {
   return m;
 }
 
-export async function searchThoughts(query, limit = 5) {
+export async function searchThoughts(query, limit = 5, { recency = true } = {}) {
   const denseVector = await embedText(query, 'RETRIEVAL_QUERY');
   const sparseVector = sparseEncodeQuery(query);
   // Over-fetch so rollup can collapse chunk-clusters and still leave us with N
@@ -236,7 +210,7 @@ export async function searchThoughts(query, limit = 5) {
       : deriveEvidence(hit, [query], denseRanks.get(String(hit.id)), bm25Ranks.get(String(hit.id)));
   }
   const rolled = await rollupChunkHits(rawHits);
-  const decayed = await applyTimeDecay(rolled, [query]);
+  const decayed = await applyTimeDecay(rolled, [query], { recency });
   return decayed.slice(0, limit);
 }
 
@@ -248,7 +222,7 @@ export async function searchThoughts(query, limit = 5) {
  * same RRF k=60 as the hybrid path. No query rewriting, no HyDE — the agent
  * controls the strategy, the server only executes and fuses.
  */
-export async function searchThoughtsMulti(subQueries, limit = 5) {
+export async function searchThoughtsMulti(subQueries, limit = 5, { recency = true } = {}) {
   const RRF_K = 60;
   const overfetchLimit = Math.max(limit * 6, 30);
   const lists = await Promise.all(
@@ -292,7 +266,7 @@ export async function searchThoughtsMulti(subQueries, limit = 5) {
     });
 
   const rolled = await rollupChunkHits(rawHits);
-  const decayed = await applyTimeDecay(rolled, queryTexts);
+  const decayed = await applyTimeDecay(rolled, queryTexts, { recency });
   return decayed.slice(0, limit);
 }
 

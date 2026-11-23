@@ -16,6 +16,8 @@ A szemantikai modell 12 döntéséből hét munka lett. A döntések a modell 11
 
 A 4–7. építés előtt átnézésre megy (Codex és Chief Architect). A modell elfogadása után: generált kódleltár.
 
+**2026-11-23, a kiinduló mérés után (Robi):** az időcsillapítás javítása előrejön, külön tervvel (`tasks/todo.md`). A mérés: a 90 napnál régebbi bejegyzést a `search` a saját szavaival kérdezve 100-ból 35-ször nem adja az első tízben. Az 5. pontban a szál-entitás marad.
+
 ## SPEC 2026-10-10 — Ontológia és helyzetcsomag
 
 Specifikáció (`ontologia-es-helyzetcsomag-spec-2026-10-10.md`). Mérce: egy keresés válaszából derüljön ki, **mi a helyzet, mi történt előtte, és minek kellene következnie** fontosság és sürgősség szerint. A válasz strukturált csomag (HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB), nem összekevert lista.

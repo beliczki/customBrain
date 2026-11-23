@@ -2,6 +2,15 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.78.3 — 2026-11-23
+
+**The first recall measurement, and a switch to measure search without age. The default ranking is unchanged.**
+
+- **Baseline** (0.78.2 on the server, 150 verbatim probes, two matching runs): Hit@1 33.3%, @3 46.0%, @10 82.7%. By the age of the entry, Hit@10 is 100% up to 30 days, 93.1% for 31–90 days and 64.7% for 91–365 days, where Hit@1 is 2.9%. Source, length and the position of the excerpt make little difference. 118 of the 124 found came through the keyword leg.
+- **`server/rescore.js`:** the recency rule and the dossier weights moved out of `server/routes/search.js` into a pure module with tests, numbers unchanged. `searchThoughts` and `searchThoughtsMulti` take an optional `{ recency }`; no caller passes it, so every caller gets the old behaviour.
+- **`scripts/recall-probe.js --no-decay [--limit 60]`:** runs the same frozen probe set without the recency factor, to tell whether age is what pushes old entries down. A diagnosis, not what agents get.
+- **The target is written down as a `todo` test:** an old hit that is first on both legs should outrank a fresh hit that is twentieth on one. It fails today by design and becomes a plain test when the default changes.
+
 ## 0.78.2 — 2026-11-23
 
 **A recall probe that needs no human judge: does `search` find an entry when asked with its own words? No behaviour change.**

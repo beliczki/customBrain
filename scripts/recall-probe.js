@@ -11,8 +11,11 @@
 // Usage (on the server, in the repo folder):
 //   node scripts/recall-probe.js --build [--size 150] [--seed N] [--force]
 //       sample the store once and freeze the probe set
-//   node scripts/recall-probe.js [--limit 10]
+//   node scripts/recall-probe.js [--limit 10] [--no-decay]
 //       run the frozen set and print the table
+//       --no-decay   search without the recency factor (a diagnosis, not what
+//                    agents get): shows what age does to the ranking
+//       --limit 60   also reports Hit@60, i.e. how deep the entry sits
 //
 // PRIVATE DATA: the probe set holds verbatim text of mails and meetings, and
 // the run files name the entries. Both stay under state/ (gitignored). Only the
@@ -25,7 +28,7 @@ import { applySettingsToEnv } from '../server/config.js';
 import { buildProbeSet, runProbes, summarize, formatSummary } from '../server/recall-probes.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-dotenv.config({ path: join(REPO_ROOT, '.env') });
+dotenv.config({ path: join(REPO_ROOT, '.env'), quiet: true });
 applySettingsToEnv();
 
 const SET_PATH = join(REPO_ROOT, 'state', 'recall-probes.json');
@@ -64,25 +67,27 @@ if (!existsSync(SET_PATH)) {
 }
 const set = JSON.parse(readFileSync(SET_PATH, 'utf8'));
 const limit = Number(valueOf('--limit', '10'));
+const recency = !has('--no-decay');
 const { searchThoughts } = await import('../server/routes/search.js');
 
 const started = Date.now();
 let done = 0;
 const search = async (query, max) => {
-  const hits = await searchThoughts(query, max);
+  const hits = await searchThoughts(query, max, { recency });
   done += 1;
   if (done % 25 === 0) console.error(`  ${done}/${set.probes.length}`);
   return hits;
 };
 const results = await runProbes(set.probes, search, { limit });
-const summary = summarize(set.probes, results, { now: started, ks: [1, 3, 10].filter((k) => k <= limit) });
-console.log(formatSummary(summary, { limit, set }));
+const ks = [...new Set([1, 3, 10, limit])].filter((k) => k <= limit).sort((a, b) => a - b);
+const summary = summarize(set.probes, results, { now: started, ks });
+console.log(formatSummary(summary, { limit, set, note: recency ? '' : 'NO time decay (diagnosis)' }));
 
 const runAt = new Date(started).toISOString();
 const seconds = Math.round((Date.now() - started) / 1000);
 const file = `${runAt.replace(/[:.]/g, '-')}.json`;
 mkdirSync(RUNS_DIR, { recursive: true });
-writeFileSync(join(RUNS_DIR, file), JSON.stringify({ run_at: runAt, seconds, limit, set: { seed: set.seed, created_at: set.created_at, size: set.size }, summary, results }, null, 2));
+writeFileSync(join(RUNS_DIR, file), JSON.stringify({ run_at: runAt, seconds, limit, recency, set: { seed: set.seed, created_at: set.created_at, size: set.size }, summary, results }, null, 2));
 console.log(`\n${seconds} s. Run saved to state/recall-probe-runs/${file}`);
 // The Qdrant client keeps sockets open; without an exit the process lingers.
 process.exit(0);

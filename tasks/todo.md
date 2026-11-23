@@ -1,6 +1,6 @@
 # Döntések 2026-11-23 — a szemantikai modell 12 kérdése, és a belőlük lett hét munka
 
-**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka kész, 0.78.1-ként commitolva és pusholva (2026-11-23); a szerverre a következő deploy viszi ki. A 3. munka 1–2. szelete kész, 0.78.2-ként commitolva és pusholva (2026-11-23); a kiinduló méréshez deploy kell, külön go-val. A 4–7. munkának még nincs terve.
+**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka kész; a 3. munka a kiinduló mérésig kész (a kérdésszerű szondák külön go). A szerveren a 0.78.2 fut (2026-11-23). Az időcsillapítás javítása a mérés alapján előrejött; a terv 1. szeletének kódja kész (0.78.3). A 4–7. munkának még nincs terve.
 **Hol vannak a döntések:** a projekt Drive-mappájában, `customBrain - a rendszer szemantikai modellje 2026-11-23 (tervezet).md`, 11. fejezet. A modell egészét Robi még nem hagyta jóvá.
 
 ## A döntések röviden
@@ -28,15 +28,15 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
   - `AGENTS.md`: a befogadás ellentmondás-ellenőrzése a kód szerint (0,97-es küszöb, külön Haiku-hívás); a „via SA” kikerült, mert service account 0.39.0 óta nincs; a tükör különbség alapú 0.40.0 óta; a szemantikai modell új fájljára mutat, és kimondja az új szót.
   - `DEPLOYMENT.md`: a két elavult telepítési megjegyzés a Settings fülre mutat.
 - [x] **2. Három ellenőrzés:** publikus repó (commit előtt: IP, ssh-adat, szerverútvonal), collection-lista (minden collection a mentés listáján vagy kimondott kivétel), két MCP-regisztráció (`mcp.js` és `mcp-stdio.js` ugyanazokat az eszközöket tartalmazza). A repóban ma nincs tesztfuttató és nincs git hook; a terv ezzel kezdődik. **Megírva 2026-11-23-án; a részletek lent.**
-- [ ] **3. Mérőpróba:** automatikus felidézés-próba. **Az 1–2. szelet megírva (2026-11-23); a kiinduló mérés a deploy után jön.** Kiindulás: a lenti 3. pont „A” rétege (automatikus recall-szondák, emberi gold nélkül).
+- [x] **3. Mérőpróba:** automatikus felidézés-próba. **Kész a kiinduló mérésig (2026-11-23): Találat@10 82,7%; a 90 napnál régebbieknél 64,7%. A részletek lent.** Kiindulás: a lenti 3. pont „A” rétege (automatikus recall-szondák, emberi gold nélkül).
 - [ ] **4. Vizuális anyagok, szűken.** A terv a Drive-mappában van (`vizualis-anyagok-terv-2026-10-16.md`). A verziósora elavult: 0.77.0 → 0.78.0-t ír, a kód már 0.78.0.
-- [ ] **5. Szál-entitás és időcsillapítás.** A javaslat csak a 2026-11-11-i session-riportban áll; terv nincs leírva.
+- [ ] **5. Szál-entitás és időcsillapítás.** A javaslat csak a 2026-11-11-i session-riportban áll; terv nincs leírva. **Az időcsillapítás része előrejött (Robi, 2026-11-23), külön tervvel lent; itt a szál-entitás marad.**
 - [ ] **6. Ellentmondás-kör.** A befogadás ma kérdés nélkül archivál (`server/routes/capture.js`); a kör ezt váltja.
 - [ ] **7. Átnevezés: thought → entry.** A terv mondja ki az ajtókat: az eszköznevek minden csatlakozó agentet érintenek; a collection és a payload-mezők átnevezése adatmigráció, egyirányú.
 
 ## 2. munka terve — három magától futó ellenőrzés
 
-**Állapot:** kész (2026-11-23), Robi jóváhagyásával („Igen, mehet”, a három kérdésre a javasolt válasszal). Commitolva és pusholva 0.78.1-ként (Robi: „Igen, 0.78.1”). A szerveren még 0.78.0 fut; a deploy külön go.
+**Állapot:** kész (2026-11-23), Robi jóváhagyásával („Igen, mehet”, a három kérdésre a javasolt válasszal). Commitolva és pusholva 0.78.1-ként (Robi: „Igen, 0.78.1”). A szerverre a 0.78.2 deployjával jutott ki (2026-11-23).
 **Kérte:** Robi (2026-11-23, 9. döntés).
 
 **Érint.** A szemantikai modell 2026-11-23-i tervezetének 8. fejezete, a 14., a 9. és a 10. szabály. A modell tervezet; erről a három szabályról Robi döntött.
@@ -65,7 +65,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 **Szeletek** (mindegyik önállóan ellenőrizhető).
 - [x] **1. Tesztfuttató és a collection-lista próbája.** `tests/collections.test.mjs`: (a) a `collections.js` minden exportált neve szerepel a `BACKED_UP` listán vagy egy új, kimondott `NOT_BACKED_UP` listán; (b) a `server/`, `cron/`, `agent/` és `scripts/` fájljai közül csak a `collections.js` írhatja be élő collection nevét, kivéve a régi, egyszeri scriptek felsorolt listáját. Gyökér `package.json`: `"test": "node --test tests/"`. **Kész:** új, üres `NOT_BACKED_UP` lista a `collections.js`-ben; a próba elsőre piros volt a hiányzó listán és négy scripten.
 - [x] **2. A két MCP-regisztráció próbája.** `tests/mcp-registrations.test.mjs`, a forrásfájlok szövegén: azonos eszköznevek és azonos leírás a két fájlban; minden regisztrált eszköznek van `TOOL_SCOPES` sora, és nincs sor eszköz nélkül. A két eltérő leírást a `mcp.js` bővebb szövegére egyeztetem. **Kész:** a próba elsőre piros volt a két leíráson; a `mcp-stdio.js` két leírása a `mcp.js` szövegét kapta. A próba a teljes regisztrációs blokkot hasonlítja össze, behúzás nélkül.
-- [x] **3. A beírt collection-nevek.** (a) Az egyszeri, régi scriptek a kivétellistára kerülnek. (b) A `backfill-chunks.js` és a még használt scriptek a `THOUGHTS` nevet importálják, egyenként. **Kész:** a kivétellistán három egyszeri script van (`reprocess-v2-prototype`, `backfill-task-types`, `migrate-to-hybrid-collection`). A nevet importálja a `backfill-chunks`, a `secret-exposure-audit`, a `calibrate-conflict-threshold` és a `p8-probe`. A `backfill-chunks.js` új importja ugyanarra a névre oldódik fel, mint a régi beírt érték; magát a scriptet helyben nem lehet futtatni.
+- [x] **3. A beírt collection-nevek.** (a) Az egyszeri, régi scriptek a kivétellistára kerülnek. (b) A `backfill-chunks.js` és a még használt scriptek a `THOUGHTS` nevet importálják, egyenként. **Kész:** a kivétellistán három egyszeri script van (`reprocess-v2-prototype`, `backfill-task-types`, `migrate-to-hybrid-collection`). A nevet importálja a `backfill-chunks`, a `secret-exposure-audit`, a `calibrate-conflict-threshold` és a `p8-probe`. A `backfill-chunks.js` új importja ugyanarra a névre oldódik fel, mint a régi beírt érték; magát a scriptet helyben nem lehet futtatni. **A szerveren a 0.78.2 deployja után, 2026-11-23-án hiba nélkül lefutott a cronból.**
 - [x] **4. Commit előtti ellenőrzés.** `scripts/check-public-repo.js` és `.githooks/pre-commit`; ebben a klónban egyszer `git config core.hooksPath .githooks`. Csak a hozzáadott sorokat nézi, általános mintákkal. A minták nem tartalmazhatnak valódi értéket, mert a repó publikus. `tests/check-public-repo.test.mjs` kitalált példákkal. **Kész:** a hook két dolgot néz (méret, publikus repó). A helyi tiltólista a git mappájában él, 22 bejegyzéssel, az infra-mapből. Eldobható klónban öt eset ment a jóslat szerint. Egyszeri kikapcsolás téves riasztásnál: `PUBLIC_REPO_CHECK=off`.
 - [x] **5. Lezárás:** az `AGENTS.md` „Tests / lint” sora, CHANGELOG, javasolt verzió 0.78.1 (patch). **Kész: az `AGENTS.md` sora, a CHANGELOG-bejegyzés és a 0.78.1-es verzió.**
 
@@ -98,13 +98,13 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 - A tiltólistába az infra-mapből egy kétbetűs töredék is bekerült, amely szinte minden sorra illett volna. A hat karakternél rövidebb bejegyzéseket kivettem.
 
 **Nyitva maradt.**
-- A 0.78.1 deployja: a szerveren még 0.78.0 fut. Külön go.
+- ~~A 0.78.1 deployja.~~ Kint van a 0.78.2-vel (2026-11-23).
 - A közös regisztrációs függvény, amely a duplikációt megszünteti: a 7. munka első szelete.
 - A követett fájlok 20 régi sora ma is illik a mintákra. A hook csak új sorokat néz, ezekhez nem nyúltam.
 
 ## 3. munka terve — mérőpróba: automatikus felidézés-próba
 
-**Állapot:** az 1. és a 2. szelet megírva és helyben kipróbálva (2026-11-23), Robi jóváhagyásával („Igen, mehet”; a három kérdésre a javasolt válasz: 150 szonda, csak a `search`, cron nélkül). Commitolva és pusholva 0.78.2-ként (Robi: „Igen, 0.78.2”). A kiinduló méréshez deploy kell, külön go-val.
+**Állapot:** az 1. és a 2. szelet megírva és helyben kipróbálva (2026-11-23), Robi jóváhagyásával („Igen, mehet”; a három kérdésre a javasolt válasz: 150 szonda, csak a `search`, cron nélkül). Commitolva és pusholva 0.78.2-ként (Robi: „Igen, 0.78.2”), kint van a szerveren, és a kiinduló mérés megvan (2026-11-23). A 4. szelet külön go.
 **Kérte:** Robi (2026-11-23, 8. döntés: „kicsi, ismételhető automatikus felidézés-próba”).
 
 **Mit mér, egy mondatban:** ha a brain egy bejegyzésének egy részletével kérdezünk, a `search` visszaadja-e azt a bejegyzést az első 1, 3, illetve 10 találat között. Emberi bírálat nem kell hozzá: a helyes találat maga a forrásbejegyzés. (A kód a bejegyzést ma `thought`-nak hívja.)
@@ -117,7 +117,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 
 **Visszakérdezés (új funkció).**
 - *Ide tartozik-e?* Igen: ennek a példánynak a keresését méri. A brandBrain a saját készletén mérne.
-- *Mi a legolcsóbb meglévő, ami a 80%-ot hozza?* A `scripts/p8-probe.js` (nyolc kézzel írt kérdés) és a `tasks/evaluator/questions.yaml` (emberi golddal). Egyik sem elég: a `p8-probe` a nyers keresési lábakat hívja, nem azt az útvonalat, amit az agent kap (időcsillapítás, dosszié-előny, chunk → szülő), és nem mintáz a tárból; a `questions.yaml` Robi idejét kéri. Átveszem tőlük a pillanatfelvétel formáját és a Wilson-intervallumot (`contradiction-probe`).
+- *Mi a legolcsóbb meglévő, ami a 80%-ot hozza?* A `scripts/p8-probe.js` (nyolc kézzel írt kérdés) és a `tasks/evaluator/questions.yaml` (emberi golddal). (Utólag, 2026-11-23: van egy harmadik is, a `scripts/prove-brain.js`, amelyet a terv írásakor nem vettem észre. Ugyanazt a nyolc kérdést használja, tehát a következtetés nem változik.) Egyik sem elég: a `p8-probe` a nyers keresési lábakat hívja, nem azt az útvonalat, amit az agent kap (időcsillapítás, dosszié-előny, chunk → szülő), és nem mintáz a tárból; a `questions.yaml` Robi idejét kéri. Átveszem tőlük a pillanatfelvétel formáját és a Wilson-intervallumot (`contradiction-probe`).
 - *Építés kell, vagy elég az eredmény?* Egy session az MCP-n át nem tud 150 keresést lefuttatni: a `search` teljes szövegeket ad vissza, a kontextus betelne. Ezért kell egy kis script a szerveren.
 
 **Érint.** A „Visszakeresés” alkotórész, a 7.3 `search` szerződés: csak olvasva. Szomszédok: a Qdrant (olvasás), a Gemini-embedding (szondánként egy hívás a kérdéshez), a `state/` mappa (két új fájl). Szabály nem változik. Új fogalom: „szonda” (egy lekérdezés az elvárt bejegyzés azonosítójával) és „szondakészlet” (a befagyasztott lista); ezek Robi jóváhagyásával kerülnek a fogalomtárba.
@@ -144,7 +144,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 **Szeletek.**
 - [x] **1. Tiszta modul és próbák, helyben.** `server/recall-probes.js`: mintavétel, részletvágás, pontozás, Wilson-intervallum; Qdrant és hálózat nélkül. `tests/recall-probes.test.mjs`. **Kész:** 12 új próba, először pirosan futottak; az `npm test` 29 próbája zöld. Ha egy részlet más bejegyzésben is szó szerint megvan, az is helyes találatnak számít.
 - [x] **2. A script.** `scripts/recall-probe.js`: `--build` elkészíti és befagyasztja a készletet (meglévőt csak `--force` ír felül); kapcsoló nélkül fut és mér. A tárból csak olvas. **Kész, de az éles tárral még nem futott.** Helyben álmodulokkal és 240 kitalált bejegyzéssel futtattam végig: készlet nélkül hibaüzenetet ad; a `--build` 150 szondát fagyaszt be, ebből 50 félretett; a második `--build`-et elutasítja; a futás táblát ír és pillanatfelvételt ment, kérdésszöveg nélkül; két futás ugyanazt a számot adja. Hogy a valódi `searchThoughts`-szal és a Qdranttal működik-e, az a szerveren derül ki.
-- [ ] **3. Kiinduló mérés a szerveren.** Deploy kell hozzá (a 0.78.1 sincs még kint), Robi go-jával, ssh-parancsonként. Utána: készlet, első futás, második futás az egyezéshez. Az összesített számok ide kerülnek.
+- [x] **3. Kiinduló mérés a szerveren.** Deploy kell hozzá (a 0.78.1 sincs még kint), Robi go-jával, ssh-parancsonként. Utána: készlet, első futás, második futás az egyezéshez. Az összesített számok ide kerülnek. **Kész (2026-11-23); az eredmény lent, a „Kiinduló mérés” részben.**
 - [ ] **4. Kérdésszerű szondák (külön go, a kiinduló mérés után).** Egy session nagyjából 30 friss bejegyzéshez (utolsó 8 hét) kérdést ír úgy, ahogy Robi kérdezné, a cím idézése nélkül; ezek a készlet második fajtája. Ezzel lesz mérhető a `map` és a `spider` csomagja is. Modellköltség a sessioné, a szerveren nincs modellhívás.
 - [ ] **5. Lezárás:** egy sor az `AGENTS.md`-be a futtatásról, CHANGELOG, javasolt verzió: patch. **Az `AGENTS.md` sora, a CHANGELOG-bejegyzés és a 0.78.2 kész; a szelet a kiinduló mérés számaival zárul.**
 
@@ -153,7 +153,121 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 2. **Mit mérjen az első változat?** Javaslat: csak a `search`-öt, szó szerinti részletekkel. A `map` és a `spider` a 4. szelettel jön, mert azokhoz horgony kell a kérdésben.
 3. **Legyen-e belőle cron?** Javaslat: nem. Kézzel indított futás változtatás előtt és után; cron csak akkor, ha a szám hasznosnak bizonyul.
 
-**Átnézés:** a szabály szerint nem kell (nincs új réteg, séma-, auth- vagy függőségváltozás; a deploy a szokásos).
+**Átnézés:** új réteg, séma-, auth- vagy függőségváltozás nincs. A globális szabály a deployt is az átnézendők közé sorolja, ezért a deploy előtt megkérdeztem Robit; ő átnézés nélkül kérte (2026-11-23), mert rutin patch-deploy.
+
+### Kiinduló mérés (2026-11-23, 0.78.2, a szerveren)
+
+**A deploy.** Robi go-jával, ssh-parancsonként jóváhagyva: az állapot olvasása, a `custombrain` leállítása, a port felszabadítása (már szabad volt), `git pull --ff-only` (0.78.0 → 0.78.2), indítás. `npm install` nem futott. A `pm2 save` Robi döntésére kimaradt: a régi MM két szervere éppen le volt állítva, és a mentés az ő állapotukat is rögzítette volna. Utána: a 3000-es portot a pm2 által követett folyamat tartja; a `/stats` 0.78.2-t ad; a hibanapló üres; a gráf újraépült. A deploy utáni első cron-körben (16:40 UTC) a módosított `backfill-chunks.js` hiba nélkül lefutott („nothing pending”), és a `gmail-intake` előző köre is hibátlan volt.
+
+**A készlet.** 150 szonda 1144 bejegyzésből, 50 félretett; egy szondának van több helyes találata.
+
+**Az eredmény.** Két futás, 77 és 78 másodperc; a 150 szondából egynél tért el a hely, eggyel.
+
+| Csoport | n | Találat@1 | @3 | @10 | 95%-os tartomány (@10) |
+|---|---|---|---|---|---|
+| mind | 150 | 33,3% | 46,0% | 82,7% | 75,8–87,9 |
+| 0–30 napos | 53 | 67,9% | 84,9% | 100% | 93,2–100 |
+| 31–90 napos | 29 | 41,4% | 69,0% | 93,1% | 78,0–98,1 |
+| 91–365 napos | 68 | 2,9% | 5,9% | 64,7% | 52,8–75,0 |
+| a szöveg eleje | 50 | 44,0% | 52,0% | 86,0% | 73,8–93,0 |
+| a szöveg közepe | 50 | 32,0% | 46,0% | 84,0% | 71,5–91,7 |
+| a szöveg vége | 50 | 24,0% | 40,0% | 78,0% | 64,8–87,2 |
+| rövid | 59 | 33,9% | 54,2% | 83,1% | 71,5–90,5 |
+| közepes | 55 | 36,4% | 45,5% | 80,0% | 67,6–88,4 |
+| hosszú | 36 | 27,8% | 33,3% | 86,1% | 71,3–93,9 |
+| levél | 36 | 44,4% | 58,3% | 80,6% | 65,0–90,2 |
+| meeting | 25 | 24,0% | 28,0% | 84,0% | 65,3–93,6 |
+| kézi | 66 | 36,4% | 54,5% | 83,3% | 72,6–90,4 |
+| videó | 23 | 17,4% | 21,7% | 82,6% | 62,9–93,0 |
+| hangolható rész | 100 | 31,0% | 44,0% | 84,0% | 75,6–89,9 |
+| félretett rész | 50 | 38,0% | 50,0% | 80,0% | 67,0–88,8 |
+
+A megtalált 124 szondából 118-at a kulcsszavas láb hozott (`bm25_exact`), 5 `weak_semantic`, 1 `high_dense`. A 26 kihagyottból 24 a 91–365 napos csoportba esik, 2 a 31–90 naposba. A mintában nincs egy évnél régebbi bejegyzés.
+
+**A jóslat és az eredmény.**
+- „A rövid és közepes bejegyzéseknél a Találat@10 95% fölött lesz”: **nem.** 83% és 80%.
+- „Alacsonyabb a hosszúak végéről vett részleteknél”: a szöveg vége a leggyengébb (78%), de a különbség a bizonytalanságon belül van; a hossz nem számít.
+- „Alacsonyabb a 90 napnál régebbieknél; ha látványos, az az időcsillapítás”: **igen, és ez a fő hatás.** Egy 90 napnál régebbi bejegyzés, ha a saját szavaival kérdezünk rá, 100-ból 3-szor az első találat, és 35-ször nincs az első tízben.
+- „Két futás ugyanazt adja”: igen.
+
+**Mit mond ez.** Az értelmezés a kód olvasásán alapul, külön futással nincs bizonyítva. A hibrid keresés RRF-pontszámai szűk sávban vannak: egy lábon az első hely 1/61-et ér, a harmincadik 1/90-et, vagyis a legjobb és egy közepes találat között másfélszeres a különbség. Az időcsillapítás ezt `1 / (1 + napok/90)`-nel szorozza, ami 180 napnál harmad, 270 napnál negyed. A szorzó így többet számít, mint az, hogy a találat hányadik volt: a 60 jelölt sorrendjét nagyrészt a kor dönti el. A kulcsszavas láb megtalálja a régi bejegyzést, de a frissebb, gyengébb találatok elé kerülnek. Egy csillapítás nélküli futás bizonyítaná; ahhoz kapcsoló kell a keresésbe.
+
+**Következmény.** Ez az 5. munka (szál-entitás és időcsillapítás) kiinduló száma. A sorrendről Robi dönt: a mérés szerint az időcsillapítás a legnagyobb veszteség, és külön is javítható, a szál-entitás nélkül.
+
+**Amit közben találtam, és nem javítottam.**
+- A gráf újraépítése a szerveren 19–24 másodperc (1139 csomópont). A `server/graph-worker.js` kommentje 632 bejegyzésnél 5,5 másodpercet ír; a költség négyzetesen nő.
+- A scriptek kimenetébe a dotenv tippsort ír, mert nincs `quiet` beállítva. Kozmetikai.
+
+## Időcsillapítás — terv (az 5. munkából előrehozva)
+
+**Állapot:** az 1. szelet kódja megírva és helyben kipróbálva (2026-11-23), Robi jóváhagyásával („Igen, mehet”). Commitolva és pusholva 0.78.3-ként (Robi: „Igen, 0.78.3”). A deploy és a diagnózis-futás ssh-parancsonként, Robi jóváhagyásával megy.
+**Robi válaszai a három kérdésre (2026-11-23): a javaslat szerint.** A csillapítás célja: a kor csak a közel egyforma erősségű találatok között döntsön; ami jobban egyezik, az legyen elöl, akármilyen régi. A képlet választása előtt kérdésszerű szondák kellenek. Az 1. szelet átnézés nélkül megy; az átnézés az új alapérték előtt jön.
+**Kérte:** Robi (2026-11-23: „Igen, terv rá”), a kiinduló mérés alapján. Az 5. munkában a szál-entitás marad.
+
+**A tünet (megfigyelve, 2026-11-23).** A 90 napnál régebbi bejegyzést a `search` a saját szavaival kérdezve 100-ból 3-szor adja első találatként, és 35-ször nem adja az első tízben. A 30 napnál frissebbeknél ugyanez 68 és 0.
+**A parancs, amely pirosat ad:** `node scripts/recall-probe.js` a szerveren, a 91–365 napos sor.
+
+**Források.**
+- A szemantikai modell 2026-11-23-i tervezete (tervezet): 2. fejezet 3. elv („a keresési réteg a felidézésre törekszik, a rangsoroló az agent”), 7.3 `search` szerződés („időcsillapítással”).
+- A kód: `recencyFactor` és `applyTimeDecay` a `server/routes/search.js`-ben. A szabály `1 / (1 + napok/90)`, szorzóként, a `search` és a típusos keresés (`queries=[…]`) végén is. A `spider` minden lépés ajánlatát ezzel szorozza.
+- CHANGELOG 0.65.0: „az egy recency-szabály”. ROADMAP: a csillapítás 2026-04-04-én került be (P1a); egy régi feljegyzés `no_decay` kapcsolót vet fel.
+- Robi 2026-05-17-i döntése: a keresési réteg célja, hogy a jó dokumentum benne legyen az első N-ben; a rangsorolást az agent végzi.
+
+**Mit mond a történet.** A csillapítás akkor került be (2026-04-04), amikor a tár legrégebbi bejegyzése is csak három hetes volt, tehát alig csillapított valamit. Később a kód kommentje szerint a 30 napos skála „túlbüntette az egy hónapnál régebbi tartalmat”, ezért a skála 90 nap lett; a szorzás maradt. 2026-05-17-én az RRF `k` értéke 2-ről 60-ra ment (az irodalmi alapértékre), ami a pontszámokat szűk sávba húzta. A hatás a tár korával nő, és eddig semmi nem mérte.
+
+**Hipotézisek, rangsorolva, mindegyik mellett a jóslat, amely megcáfolná.**
+1. **A szorzó felülírja a találat helyét,** mert az RRF-pontszámok sávja szűkebb, mint a szorzóé. Megcáfolná: csillapítás nélkül futtatva a régi bejegyzések Találat@10-e nem megy 90% fölé.
+2. **A régi bejegyzés be sem kerül a 60 jelölt közé.** Megcáfolná: csillapítás nélkül, 60-as listával a régiek is megvannak.
+3. **A régi bejegyzések rosszabbul vannak indexelve** (régebbi feldolgozás, hiányzó chunkok). Megcáfolná: csillapítás nélkül a régiek ugyanúgy megvannak, mint a frissek.
+
+Egy futás dönt a három között: csillapítás nélkül, 60-as listával, kor szerint bontva.
+
+**Mechanizmus (javítás, nem új funkció).**
+- **Egy mondatban:** a csillapítás szorzóként hat olyan pontszámokra, amelyeknek a sávja szűkebb, mint a szorzóé, ezért a sorrendet a kor dönti el, nem az egyezés.
+- **Testvérhibák, ugyanazzal a mechanizmussal:**
+  - a 30 napos skála esete: akkor a szám változott, a mechanizmus maradt, és a tár öregedésével visszajött;
+  - a `spider`: a `server/brain-map.js` kommentje szerint csillapítással „a friss szálak minden lépést elvisznek”, ezért a `map` KORÁBBI szekciója csillapítás nélkül hívja;
+  - a típusos keresés szó szerinti (`lex`) lába: a pontos egyezés is csillapodik;
+  - a dosszié ×1,5-ös és ×0,5-ös szorzója ugyanilyen szűk sávú pontszámokra hat (ezt most nem változtatom, csak megnevezem);
+  - a `find_files` saját képlete (egyezés × kor): ott a kor szerinti sorrend lehet szándék; külön kérdés.
+- **Hova kerül:** az egy közös szabályba. A végső pontozás tiszta függvénybe kerül, amelyet a `search` és a típusos keresés is hív; a `spider` ugyanazt a szabályt használja tovább.
+- **A felületet őrző próba:** „egy régi, mindkét lábon első találat megelőzi a friss, egy lábon huszadik találatot” (ma piros), és „két egyforma erősségű találat közül a frissebb van elöl” (zöldnek kell maradnia).
+
+**Miért nem elég a mai szondakészlet a képlet kiválasztásához.** A szó szerinti részlet a kulcsszavas lábat méri. Ha csak arra hangolunk, a „pontos egyezést ne csillapítsuk” szabály 100%-ot adna, miközben a jelentés alapú kérdéseknél semmi nem javulna. Ezért a választás előtt kérdésszerű szondák is kellenek, régi bejegyzésekre is (ez a 3. munka 4. szelete, ide hozva).
+
+**A szóba jövő képletek** (a választás a mérés után, nem most):
+- **(a) Korlátos szorzó:** a tényező nem megy egy alsó határ alá (például 0,8), így a kor csak a közel egyforma találatok között dönt. A legkisebb változtatás; a `spider` szabálya ugyanaz marad.
+- **(b) A kor mint harmadik rangsor az RRF-ben,** súllyal. A hatása felülről korlátos, és ugyanabban a mértékegységben van, mint a két keresési láb.
+- **(c) Csillapítás csak kérésre:** alapból nincs, az agent paraméterrel kéri.
+- **(d) Pontos egyezésnél nincs csillapítás.** Önmagában nem javaslom (lásd fent).
+Egyetlen irodalmi alapértékről nem tudok; a bevett gyakorlat áttekintése, forrásokkal, a 3. szelet része.
+
+**Érint.** A „Visszakeresés” alkotórész; a 7.3 `search` szerződés szövege változik, és vele a `map` és a `spider` eredménye is, mert mindkettő a keresésből indul. Minden agent más sorrendet kap.
+
+**Ajtó:** kétirányú, adat nem változik. A robbanási sugár nagy: minden keresés sorrendje. Ezért az alapértelmezés megváltoztatása előtt átnézést kérek (Codex és Chief Architect).
+
+**Jóslat.**
+- Csillapítás nélkül a 91–365 napos sor Találat@10-e 95% fölé, a Találat@1 60% fölé megy (1. hipotézis).
+- Korlátos szorzóval a régiek Találat@10-e 90% fölött lesz, a frisseké 100% marad.
+- Nem tudom: mit mutatnak a kérdésszerű szondák; és hogy a „mi a legfrissebb” jellegű kérdéseknél érzel-e romlást. Az utóbbit próba nem méri, csak a használat.
+
+**Varrat.** Helyben az `npm test` a tiszta pontozófüggvényen. A szerveren a felidézés-próba a hangolható részen, a végén a félretett részen.
+
+**Szeletek.**
+- [ ] **1. Diagnózis.** A végső pontozás tiszta függvénybe kerül, próbákkal; a `searchThoughts` és a típusos keresés kap egy `recency` kapcsolót (az alapérték változatlan, ahogy a `spider`nél már van); a próbascript `--no-decay` kapcsolót. Deploy, viselkedésváltozás nélkül (patch). Egy futás csillapítás nélkül, 60-as listával: eldönti a három hipotézist.
+  - **A kód kész (2026-11-23), a szerveren még nem futott.** Új `server/rescore.js` (a szabály és a dosszié-súlyok, változatlan számokkal) és `tests/rescore.test.mjs` (10 próba, először pirosan). A `server/routes/search.js` ezt hívja; a két keresőfüggvény harmadik, elhagyható paramétere a `recency`. A hívókat egyenként megnéztem: tíz hívó van, egyik sem ad át harmadik paramétert, tehát mindegyik a régi viselkedést kapja.
+  - **A cél próbaként rögzítve, `todo` jelöléssel:** „egy régi, mindkét lábon első találat megelőzi a friss, egy lábon huszadik találatot”. Ma megbukik, de a futást nem töri el; az alapérték megváltoztatásakor rendes próbává válik.
+  - **Helyi szimuláció a valódi pontozófüggvénnyel:** a script `--no-decay` és `--limit 60` kapcsolója működik. A játékmodellben a korral a régi bejegyzések lesüllyednek, kor nélkül elsők. Ez azt mutatja, hogy a mechanizmus elég a tünethez; azt nem, hogy az éles rendszerben is ez az ok.
+  - **A deploy utáni első ellenőrzés:** az alapértelmezett futásnak a kiinduló mérés számait kell visszaadnia (33,3 / 46,0 / 82,7%). Ha eltér, az átszervezés megváltoztatta a viselkedést, és vissza kell állni.
+- [ ] **2. Kérdésszerű szondák** (külön go). Egy session nagyjából 60 bejegyzéshez ír kérdést úgy, ahogy Robi kérdezné, a cím idézése nélkül: korcsoportonként 20-at. A készlet a szerveren marad.
+- [ ] **3. Képletek mérése.** A jelöltek a kapcsoló mögött futnak, az éles alapérték nem változik. Mindegyik a hangolható részen, mindkét szondafajtával; a legjobb a félretett részen is. A bevett gyakorlat áttekintése forrásokkal.
+- [ ] **4. Az új alapérték** (átnézés után, külön go): minor verzió, mert a keresés viselkedése változik; a CHANGELOG-ba az előtte–utána számok; a modell 7.3 szerződésének szövege.
+- [ ] **5. Utána:** a `spider` és a `map` KORÁBBI megkerülő megoldása az új szabállyal; kell-e még. Külön döntés.
+
+**Nyitott kérdések Robinak, a javaslatommal.**
+1. **Mi a csillapítás célja?** Javaslat: a kor csak a közel egyforma erősségű találatok között döntsön; ami jobban egyezik, az legyen elöl, akármilyen régi. Ez a 3. elvből következik, de kimondani neked kell, mert a 7.3 szerződés szövege lesz.
+2. **Kellenek-e a kérdésszerű szondák a választás előtt?** Javaslat: igen, különben a szó szerinti próbára hangolnánk.
+3. **Mehet-e az 1. szelet átnézés nélkül?** Javaslat: igen, mert az alapérték nem változik; az átnézés a 4. szelet előtt jön.
 
 ## AGENTS.md-méretkapu — terv
 
