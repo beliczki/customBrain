@@ -56,7 +56,7 @@ Copy `.env.example` to `.env` at REPO ROOT. Only `UI_SECRET` lives in `.env`: it
 Root `package.json` and `server/package.json` have separate dependency trees (no workspaces). Client has its own `package.json` too. Agent code imports from server's `node_modules` via relative paths.
 
 ### Tests / lint
-No `test` or `lint` scripts defined in any package.json. Verification is manual.
+`npm test` runs Node's built-in test runner: no dependencies, no server. It guards three rules: the collection list, the two MCP registrations, and the size of this file. `.githooks/pre-commit` runs `scripts/check-public-repo.js` on the added lines: an IP address, ssh data or a server path stops the commit. Whatever touches Qdrant or an external API is still verified on the server.
 
 ## Architecture
 

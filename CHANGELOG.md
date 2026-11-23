@@ -2,6 +2,18 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.78.1 — 2026-11-23
+
+**Three rules that only attention kept now have a check that runs by itself. No behaviour change.**
+
+- **`npm test`** (Node's built-in runner, no new dependency, no server needed), 17 tests in `tests/`:
+  - **Collections:** every exported collection name is in `BACKED_UP` or in the new, explicit `NOT_BACKED_UP` list (empty today), and only `server/collections.js` may type a live collection name. Three one-shot scripts of 2026-05 are listed as historical.
+  - **MCP registrations:** `server/mcp.js` and `server/mcp-stdio.js` register the same tools with the same text, and every tool has a `TOOL_SCOPES` row. The test went red on two descriptions that had drifted (`find_overconnected`, `rebuild_obsidian_vault`); `mcp-stdio.js` now carries the `mcp.js` wording.
+  - **`AGENTS.md` size:** all `AGENTS.md` files together stay under the limit the hook states (26 000 bytes; Codex reads project docs only up to 32 768).
+- **Collection name imported, not typed,** in four scripts, among them `scripts/backfill-chunks.js`, which cron runs every ten minutes. It is the pattern that made the backup snapshot a dead collection for 118 nights (fixed in 0.41.2). The value is unchanged, so nothing changes on the server until a collection is renamed.
+- **Pre-commit hook** (`.githooks/pre-commit`; enable once per clone with `git config core.hooksPath .githooks`): besides the `AGENTS.md` size gate it now runs `scripts/check-public-repo.js` on the added lines. This repo is public: an IP address, ssh data or a server path stops the commit. The patterns are generic; real values go into an untracked denylist inside the git folder. A false alarm can be bypassed for one commit with `PUBLIC_REPO_CHECK=off`.
+- **`AGENTS.md` trimmed** from 27 784 to about 25 000 bytes earlier the same day: history and inventory moved out, six statements brought in line with the code, no rule removed.
+
 ## 0.78.0 — 2026-11-01
 
 **A misspelt name left spider with an empty page, and the Graph drew 2400+ cross-layer edges in every view.**

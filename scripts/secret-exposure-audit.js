@@ -7,6 +7,7 @@ import { applySettingsToEnv } from '../server/config.js';
 applySettingsToEnv();
 
 import { QdrantClient } from '@qdrant/js-client-rest';
+import { THOUGHTS } from '../server/collections.js';
 
 /**
  * Read-only secret/credential exposure audit over the whole thoughts_v2
@@ -27,7 +28,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const COLLECTION = 'thoughts_v2';
+const COLLECTION = THOUGHTS;
 const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' });
 
 // Pattern classes, EN + HU. confidence: high = the match itself is

@@ -1,6 +1,6 @@
 # Döntések 2026-11-23 — a szemantikai modell 12 kérdése, és a belőlük lett hét munka
 
-**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka terve lent van, jóváhagyásra vár. A 3–7. munkának még nincs terve.
+**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka kész, 0.78.1-ként commitolva és pusholva (2026-11-23); a szerverre a következő deploy viszi ki. A 3–7. munkának még nincs terve.
 **Hol vannak a döntések:** a projekt Drive-mappájában, `customBrain - a rendszer szemantikai modellje 2026-11-23 (tervezet).md`, 11. fejezet. A modell egészét Robi még nem hagyta jóvá.
 
 ## A döntések röviden
@@ -27,7 +27,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 - [x] **1. Doksijavítás.** Ajtó: kétirányú, csak dokumentum. Kész, commitolva és pusholva 2026-11-23-án, Robi go-jával.
   - `AGENTS.md`: a befogadás ellentmondás-ellenőrzése a kód szerint (0,97-es küszöb, külön Haiku-hívás); a „via SA” kikerült, mert service account 0.39.0 óta nincs; a tükör különbség alapú 0.40.0 óta; a szemantikai modell új fájljára mutat, és kimondja az új szót.
   - `DEPLOYMENT.md`: a két elavult telepítési megjegyzés a Settings fülre mutat.
-- [ ] **2. Három ellenőrzés:** publikus repó (commit előtt: IP, ssh-adat, szerverútvonal), collection-lista (minden collection a mentés listáján vagy kimondott kivétel), két MCP-regisztráció (`mcp.js` és `mcp-stdio.js` ugyanazokat az eszközöket tartalmazza). A repóban ma nincs tesztfuttató és nincs git hook; a terv ezzel kezdődik.
+- [x] **2. Három ellenőrzés:** publikus repó (commit előtt: IP, ssh-adat, szerverútvonal), collection-lista (minden collection a mentés listáján vagy kimondott kivétel), két MCP-regisztráció (`mcp.js` és `mcp-stdio.js` ugyanazokat az eszközöket tartalmazza). A repóban ma nincs tesztfuttató és nincs git hook; a terv ezzel kezdődik. **Megírva 2026-11-23-án; a részletek lent.**
 - [ ] **3. Mérőpróba:** automatikus felidézés-próba. Kiindulás: a lenti 3. pont „A” rétege (automatikus recall-szondák, emberi gold nélkül).
 - [ ] **4. Vizuális anyagok, szűken.** A terv a Drive-mappában van (`vizualis-anyagok-terv-2026-10-16.md`). A verziósora elavult: 0.77.0 → 0.78.0-t ír, a kód már 0.78.0.
 - [ ] **5. Szál-entitás és időcsillapítás.** A javaslat csak a 2026-11-11-i session-riportban áll; terv nincs leírva.
@@ -36,7 +36,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 
 ## 2. munka terve — három magától futó ellenőrzés
 
-**Állapot:** terv, Robi jóváhagyására vár (2026-11-23). Kód még nincs.
+**Állapot:** kész (2026-11-23), Robi jóváhagyásával („Igen, mehet”, a három kérdésre a javasolt válasszal). Commitolva és pusholva 0.78.1-ként (Robi: „Igen, 0.78.1”). A szerveren még 0.78.0 fut; a deploy külön go.
 **Kérte:** Robi (2026-11-23, 9. döntés).
 
 **Érint.** A szemantikai modell 2026-11-23-i tervezetének 8. fejezete, a 14., a 9. és a 10. szabály. A modell tervezet; erről a három szabályról Robi döntött.
@@ -63,11 +63,11 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 **Varrat.** `npm test` a repó gyökerében (a Node beépített tesztfuttatója, új függőség nélkül). A hooknál a `scripts/check-public-repo.js` parancssora: a bemenet egy diff, a kimenet a találatok és a kilépési kód.
 
 **Szeletek** (mindegyik önállóan ellenőrizhető).
-- [ ] **1. Tesztfuttató és a collection-lista próbája.** `tests/collections.test.mjs`: (a) a `collections.js` minden exportált neve szerepel a `BACKED_UP` listán vagy egy új, kimondott `NOT_BACKED_UP` listán; (b) a `server/`, `cron/`, `agent/` és `scripts/` fájljai közül csak a `collections.js` írhatja be élő collection nevét, kivéve a régi, egyszeri scriptek felsorolt listáját. Gyökér `package.json`: `"test": "node --test tests/"`.
-- [ ] **2. A két MCP-regisztráció próbája.** `tests/mcp-registrations.test.mjs`, a forrásfájlok szövegén: azonos eszköznevek és azonos leírás a két fájlban; minden regisztrált eszköznek van `TOOL_SCOPES` sora, és nincs sor eszköz nélkül. A két eltérő leírást a `mcp.js` bővebb szövegére egyeztetem.
-- [ ] **3. A beírt collection-nevek.** (a) Az egyszeri, régi scriptek a kivétellistára kerülnek. (b) A `backfill-chunks.js` és a még használt scriptek a `THOUGHTS` nevet importálják, egyenként.
-- [ ] **4. Commit előtti ellenőrzés.** `scripts/check-public-repo.js` és `.githooks/pre-commit`; ebben a klónban egyszer `git config core.hooksPath .githooks`. Csak a hozzáadott sorokat nézi, általános mintákkal. A minták nem tartalmazhatnak valódi értéket, mert a repó publikus. `tests/check-public-repo.test.mjs` kitalált példákkal.
-- [ ] **5. Lezárás:** az `AGENTS.md` „Tests / lint” sora, CHANGELOG, javasolt verzió 0.78.1 (patch).
+- [x] **1. Tesztfuttató és a collection-lista próbája.** `tests/collections.test.mjs`: (a) a `collections.js` minden exportált neve szerepel a `BACKED_UP` listán vagy egy új, kimondott `NOT_BACKED_UP` listán; (b) a `server/`, `cron/`, `agent/` és `scripts/` fájljai közül csak a `collections.js` írhatja be élő collection nevét, kivéve a régi, egyszeri scriptek felsorolt listáját. Gyökér `package.json`: `"test": "node --test tests/"`. **Kész:** új, üres `NOT_BACKED_UP` lista a `collections.js`-ben; a próba elsőre piros volt a hiányzó listán és négy scripten.
+- [x] **2. A két MCP-regisztráció próbája.** `tests/mcp-registrations.test.mjs`, a forrásfájlok szövegén: azonos eszköznevek és azonos leírás a két fájlban; minden regisztrált eszköznek van `TOOL_SCOPES` sora, és nincs sor eszköz nélkül. A két eltérő leírást a `mcp.js` bővebb szövegére egyeztetem. **Kész:** a próba elsőre piros volt a két leíráson; a `mcp-stdio.js` két leírása a `mcp.js` szövegét kapta. A próba a teljes regisztrációs blokkot hasonlítja össze, behúzás nélkül.
+- [x] **3. A beírt collection-nevek.** (a) Az egyszeri, régi scriptek a kivétellistára kerülnek. (b) A `backfill-chunks.js` és a még használt scriptek a `THOUGHTS` nevet importálják, egyenként. **Kész:** a kivétellistán három egyszeri script van (`reprocess-v2-prototype`, `backfill-task-types`, `migrate-to-hybrid-collection`). A nevet importálja a `backfill-chunks`, a `secret-exposure-audit`, a `calibrate-conflict-threshold` és a `p8-probe`. A `backfill-chunks.js` új importja ugyanarra a névre oldódik fel, mint a régi beírt érték; magát a scriptet helyben nem lehet futtatni.
+- [x] **4. Commit előtti ellenőrzés.** `scripts/check-public-repo.js` és `.githooks/pre-commit`; ebben a klónban egyszer `git config core.hooksPath .githooks`. Csak a hozzáadott sorokat nézi, általános mintákkal. A minták nem tartalmazhatnak valódi értéket, mert a repó publikus. `tests/check-public-repo.test.mjs` kitalált példákkal. **Kész:** a hook két dolgot néz (méret, publikus repó). A helyi tiltólista a git mappájában él, 22 bejegyzéssel, az infra-mapből. Eldobható klónban öt eset ment a jóslat szerint. Egyszeri kikapcsolás téves riasztásnál: `PUBLIC_REPO_CHECK=off`.
+- [x] **5. Lezárás:** az `AGENTS.md` „Tests / lint” sora, CHANGELOG, javasolt verzió 0.78.1 (patch). **Kész: az `AGENTS.md` sora, a CHANGELOG-bejegyzés és a 0.78.1-es verzió.**
 
 **Mechanizmus-javítás a kis javítás mellé.**
 - **10. szabály.** Mechanizmus: ugyanaz a 21 regisztráció kétszer van begépelve. Élő testvérhiba: a két eltérő leírás. A próba csak jelzi az eltérést; megszüntetni egy közös `registerCoreTools(server, z)` tudja, ahogy az `agent/register.js` már csinálja az agent-eszközökkel. Ez a futó MCP-kiszolgálást érinti, deploy kell hozzá. **Javaslat: a 7. munka (átnevezés) első szelete legyen,** mert az úgyis minden regisztrációhoz hozzányúl. Addig a 2. szelet próbája őrzi.
@@ -80,12 +80,34 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 
 **Átnézés:** a szabály szerint nem kell (nincs új réteg, séma-, auth- vagy függőségváltozás).
 
+### Review (2026-11-23)
+
+**Robi válasza a három kérdésre:** mindhárom a javaslat szerint (az ellenőrzés itt él a repóban; van helyi tiltólista; a cron-script javítása ezzel a munkával ment).
+
+**A jóslat és az eredmény.**
+- Az `npm test` helyben, hálózat és `.env` nélkül lefut: igen, 17 próba, körülbelül egy tized másodperc alatt.
+- A 10. szabály próbája elsőre piros a két leíráson: igen, pontosan azon a kettőn.
+- A 9. szabály próbája elsőre piros a `backfill-chunks.js`-en és öt társán: részben. Négy scripten lett piros, mert a három egyszeri scriptet már a próba megírásakor a kivétellistára tettem.
+- A hook megállítja az IP-címet tartalmazó commitot, és átengedi a mai `f41552b` tartalmát: igen. Az ssh-mintákat csak a próbák fedik; valódi commiton nem próbáltam őket.
+- Változatlan a szerver viselkedése és az MCP-eszközök neve és sémája: a kódból ez következik, de a szerveren nem mértem, mert a változás csak a következő deployjal jut ki. A `mcp-stdio.js` két leírása megváltozott; ez csak a helyi stdio-kapcsolatot érinti.
+- Hamis riasztások: az utolsó 60 commitból az ellenőrzés egyet állított volna meg (2026-10-10, szerverútvonal a `CHANGELOG.md`-ben), és az valódi találat.
+
+**Amit a terv nem látott előre.**
+- A hook első változata kilépett, ha az `AGENTS.md` nem volt a commitban; a második ellenőrzés miatt át kellett szervezni.
+- A próbafájl példái maguk is megakasztották volna a commitot, ezért darabokból állnak össze.
+- A tiltólistába az infra-mapből egy kétbetűs töredék is bekerült, amely szinte minden sorra illett volna. A hat karakternél rövidebb bejegyzéseket kivettem.
+
+**Nyitva maradt.**
+- A 0.78.1 deployja: a szerveren még 0.78.0 fut. Külön go.
+- A közös regisztrációs függvény, amely a duplikációt megszünteti: a 7. munka első szelete.
+- A követett fájlok 20 régi sora ma is illik a mintákra. A hook csak új sorokat néz, ezekhez nem nyúltam.
+
 ## AGENTS.md-méretkapu — terv
 
 **Állapot:** Robi az (a) lehetőséget választotta (2026-11-23: „Kapu most”). Az 1. szelet kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. és a 3. szelet is kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 4. szelet a 2. munkával jön.
 **Kérte:** a Learning session (2026-11-23), Robi nevében; szerinte Robi azt mondta: „Igen, szólj nekik”. A go-t Robi ebben a sessionben adta.
 
-**Miért.** A Learning session és a bizi-repó hookja szerint a Codex a projekt `AGENTS.md`-jét 32 768 bájtig olvassa, a többit csendben levágja. A határt magam nem ellenőriztem; a helyi Codex-beállításban nincs felülírva.
+**Miért.** A Learning session és a bizi-repó hookja szerint a Codex a projekt `AGENTS.md`-jét 32 768 bájtig olvassa, a többit csendben levágja. A helyi Codex-beállításban a határ nincs felülírva. **Ellenőrizve 2026-11-23-án a helyi Codex bináris szövegeiben** (codex-cli 0.171.0-alpha.13), a Learning session jelzése után magam is megnéztem: szerepel benne a `project_doc_max_bytes = 32768`, a „project doc exceeds remaining budget; truncating” üzenet, és az, hogy a keret csak a projektfájlokra vonatkozik (a globális szabályfájl nem számít bele). A Learning session szerint a keret a repó gyökerétől a munkamappáig talált összes `AGENTS.md`-re közös; ebben a repóban ma egy ilyen fájl van, és az `npm test` a fájlok összegét méri.
 
 **Mérés (2026-11-23).**
 - Az `AGENTS.md` ma 27 471 bájt. A mai doksijavítások előtt 26 662 volt, tehát a bizi 26 000-es küszöbét már tegnap is meghaladta.
@@ -109,7 +131,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
   - **Következmény:** a 216 bájt gyakorlatilag azt jelenti, hogy az `AGENTS.md`-be a vágásig nem fér új szabály. A 2. szeletnek ezért a 2. munka lezárása előtt kell megtörténnie.
 - [x] **2. A vágás.** **Alkalmazva 2026-11-23-án, Robi jóváhagyásával: 27 784 → 24 761 bájt.** A „Deploy” szakasz bájtra azonos maradt, és 22 kulcsszabály szövegét egyenként visszakerestem az új fájlban. A vágás közben hat állítást a kódhoz igazítottam: a collection neve, az MCP állapot nélküli kezelője, a kész spider, a félrevezető token-script sor, a bump-példák számai és a Qdrant indítása. Az eredeti terv: tételes javaslat diffként, Robi jóváhagyására: minden kivett mondat mellett ott áll, hol él tovább a tény (a kódban, a CHANGELOG-ban vagy a szemantikai modellben). Szabály nem vész el. Jelöltek: az „MCP tools” szakasz verziótörténete és leltár jellegű sorai; a ma hosszabbra írt „Meaning before code” és „Capture pipeline” sorok tömörítése.
 - [x] **3. A küszöb 26 000-re** (2026-11-23): a hookban és a „Size” sorban, a vágással egy változtatásban. A hook a vágott fájlt (24 761 bájt) átengedi; a küszöbig 1 239 bájt maradt.
-- [ ] **4. Második háló a 2. munkában:** ugyanez a mérés az `npm test`-ben is, mert a hook klónonként kapcsolódik be, a teszt mindenhol fut. A biziben ezt az `npm run lint` végzi.
+- [x] **4. Második háló a 2. munkában:** ugyanez a mérés az `npm test`-ben is, mert a hook klónonként kapcsolódik be, a teszt mindenhol fut. A biziben ezt az `npm run lint` végzi. **Kész (2026-11-23):** `tests/agents-size.test.mjs`; a küszöböt a hookból olvassa, így egy helyen él.
 
 **Jóslat.** Az 1. szelet után egy `AGENTS.md`-t növelő commit 28 000 bájt fölött megáll; minden más commit változatlanul megy. A 2. szelet után a fájl 26 000 bájt alatt van, és ugyanazokat a szabályokat tartalmazza. Nem tudom: mennyi vágható ki úgy, hogy szabály ne vesszen el; ezt a tételes javaslat mutatja meg.
 

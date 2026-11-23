@@ -26,3 +26,8 @@ export const COMMITMENTS = 'commitments';
 // in the same change that creates it — the S1 incident above is what an
 // unlisted collection looks like.
 export const BACKED_UP = [THOUGHTS, COMMITMENTS];
+
+// Collections the nightly backup leaves out on purpose, each with its reason.
+// A collection is in exactly one of the two lists; tests/collections.test.mjs
+// fails otherwise.
+export const NOT_BACKED_UP = [];

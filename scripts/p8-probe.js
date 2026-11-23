@@ -2,6 +2,7 @@ import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import { THOUGHTS } from '../server/collections.js';
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(MODULE_DIR, '..');
@@ -26,7 +27,7 @@ const HIT_AT = Number(arg('--hit-at', '5'));
 const ANNOTATIONS_REL = arg('--annotations', 'tasks/p8.2-annotations.json');
 const ANNOTATIONS_PATH = resolve(REPO_ROOT, ANNOTATIONS_REL);
 
-const COLLECTION = 'thoughts_v2';
+const COLLECTION = THOUGHTS;
 const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' });
 
 const QUERIES = [

@@ -1,10 +1,22 @@
 #!/bin/sh
-# AGENTS.md size gate (Codex reads project docs only up to 32 768 bytes).
 # Enable once per clone: git config core.hooksPath .githooks
-# Checks the staged version, so a pathspec commit is gated too.
-git diff --cached --name-only | grep -qx 'AGENTS.md' || exit 0
-size=$(git show :AGENTS.md | wc -c | tr -d ' ')
-if [ "$size" -gt 26000 ]; then
-  echo "pre-commit: AGENTS.md is $size bytes, limit 26000. Trim it (see the Size line at the top)." >&2
-  exit 1
+
+# 1. AGENTS.md size gate (Codex reads project docs only up to 32 768 bytes).
+#    Checks the staged version, so a pathspec commit is gated too.
+if git diff --cached --name-only | grep -qx 'AGENTS.md'; then
+  size=$(git show :AGENTS.md | wc -c | tr -d ' ')
+  if [ "$size" -gt 26000 ]; then
+    echo "pre-commit: AGENTS.md is $size bytes, limit 26000. Trim it (see the Size line at the top)." >&2
+    exit 1
+  fi
+fi
+
+# 2. Public repo: no IP address, ssh data or server path in the added lines.
+#    False alarm: PUBLIC_REPO_CHECK=off git commit ...
+if [ "${PUBLIC_REPO_CHECK:-on}" != "off" ]; then
+  if command -v node >/dev/null 2>&1; then
+    git diff --cached -U0 --no-color | node scripts/check-public-repo.js || exit 1
+  else
+    echo "pre-commit: node not found, the public-repo check was skipped." >&2
+  fi
 fi

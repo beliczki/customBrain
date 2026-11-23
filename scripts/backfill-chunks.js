@@ -17,10 +17,11 @@ applySettingsToEnv();
 import { enrichWithChunks } from '../server/routes/capture.js';
 import { CHUNK_THRESHOLD } from '../server/chunking.js';
 import { updatePayload } from '../server/qdrant.js';
+import { THOUGHTS } from '../server/collections.js';
 import { QdrantClient } from '@qdrant/js-client-rest';
 
 const q = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' });
-const COLLECTION = 'thoughts_v2';
+const COLLECTION = THOUGHTS;
 const N = parseInt(process.argv[2], 10) || 10;
 
 async function scrollThoughts() {

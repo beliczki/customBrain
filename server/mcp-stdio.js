@@ -256,7 +256,7 @@ server.tool(
 
 server.tool(
   'find_overconnected',
-  'Find thoughts wrongly linked to many others via over-broad metadata. Sorted by hub_score. Use before suggest_metadata_fix + update_thought to surface brain-hygiene candidates.',
+  'Find thoughts that are wrongly linked to many others via over-broad metadata. Sorted by hub_score (sum of thoughts reachable via shared projects/people). Use before suggest_metadata_fix + update_thought to surface brain-hygiene candidates.',
   {
     limit: z.number().optional().describe('How many top candidates to return (default 10)'),
     min_project_count: z.number().optional().describe('Flag thoughts with this many or more projects (default 5)'),
@@ -350,7 +350,7 @@ server.tool(
 
 server.tool(
   'rebuild_obsidian_vault',
-  'Sync the Obsidian vault on Google Drive (incremental md5 diff — only new/changed files are written)',
+  'Sync the Obsidian vault on Google Drive — incremental md5 diff: writes only new/changed thoughts as linked markdown with YAML frontmatter, deletes orphans',
   {},
   async () => {
     const results = await exportThoughts();

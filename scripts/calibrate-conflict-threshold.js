@@ -20,9 +20,10 @@ const REPO_ROOT = resolve(MODULE_DIR, '..');
 dotenv.config({ path: join(REPO_ROOT, '.env') });
 
 import { QdrantClient } from '@qdrant/js-client-rest';
+import { THOUGHTS } from '../server/collections.js';
 
 const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' });
-const COLLECTION = 'thoughts_v2';
+const COLLECTION = THOUGHTS;
 const TOP_PAIRS_IDX = process.argv.indexOf('--top-pairs');
 const TOP_PAIRS = TOP_PAIRS_IDX >= 0 ? Number(process.argv[TOP_PAIRS_IDX + 1]) : 20;
 const OUT_PATH = resolve(REPO_ROOT, 'tasks', 'p8.2-threshold-calibration.json');
