@@ -108,6 +108,8 @@ Cheapest tool first — climb only when the rung below can't answer:
 
 **Contradiction probe:** `node scripts/contradiction-probe.js [--max-pairs N]` — a read-only Haiku judge over semantically close pairs below the capture-time dedup band. It never mutates. The verdicts, the cache and the build-more gate are described at the top of the script.
 
+**Recall probe:** `node scripts/recall-probe.js` on the server (`--build` once, to freeze the probe set) — read-only. It asks `search` with verbatim excerpts of sampled thoughts and prints Hit@1/3/10. The set and the run files under `state/` hold private text: never commit them.
+
 ## One backend, two interfaces
 
 Route files export an Express router (default) and a named function for core logic. MCP tools in `server/mcp.js` call these functions directly — no HTTP hop. React UI calls routes via fetch.

@@ -2,6 +2,16 @@
 
 Semantic versioning (`major.minor.patch`). One version for all of customBrain: the root `package.json`, plus `extension/manifest.json` because Chrome requires its own. Since 0.39.1 `server/package.json` and `client/package.json` carry no `version` field.
 
+## 0.78.2 — 2026-11-23
+
+**A recall probe that needs no human judge: does `search` find an entry when asked with its own words? No behaviour change.**
+
+- **`scripts/recall-probe.js`** (run by hand on the server, read-only): `--build` samples the store once, stratified by source and length, and freezes 150 probes, a third of them held out. A probe is a verbatim 12–20 word excerpt from the start, the middle or the end of an entry's original text, never from its stored summary. The right answer is the entry it came from, plus any other entry that holds the same words. A run sends each probe through the real `searchThoughts` (hybrid search, chunk roll-up, time decay, dossier boost) and prints Hit@1 / @3 / @10 with Wilson intervals, by source, length, position and age. No LLM call; one query embedding per probe.
+- **`server/recall-probes.js`** holds everything the script computes as pure functions; 12 tests in `tests/recall-probes.test.mjs` run them on made-up entries.
+- **Private data stays out of git:** the probe set quotes mails and meetings, so it and the run files live under `state/`. Only the printed table, which has no entry text, goes into the repo.
+- **Known limit:** an excerpt rewards exact-word matching. The number is a floor for the index ("can every part of the stored text be found"), not a measure of real questions, and it says nothing about `map` or `spider` yet.
+- Not yet run against the live store: the first measurement follows the deploy of this version.
+
 ## 0.78.1 — 2026-11-23
 
 **Three rules that only attention kept now have a check that runs by itself. No behaviour change.**

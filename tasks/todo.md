@@ -1,6 +1,6 @@
 # Döntések 2026-11-23 — a szemantikai modell 12 kérdése, és a belőlük lett hét munka
 
-**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka kész, 0.78.1-ként commitolva és pusholva (2026-11-23); a szerverre a következő deploy viszi ki. A 3–7. munkának még nincs terve.
+**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. munka kész, 0.78.1-ként commitolva és pusholva (2026-11-23); a szerverre a következő deploy viszi ki. A 3. munka 1–2. szelete kész, 0.78.2-ként commitolva és pusholva (2026-11-23); a kiinduló méréshez deploy kell, külön go-val. A 4–7. munkának még nincs terve.
 **Hol vannak a döntések:** a projekt Drive-mappájában, `customBrain - a rendszer szemantikai modellje 2026-11-23 (tervezet).md`, 11. fejezet. A modell egészét Robi még nem hagyta jóvá.
 
 ## A döntések röviden
@@ -28,7 +28,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
   - `AGENTS.md`: a befogadás ellentmondás-ellenőrzése a kód szerint (0,97-es küszöb, külön Haiku-hívás); a „via SA” kikerült, mert service account 0.39.0 óta nincs; a tükör különbség alapú 0.40.0 óta; a szemantikai modell új fájljára mutat, és kimondja az új szót.
   - `DEPLOYMENT.md`: a két elavult telepítési megjegyzés a Settings fülre mutat.
 - [x] **2. Három ellenőrzés:** publikus repó (commit előtt: IP, ssh-adat, szerverútvonal), collection-lista (minden collection a mentés listáján vagy kimondott kivétel), két MCP-regisztráció (`mcp.js` és `mcp-stdio.js` ugyanazokat az eszközöket tartalmazza). A repóban ma nincs tesztfuttató és nincs git hook; a terv ezzel kezdődik. **Megírva 2026-11-23-án; a részletek lent.**
-- [ ] **3. Mérőpróba:** automatikus felidézés-próba. Kiindulás: a lenti 3. pont „A” rétege (automatikus recall-szondák, emberi gold nélkül).
+- [ ] **3. Mérőpróba:** automatikus felidézés-próba. **Az 1–2. szelet megírva (2026-11-23); a kiinduló mérés a deploy után jön.** Kiindulás: a lenti 3. pont „A” rétege (automatikus recall-szondák, emberi gold nélkül).
 - [ ] **4. Vizuális anyagok, szűken.** A terv a Drive-mappában van (`vizualis-anyagok-terv-2026-10-16.md`). A verziósora elavult: 0.77.0 → 0.78.0-t ír, a kód már 0.78.0.
 - [ ] **5. Szál-entitás és időcsillapítás.** A javaslat csak a 2026-11-11-i session-riportban áll; terv nincs leírva.
 - [ ] **6. Ellentmondás-kör.** A befogadás ma kérdés nélkül archivál (`server/routes/capture.js`); a kör ezt váltja.
@@ -101,6 +101,59 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 - A 0.78.1 deployja: a szerveren még 0.78.0 fut. Külön go.
 - A közös regisztrációs függvény, amely a duplikációt megszünteti: a 7. munka első szelete.
 - A követett fájlok 20 régi sora ma is illik a mintákra. A hook csak új sorokat néz, ezekhez nem nyúltam.
+
+## 3. munka terve — mérőpróba: automatikus felidézés-próba
+
+**Állapot:** az 1. és a 2. szelet megírva és helyben kipróbálva (2026-11-23), Robi jóváhagyásával („Igen, mehet”; a három kérdésre a javasolt válasz: 150 szonda, csak a `search`, cron nélkül). Commitolva és pusholva 0.78.2-ként (Robi: „Igen, 0.78.2”). A kiinduló méréshez deploy kell, külön go-val.
+**Kérte:** Robi (2026-11-23, 8. döntés: „kicsi, ismételhető automatikus felidézés-próba”).
+
+**Mit mér, egy mondatban:** ha a brain egy bejegyzésének egy részletével kérdezünk, a `search` visszaadja-e azt a bejegyzést az első 1, 3, illetve 10 találat között. Emberi bírálat nem kell hozzá: a helyes találat maga a forrásbejegyzés. (A kód a bejegyzést ma `thought`-nak hívja.)
+
+**Források.**
+- A szemantikai modell 2026-11-23-i tervezete (tervezet): 2. fejezet 3. elv („a keresési réteg a felidézésre törekszik, a rangsoroló az agent”) és 6. elv („előbb mérés, utána építés”); 4. fejezet, 3. munka.
+- Ez a fájl, lent a „3. A tanulmány 11. fejezetének mérése” pont újratervezése, „A” réteg (2026-10-09): szó szerinti forrásrészletből készült lekérdezés, a helyes találat a forrás.
+- `ROADMAP.md`, AUTORESEARCH (2026-10-10): az automatikus evaluator a feltétele; a mérőszám a csomag-felidézés; ismert torzítás, hogy a szövegből vett kérdés a szó szerinti egyezést jutalmazza; a készlet egy része félretett.
+- Robi 2026-10-09-i visszajelzése: a „tű” kérdéseket ő ne bírálja; az automatikus szondához nem kell emberi gold.
+
+**Visszakérdezés (új funkció).**
+- *Ide tartozik-e?* Igen: ennek a példánynak a keresését méri. A brandBrain a saját készletén mérne.
+- *Mi a legolcsóbb meglévő, ami a 80%-ot hozza?* A `scripts/p8-probe.js` (nyolc kézzel írt kérdés) és a `tasks/evaluator/questions.yaml` (emberi golddal). Egyik sem elég: a `p8-probe` a nyers keresési lábakat hívja, nem azt az útvonalat, amit az agent kap (időcsillapítás, dosszié-előny, chunk → szülő), és nem mintáz a tárból; a `questions.yaml` Robi idejét kéri. Átveszem tőlük a pillanatfelvétel formáját és a Wilson-intervallumot (`contradiction-probe`).
+- *Építés kell, vagy elég az eredmény?* Egy session az MCP-n át nem tud 150 keresést lefuttatni: a `search` teljes szövegeket ad vissza, a kontextus betelne. Ezért kell egy kis script a szerveren.
+
+**Érint.** A „Visszakeresés” alkotórész, a 7.3 `search` szerződés: csak olvasva. Szomszédok: a Qdrant (olvasás), a Gemini-embedding (szondánként egy hívás a kérdéshez), a `state/` mappa (két új fájl). Szabály nem változik. Új fogalom: „szonda” (egy lekérdezés az elvárt bejegyzés azonosítójával) és „szondakészlet” (a befagyasztott lista); ezek Robi jóváhagyásával kerülnek a fogalomtárba.
+
+**Ajtó:** kétirányú. Új script, egy tiszta függvénymodul és próbák; a szerveren csak olvas a tárból, és két fájlt ír a `state/` alá. A futó szerver viselkedése nem változik.
+
+**A publikus repó miatt:** a szondakészlet magánlevelek és meetingek szó szerinti részleteit tartalmazza. **A készlet és a pillanatfelvétel ezért a szerver `state/` mappájában marad, a gitbe soha nem kerül.** A repóba és ebbe a fájlba csak összesített számok és bejegyzés-azonosítók jönnek.
+
+**Hogyan működik.**
+1. **Készlet (egyszer, befagyasztva):** magértékkel (seed) vett, rétegzett minta a tárból, forrás (levél, meeting, kézi, videó) és hossz szerint. Minden kiválasztott bejegyzésből egy 12–20 szavas részlet az **eredeti szövegből** (nem az összefoglalóból), a szöveg elejéről, közepéről vagy végéről. Modellhívás nincs. A készlet harmada félretett: hangoláshoz nem használható.
+2. **Futás (bármikor megismételhető):** minden szondára a valódi `searchThoughts` fut, ahogy az agent kapja. Eredmény: Találat@1, @3, @10, Wilson-intervallummal, bontva forrás, hossz, a részlet helye és a bejegyzés kora szerint.
+3. **Kimenet:** összesítő tábla a kimeneten, és egy pillanatfelvétel a `state/` alatt a kihagyott szondák azonosítóival, hogy egy session utána tudjon nézni (`get_thought`).
+
+**Jóslat.**
+- A rövid és közepes bejegyzéseknél a Találat@10 95% fölött lesz, mert a kérdés a saját szavaikat használja.
+- Alacsonyabb lesz a hosszú bejegyzések végéről vett részleteknél és a 90 napnál régebbi bejegyzéseknél. Ha a régieknél látványos az esés, az az időcsillapítás hatása, és ez lesz az 5. munka (szál-entitás és időcsillapítás) kiinduló száma.
+- Ugyanazon a napon két futás ugyanazt a találatszámot adja. Napok múlva a szám kissé elmozdulhat, mert az időcsillapítás a futás idejétől függ, és a tár nő.
+- Nem tudom: a tényleges számokat; azt, hogy a 12–20 szavas kérdésnél a kulcsszavas vagy a jelentés alapú láb dönt-e; a futásidőt (várhatóan egy-két perc 150 szondára).
+
+**Amit ez a próba nem mér.** A szó szerinti részlet a kulcsszavas egyezést jutalmazza: ez alsó küszöb („megtalálható-e minden rész a saját szavaival”), nem a valódi kérdések mérése. A `map` és a `spider` csomagját nem méri. Mindkettőhöz úgy megfogalmazott kérdés kell, ahogy egy ember kérdezne; az a 4. szelet.
+
+**Varrat.** Helyben az `npm test`: a mintavétel (mag, rétegzés, a részlet az eredeti szövegből való), a pontozás és a Wilson-intervallum tiszta függvények, kitalált adaton. A szerveren: a script kimenete, és két egymás utáni futás egyezése.
+
+**Szeletek.**
+- [x] **1. Tiszta modul és próbák, helyben.** `server/recall-probes.js`: mintavétel, részletvágás, pontozás, Wilson-intervallum; Qdrant és hálózat nélkül. `tests/recall-probes.test.mjs`. **Kész:** 12 új próba, először pirosan futottak; az `npm test` 29 próbája zöld. Ha egy részlet más bejegyzésben is szó szerint megvan, az is helyes találatnak számít.
+- [x] **2. A script.** `scripts/recall-probe.js`: `--build` elkészíti és befagyasztja a készletet (meglévőt csak `--force` ír felül); kapcsoló nélkül fut és mér. A tárból csak olvas. **Kész, de az éles tárral még nem futott.** Helyben álmodulokkal és 240 kitalált bejegyzéssel futtattam végig: készlet nélkül hibaüzenetet ad; a `--build` 150 szondát fagyaszt be, ebből 50 félretett; a második `--build`-et elutasítja; a futás táblát ír és pillanatfelvételt ment, kérdésszöveg nélkül; két futás ugyanazt a számot adja. Hogy a valódi `searchThoughts`-szal és a Qdranttal működik-e, az a szerveren derül ki.
+- [ ] **3. Kiinduló mérés a szerveren.** Deploy kell hozzá (a 0.78.1 sincs még kint), Robi go-jával, ssh-parancsonként. Utána: készlet, első futás, második futás az egyezéshez. Az összesített számok ide kerülnek.
+- [ ] **4. Kérdésszerű szondák (külön go, a kiinduló mérés után).** Egy session nagyjából 30 friss bejegyzéshez (utolsó 8 hét) kérdést ír úgy, ahogy Robi kérdezné, a cím idézése nélkül; ezek a készlet második fajtája. Ezzel lesz mérhető a `map` és a `spider` csomagja is. Modellköltség a sessioné, a szerveren nincs modellhívás.
+- [ ] **5. Lezárás:** egy sor az `AGENTS.md`-be a futtatásról, CHANGELOG, javasolt verzió: patch. **Az `AGENTS.md` sora, a CHANGELOG-bejegyzés és a 0.78.2 kész; a szelet a kiinduló mérés számaival zárul.**
+
+**Nyitott kérdések Robinak, a javaslatommal.**
+1. **Mekkora legyen a készlet?** Javaslat: 150 szonda (ebből 50 félretett). 90% körüli aránynál ez nagyjából ±5 százalékpontos bizonytalanság; 300 szondával ±3,5, kétszer annyi embedding-hívásért.
+2. **Mit mérjen az első változat?** Javaslat: csak a `search`-öt, szó szerinti részletekkel. A `map` és a `spider` a 4. szelettel jön, mert azokhoz horgony kell a kérdésben.
+3. **Legyen-e belőle cron?** Javaslat: nem. Kézzel indított futás változtatás előtt és után; cron csak akkor, ha a szám hasznosnak bizonyul.
+
+**Átnézés:** a szabály szerint nem kell (nincs új réteg, séma-, auth- vagy függőségváltozás; a deploy a szokásos).
 
 ## AGENTS.md-méretkapu — terv
 
