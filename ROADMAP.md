@@ -2,6 +2,20 @@
 
 > A `docs/` mappa 2026-11-22-én a projekt Drive-mappájába költözött: `~/GoogleDrive/Data/CustomBrain/`. Ahol ez a fájl `docs/<név>`-et vagy csak egy fájlnevet említ, a dokumentum ott van, ugyanazon a néven. Az archív az `archive/`, a rebuild-riportok a `rebuild/` almappában vannak.
 
+## SORREND 2026-11-23 (Robi) — alapozás előre
+
+A szemantikai modell 12 döntéséből hét munka lett. A döntések a modell 11. fejezetében vannak (`customBrain - a rendszer szemantikai modellje 2026-11-23 (tervezet).md`), a munkák állapota a `tasks/todo.md` elején. Építés egyszerre egy megy; mindegyik saját tervet kap, és Robi jóváhagyása után indul.
+
+1. Doksijavítás (`AGENTS.md`, `DEPLOYMENT.md`)
+2. Három magától futó ellenőrzés: publikus repó, collection-lista, két MCP-regisztráció
+3. Mérőpróba: automatikus felidézés-próba (az AUTORESEARCH mérőkerete)
+4. Vizuális anyagok, szűk hatókörrel (`vizualis-anyagok-terv-2026-10-16.md`)
+5. Szál-entitás és időcsillapítás (sémaváltozás)
+6. Ellentmondás-kör (a befogadás automatikus archiválását váltja)
+7. Átnevezés: gondolat / thought → bejegyzés / entry
+
+A 4–7. építés előtt átnézésre megy (Codex és Chief Architect). A modell elfogadása után: generált kódleltár.
+
 ## SPEC 2026-10-10 — Ontológia és helyzetcsomag
 
 Specifikáció (`ontologia-es-helyzetcsomag-spec-2026-10-10.md`). Mérce: egy keresés válaszából derüljön ki, **mi a helyzet, mi történt előtte, és minek kellene következnie** fontosság és sürgősség szerint. A válasz strukturált csomag (HORGONYOK · HELYZET · ELŐZMÉNYEK · KÖVETKEZŐ · HÁTTÉR · HIÁNYOK · TOVÁBB), nem összekevert lista.

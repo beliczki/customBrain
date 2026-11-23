@@ -1,6 +1,49 @@
+# Döntések 2026-11-23 — a szemantikai modell 12 kérdése, és a belőlük lett hét munka
+
+**Állapot:** a döntések megvannak (Robi, 2026-11-23, ebben a sessionben). Az 1. munka kész, commitolva és pusholva (2026-11-23, Robi go-jával). A többi munkának még nincs terve.
+**Hol vannak a döntések:** a projekt Drive-mappájában, `customBrain - a rendszer szemantikai modellje 2026-11-23 (tervezet).md`, 11. fejezet. A modell egészét Robi még nem hagyta jóvá.
+
+## A döntések röviden
+
+1. A 7. elv: a customBrain minta, közös kód nélkül. Közös könyvtár és profilrendszer csak akkor épül, ha két példánynak ugyanaz kell.
+2. A „customBrain” a példány, a kisbetűs „brain” köznév. Terméknév nincs.
+3. A heurisztika végleges helye a dosszié; `Synthesis:` bejegyzésként érkezhet.
+4. Az ellentmondás-kört megépítjük.
+5. A „gondolat / thought” új neve „bejegyzés / entry”, a kódban is.
+6. Szál-entitás és időcsillapítás: terv most, átnézéssel.
+7. Vizuális anyagok: igen, szűken (először 2–3 deck kézzel, utána csak a projekthez rendelt fájlok).
+8. Mérés: kicsi, ismételhető automatikus felidézés-próba.
+9. Magától futó ellenőrzést kap a publikus repó, a collection-lista és a két MCP-regisztráció szabálya.
+10. A session-riport a session-naplók hivatalos formája (lásd lent a 7. pontot).
+11. Kódleltár: igen, a modell elfogadása után.
+12. Az `AGENTS.md` és a `DEPLOYMENT.md` elavult sorai javítva.
+
+A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; a szó maradjon; előbb mérés).
+
+## A hét munka, Robi sorrendjében („alapozás előre”)
+
+Építés egyszerre egy megy. Mindegyik munka saját tervet kap ebben a fájlban (érint, ajtó, jóslat, varrat, szeletek), és Robi jóváhagyása után indul. A 4–7. munka építés előtt átnézésre megy (Codex és Chief Architect).
+
+- [x] **1. Doksijavítás.** Ajtó: kétirányú, csak dokumentum. Kész, commitolva és pusholva 2026-11-23-án, Robi go-jával.
+  - `AGENTS.md`: a befogadás ellentmondás-ellenőrzése a kód szerint (0,97-es küszöb, külön Haiku-hívás); a „via SA” kikerült, mert service account 0.39.0 óta nincs; a tükör különbség alapú 0.40.0 óta; a szemantikai modell új fájljára mutat, és kimondja az új szót.
+  - `DEPLOYMENT.md`: a két elavult telepítési megjegyzés a Settings fülre mutat.
+- [ ] **2. Három ellenőrzés:** publikus repó (commit előtt: IP, ssh-adat, szerverútvonal), collection-lista (minden collection a mentés listáján vagy kimondott kivétel), két MCP-regisztráció (`mcp.js` és `mcp-stdio.js` ugyanazokat az eszközöket tartalmazza). A repóban ma nincs tesztfuttató és nincs git hook; a terv ezzel kezdődik.
+- [ ] **3. Mérőpróba:** automatikus felidézés-próba. Kiindulás: a lenti 3. pont „A” rétege (automatikus recall-szondák, emberi gold nélkül).
+- [ ] **4. Vizuális anyagok, szűken.** A terv a Drive-mappában van (`vizualis-anyagok-terv-2026-10-16.md`). A verziósora elavult: 0.77.0 → 0.78.0-t ír, a kód már 0.78.0.
+- [ ] **5. Szál-entitás és időcsillapítás.** A javaslat csak a 2026-11-11-i session-riportban áll; terv nincs leírva.
+- [ ] **6. Ellentmondás-kör.** A befogadás ma kérdés nélkül archivál (`server/routes/capture.js`); a kör ezt váltja.
+- [ ] **7. Átnevezés: thought → entry.** A terv mondja ki az ajtókat: az eszköznevek minden csatlakozó agentet érintenek; a collection és a payload-mezők átnevezése adatmigráció, egyirányú.
+
+## Amit közben találtam, és nem javítottam
+
+- `server/routes/capture.js` 80. sor: a komment még 0,85-ös alapértéket ír; a kód 0,97.
+- A `capture_thought` MCP-eszköz `conflict_threshold` paraméterének leírása is 0,85-öt mond. Kódváltozás lenne, két regisztrációban; a 2. vagy a 6. munkával érdemes javítani.
+
+---
+
 # Terv 2026-11-22 — a dokumentumok költöztetése a projekt Drive-mappájába
 
-**Állapot:** mindkét szelet kész (2026-11-22), helyben commitolva. **A push Robi külön go-jára vár;** a brain indexe csak a push utáni napi futáskor változik. A lezárás a „Review” szakaszban van.
+**Állapot:** mindkét szelet kész, commitolva és pusholva (2026-11-22, `fc90168` és `b2f11ec`). A varrat „utána” fele 2026-11-23-án megvan. A lezárás a „Review” szakaszban van.
 **Kérte:** Robi (2026-11-22): a dokumentumok a `~/GoogleDrive/Data/CustomBrain/` mappába kerüljenek. Ez felülírja a lenti szabályfájl-terv D1 pontját.
 
 ## Ami kész (1. szelet)
@@ -41,7 +84,7 @@
 
 **A jóslat és az eredmény.**
 - Futásidejű olvasás: nincs, a kód csak kommentben említi a `docs/`-ot. Az első keresésem hibás mintával futott és üres eredményt adott; a költöztetés előtt megismételtem, és soronként átnéztem.
-- A varrat „előtte” fele megvan: a `search` a `bejaras-modszerek-terv` címére `repo_doc` találatot adott, `bm25_exact` címkével. **Az „utána” fele még hátravan:** a pontok csak a push utáni napi futáskor törlődnek. Akkor kell megnézni a futás riportját és ugyanazt a keresést.
+- A varrat „előtte” fele megvan: a `search` a `bejaras-modszerek-terv` címére `repo_doc` találatot adott, `bm25_exact` címkével. **Az „utána” fele (2026-11-23):** az egyszeri ütemezett ellenőrzés 08:07-kor lefutott; az összefoglalója szerint egyetlen keresés sem adott `customBrain/docs/` találatot. 10:59-kor magam is lekértem az „előtte” talált pontot: „nem található”. Ellenpróba: ugyanaznap egy keresés még hozott customBrain `repo_doc` találatot, tehát a repó többi dokumentuma megmaradt. A napi futás riportját a szerveren nem néztem meg, ezért a törölt pontok számát nem ismerem.
 
 **Amit a terv nem látott előre.**
 - **Egy mappát véletlenül létrehoztam.** A szemantikai tervezetet a `Data/Beliczki.hu/CustomBrain` útvonalra írtam, egy perccel azután, hogy Robi a mappát áttette a `Data` alá. Az írás az üres útvonalon új mappát hozott létre. Ezt néztem „régi mappának”, és ezért állítottam tévesen, hogy a dosszié a régi helyre mutat. A Drive-on át derült ki: a két mappának más az azonosítója és a létrehozási ideje.
@@ -49,8 +92,8 @@
 - **A `scripts/rebuild-documents.mjs` kimenete** alapból a `docs/rebuild/` mappa. Ha újra fut, a riportok megint a repóba kerülnek. Kódváltozás lenne, nem nyúltam hozzá.
 
 **Nyitva maradt.**
-- A push, és utána a varrat „utána” fele.
-- A fájlkatalógus 2026-10-10-i; amíg nem épül újra a szerveren, a `find_files` és a `map` nem látja az új dokumentumokat.
+- ~~A push, és utána a varrat „utána” fele.~~ Kész: push 2026-11-22, a varrat 2026-11-23 (lásd fent).
+- ~~A fájlkatalógus 2026-10-10-i.~~ Újraépítve a szerveren 2026-11-22 este, Robi go-jával: 4209 rekord (előtte 3355), a customBrain projekthez 39 fájl (előtte 2). A régi katalógus másolata a szerveren maradt.
 - A brain nem olvassa a Drive-dokumentumok tartalmát. Ez új fejlesztés; a 15 terv és spec addig nem kereshető a brainben.
 - A dosszié `drive_folder:` sorának elavult megjegyzése.
 
@@ -226,8 +269,9 @@ Két javítás jöhet szóba:
 - [x] Levelenként csak az új tartalom marad (vágás az első válasz-fejlécnél; a továbbított és inline válaszos levelek egészben maradnak), a linkeket a kód tisztítja, a To/Cc listák törlődnek. 8 éles szálon a szemét kb. 52–61%-ról kb. 2%-ra esett.
 - [x] **DÖNTÖTT 2026-10-10 (Robi): nincs újrahúzás** — csak szemetelne; az utolsó ~2 hónap levelei elegendők, és előre nézve az új tisztító fut. Eredeti kérdés: a meglévő ~109 Gmail-szál újrahúzása az új tisztítóval. Ma a régiek Haiku-átírt, rövidített szöveget hordoznak. Költség: Haiku-osztályozás + embedding + Sonnet reprocess szálanként.
 
-## 7. Repo- és agent-session-logok a brainbe (Robi kérése, 2026-10-09) — TERV, nem kezdve
+## 7. Repo- és agent-session-logok a brainbe (Robi kérése, 2026-10-09) — az (a) rész kész, a többi lásd a döntést
 Cél: mit csinált az agent, miről beszélgettünk, mit mondott, milyen roadmap-task született — Claude Code és Codex sessionökből is —, és mindez a brain-ontológiában legyen (repo → session → task → döntés).
+**Döntés (Robi, 2026-11-23):** a session-riport a session-naplók hivatalos formája, az (a) rész ezzel kész. Az ontológia-rész (a lenti második jelölőnégyzet) a séma-szerződéshez (5a) tartozik. A (b), a nyers transcriptek betöltése elmarad, vele az első és a harmadik jelölőnégyzet is. A (c), a git-idővonal nincs eldöntve.
 - **Visszakérdezés (globális szabály: új capture-út):** mi a legolcsóbb, ami a 80%-ot hozza?
   - (a) Session-végi összefoglaló: egy Claude Code `SessionEnd`/`Stop` hook vagy szokás, ami `capture_thought`-tal elmenti, mit csinált a session. Új tárolás nem kell.
   - (b) A nyers transcriptek (`~/.claude/projects/*/…jsonl`, Codex sessionök) teljes betöltése. Nagy, zajos, és titkokat is tartalmazhat.

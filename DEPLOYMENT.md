@@ -42,5 +42,5 @@ One-time setup on the server:
 ## Setup notes
 
 - **Claude Desktop MCP config** — only supports `command`+`args` (stdio), not SSE/HTTP directly. Use `npx mcp-remote https://brain.beliczki.hu/mcp/http` as the command to bridge stdio↔Hetzner.
-- **OAuth2 scope expansion** — when adding Google API scopes, must re-run `server/get-drive-token.js` and update the refresh token in `.env` on all environments (local + Hetzner).
-- **`.env.example` is incomplete** — it only lists base vars. OAuth2 vars (`GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`) required by agent tools and Drive writes are not listed.
+- **OAuth2 scope expansion** — when adding Google API scopes, re-run `server/get-drive-token.js` and paste the new refresh token into Settings → Google Drive. It is stored in `state/settings.json`; since 0.23.0 `.env` holds only `UI_SECRET`.
+- **`.env.example` lists only `UI_SECRET`, on purpose** — every other value (API keys, the Google OAuth2 client and refresh token, Fireflies, Gmail labels, Qdrant URL, port) is set in the Settings tab.
