@@ -4,7 +4,7 @@
 # Checks the staged version, so a pathspec commit is gated too.
 git diff --cached --name-only | grep -qx 'AGENTS.md' || exit 0
 size=$(git show :AGENTS.md | wc -c | tr -d ' ')
-if [ "$size" -gt 28000 ]; then
-  echo "pre-commit: AGENTS.md is $size bytes, limit 28000. Trim it (see the Size line at the top)." >&2
+if [ "$size" -gt 26000 ]; then
+  echo "pre-commit: AGENTS.md is $size bytes, limit 26000. Trim it (see the Size line at the top)." >&2
   exit 1
 fi

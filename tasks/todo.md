@@ -82,7 +82,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 
 ## AGENTS.md-méretkapu — terv
 
-**Állapot:** Robi az (a) lehetőséget választotta (2026-11-23: „Kapu most”). Az 1. szelet kész, commitolva és pusholva (2026-11-23, Robi go-jával). A vágás (2. szelet) a következő.
+**Állapot:** Robi az (a) lehetőséget választotta (2026-11-23: „Kapu most”). Az 1. szelet kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 2. és a 3. szelet is kész, commitolva és pusholva (2026-11-23, Robi go-jával). A 4. szelet a 2. munkával jön.
 **Kérte:** a Learning session (2026-11-23), Robi nevében; szerinte Robi azt mondta: „Igen, szólj nekik”. A go-t Robi ebben a sessionben adta.
 
 **Miért.** A Learning session és a bizi-repó hookja szerint a Codex a projekt `AGENTS.md`-jét 32 768 bájtig olvassa, a többit csendben levágja. A határt magam nem ellenőriztem; a helyi Codex-beállításban nincs felülírva.
@@ -107,8 +107,8 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 - [x] **1. A kapu.** `.githooks/pre-commit` a bizi mintájára, 28 000 bájtos küszöbbel; ebben a klónban a `core.hooksPath` a `.githooks` mappára mutat. Az `AGENTS.md` elején egy „Size” sor mondja ki a szabályt; ezzel a fájl 27 784 bájt, a küszöbig 216 bájt maradt.
   - **Próba (2026-11-23, eldobható klónban, a közös munkafán kívül), négy eset, mind a jóslat szerint:** a mai fájl commitja átmegy; 28 384 bájtnál a commit megáll; `AGENTS.md` nélküli commit átmegy akkor is, ha a munkafában a fájl túl nagy; a pathspec-commit ugyanúgy megáll.
   - **Következmény:** a 216 bájt gyakorlatilag azt jelenti, hogy az `AGENTS.md`-be a vágásig nem fér új szabály. A 2. szeletnek ezért a 2. munka lezárása előtt kell megtörténnie.
-- [ ] **2. A vágás.** Tételes javaslat diffként, Robi jóváhagyására: minden kivett mondat mellett ott áll, hol él tovább a tény (a kódban, a CHANGELOG-ban vagy a szemantikai modellben). Szabály nem vész el. Jelöltek: az „MCP tools” szakasz verziótörténete és leltár jellegű sorai; a ma hosszabbra írt „Meaning before code” és „Capture pipeline” sorok tömörítése.
-- [ ] **3. A küszöb 26 000-re,** amikor a vágás kint van.
+- [x] **2. A vágás.** **Alkalmazva 2026-11-23-án, Robi jóváhagyásával: 27 784 → 24 761 bájt.** A „Deploy” szakasz bájtra azonos maradt, és 22 kulcsszabály szövegét egyenként visszakerestem az új fájlban. A vágás közben hat állítást a kódhoz igazítottam: a collection neve, az MCP állapot nélküli kezelője, a kész spider, a félrevezető token-script sor, a bump-példák számai és a Qdrant indítása. Az eredeti terv: tételes javaslat diffként, Robi jóváhagyására: minden kivett mondat mellett ott áll, hol él tovább a tény (a kódban, a CHANGELOG-ban vagy a szemantikai modellben). Szabály nem vész el. Jelöltek: az „MCP tools” szakasz verziótörténete és leltár jellegű sorai; a ma hosszabbra írt „Meaning before code” és „Capture pipeline” sorok tömörítése.
+- [x] **3. A küszöb 26 000-re** (2026-11-23): a hookban és a „Size” sorban, a vágással egy változtatásban. A hook a vágott fájlt (24 761 bájt) átengedi; a küszöbig 1 239 bájt maradt.
 - [ ] **4. Második háló a 2. munkában:** ugyanez a mérés az `npm test`-ben is, mert a hook klónonként kapcsolódik be, a teszt mindenhol fut. A biziben ezt az `npm run lint` végzi.
 
 **Jóslat.** Az 1. szelet után egy `AGENTS.md`-t növelő commit 28 000 bájt fölött megáll; minden más commit változatlanul megy. A 2. szelet után a fájl 26 000 bájt alatt van, és ugyanazokat a szabályokat tartalmazza. Nem tudom: mennyi vágható ki úgy, hogy szabály ne vesszen el; ezt a tételes javaslat mutatja meg.
@@ -118,6 +118,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 ## Amit közben találtam, és nem javítottam
 
 - `server/routes/capture.js` 80. sor: a komment még 0,85-ös alapértéket ír; a kód 0,97.
+- A `scripts/contradiction-probe.js` fejléce szintén 0,85-ös befogadási küszöböt említ.
 - A `capture_thought` MCP-eszköz `conflict_threshold` paraméterének leírása is 0,85-öt mond. Kódváltozás lenne, két regisztrációban; a 2. vagy a 6. munkával érdemes javítani.
 
 ---
@@ -126,7 +127,7 @@ A 4., az 5. és a 6. döntésnél Robi eltért a javaslatomtól (előbb próba; 
 
 **Állapot:** a felmérés kész, az igények átadva az MM6 státusz-sessionnek. A repó-oldali lépések Robi jóváhagyására várnak. Semmi nincs telepítve, pm2-höz és crontabhoz nem nyúltam, deploy nem volt.
 **Kérte:** a Head of Dev session (2026-11-23, két üzenetben), a Head of Security aznapi, csak olvasó szondája alapján. Ezek másik session jelzései, nem Robi go-ja. A boxon futtatott két olvasó parancsot Robi hagyta jóvá ebben a sessionben.
-**Hatókör:** a Head of Dev második üzenete szerint Robi úgy döntött, hogy a Node cseréjét az app-sessionök hajtják végre, és a Box B-n a messagingmatrix6 státusz-session kapta a feladatot, egy közös lépésben az öt appra. Ezt a döntést nem én olvastam, a Head of Dev közölte. A terv ezért a customBrain oldalára szűkül: mit igényel az app, mit kell a csere után ellenőrizni rajta, és mi változzon a repóban. **A Box B tervezett újraindítása előtt innen nem megy deploy és pm2-lépés.**
+**Hatókör:** a Head of Dev második üzenete szerint Robi úgy döntött, hogy a Node cseréjét az app-sessionök hajtják végre, és a Box B-n a messagingmatrix6 státusz-session kapta a feladatot, egy közös lépésben az öt appra. Ezt a döntést nem én olvastam, a Head of Dev közölte. A terv ezért a customBrain oldalára szűkül: mit igényel az app, mit kell a csere után ellenőrizni rajta, és mi változzon a repóban. A Box B tervezett újraindítása előtt innen nem ment deploy és pm2-lépés. A Head of Dev 2026-11-23-i harmadik üzenete szerint az újraindítás megtörtént (11:21 UTC), ezért ez a kérés megszűnt; a boxon továbbra is minden csak Robi go-jára változik.
 **Miért:** a customBraint futtató gép (Box B) rendszer-Node-ja 20.20.2. A 20-as ág támogatása 2026-04-30-án lejárt, a 24-esé 2028-04-30-ig tart (a SecAudit 2026-09-06-i terve szerint, amely a nodejs.org-ra hivatkozik). A szonda szerint a többi gép appjai 24.22.3-on futnak.
 
 ## Források
